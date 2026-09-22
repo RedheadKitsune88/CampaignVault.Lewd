@@ -1,7 +1,22 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
 name: hood
 system: dnd5e
-category: bondage_equipment
+category: Clothing
+tags: [lewd, bondage]
 description: >
-  Sensory hood covering head. Sites: head/eyes/mouth. May seed blinded sensory and/or gagged depending on cutouts.
-seedsConditions: [blinded, gagged]
-sites: [head, eyes, mouth]
+  A close leather or padded-cloth hood laced under the chin, covering eyes and often the mouth
+  with an inner bit or flap. Sight and clear speech fail while fastened; verbal spell components
+  are blocked. Used in interrogation cells, cult rites, and private chambers of certain nobles.
+properties:
+  lewdCategory: bondage_equipment
+  sites: [head, eyes, mouth]
+  materials: [leather, linen]
+  seedsConditions: [blinded, gagged]
+  implies: [blinded, gagged]
+  effects: [no_sight, no_clear_speech, no_verbal_spellcasting, muffled_hearing]
+  posture: hooded
+  escapeDc: 18
+  breakDc: 18
+  hitPoints: 12
+  costGp: 8
+  weight: 2

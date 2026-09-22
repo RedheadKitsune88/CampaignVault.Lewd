@@ -30,9 +30,78 @@ Restraint is **structured State**, not prose. There is **no** keyword scanner th
 | Key | Role |
 |-----|------|
 | `bindings` | Array of bind entries (source of truth) |
-| `posture` | Coarse pose (`prone`, `kneeling`, `suspended`, `spread`, …) — does not replace bindings |
+| `posture` | Coarse whole-body pose (`standing`, `kneeling`, `prone`, `suspended`, `all_fours_crawl`, …) |
+| `arm_position` | Derived from wrist/arm binds: `free` \| `front` \| `behind` \| `above` \| `together` \| `crossed` \| `folded` |
+| `leg_position` | Derived from ankle/leg binds: `free` \| `front` \| `behind` \| `apart` \| `together` \| `crossed` \| `folded` |
+| `binding_implies` | Aggregated condition tokens |
+| `binding_effects` | Aggregated effect tags |
 
 Prefer engine `StatusEffects` for handbook bound conditions (`cuffed`, `hobbled`, `encased`, …) derived from `implies`. See `lewd-catalog`.
+
+
+## Limb positions (arms & legs)
+
+Cuffs and rope do **not** imply a pose by themselves. Always set `orientation` on `lewd_bind` (or Item `properties.orientation`).
+
+| Orientation | Typical sites | State update | Narration / casting |
+|-------------|---------------|--------------|---------------------|
+| `behind` | `wrists`, `arms` | `arm_position=behind` | Hands at the back; no fine manipulation; stamps `no_somatic_spellcasting` |
+| `front` | `wrists`, `arms` | `arm_position=front` | Hands before the body; can still see/use limited gestures; still `cuffed` |
+| `above` | `wrists`, `arms` | `arm_position=above` | Arms raised / overhead; hands useless for tools |
+| `together` | wrists or ankles | matching limb `together` | Limbs bound to each other |
+| `apart` | `ankles` (+ spreader) | `leg_position=apart` | Forced open stance / hobble-spread |
+| `crossed` | wrists or ankles | matching limb `crossed` | Crossed and locked |
+| `folded` | suit / encasement | arms/legs `folded` | Crawl-suit / tar wrap limb tuck |
+| `free` | (no bind) | default on enter / after unbind | Limb free |
+
+**Examples**
+
+Wrists behind the back:
+
+```json
+{
+  "$type": "lewd_bind",
+  "actorId": "chars/alice",
+  "targetId": "chars/bob",
+  "kind": "cuffs",
+  "sites": ["wrists"],
+  "orientation": "behind",
+  "implies": ["cuffed"],
+  "itemId": "leather_cuffs"
+}
+```
+
+→ `State.arm_position = "behind"`, effects gain `arms_rear_bound` / `no_hand_use` / `no_somatic_spellcasting`.
+
+Wrists in front (marching cuffs):
+
+```json
+{
+  "$type": "lewd_bind",
+  "sites": ["wrists"],
+  "orientation": "front",
+  "implies": ["cuffed"],
+  "itemId": "leather_cuffs"
+}
+```
+
+→ `State.arm_position = "front"` (still cuffed; somatic may be awkward — narrate disadvantage; engine does **not** auto-block S unless you also imply `mitted` / add effect).
+
+Ankles spread:
+
+```json
+{
+  "$type": "lewd_bind",
+  "sites": ["ankles"],
+  "orientation": "apart",
+  "implies": ["cuffed", "hobbled"],
+  "itemId": "spreader_bar"
+}
+```
+
+→ `State.leg_position = "apart"`.
+
+**Tracking discipline:** before narrating “hands behind their back” or “ankles locked apart”, read `arm_position` / `leg_position`. If State says `front`, do not invent behind. Change pose with a new `lewd_bind` (or unbind + rebind) — never by prose alone.
 
 ## Bind entry schema
 
@@ -55,12 +124,12 @@ Prefer engine `StatusEffects` for handbook bound conditions (`cuffed`, `hobbled`
 |-------|---------|
 | `kind` | `cuffs`, `rope`, `gag`, `hood`, `blindfold`, `mitts`, `hobble`, `harness`, `suit`, `collar`, `leash`, `web`, … |
 | `sites` | Body sites: `wrists`, `ankles`, `thighs`, `arms`, `legs`, `mouth`, `eyes`, `head`, `torso`, `whole`, … |
-| `orientation` | `front`, `behind`, `above`, `hogtie`, … |
+| `orientation` | **Required for cuffs/ties.** Arms/legs: `front` \| `behind` \| `above` \| `together` \| `apart` \| `crossed` \| `folded` \| `hogtie`. Engine mirrors into `arm_position` / `leg_position`. |
 | `links` | Anchors / partners: `anchor:…`, `to:chars/…`, `to:bind_02` |
 | `implies` | Condition tokens handlers/LLM must honor: `cuffed`, `hobbled`, `encased`, `gagged`, `mitted`, `blinded`, `deafened`, `suspended`, `leashed`, `full_tied`, `limb_bound` |
-| `materials` | `rope`, `leather`, `iron`, `silk`, `latex`, … |
+| `materials` | `hemp`, `leather`, `iron`, `silk`, `linen`, `tar`, … |
 | `hardened` | Magical / masterwork — harder escape; `word_of_safety` may not clear |
-| `effects` | Escape/break DCs, HP, leash length, sensory flags |
+| `effects` | Freeform constraint tags from gear (`forced_crawl`, `bent_knees_elbows`, `forced_spread`, …) plus escape/break/HP when set on the commit |
 | `itemId` | Gear that seeded defaults |
 
 ### `lewd_bind` example
@@ -95,6 +164,23 @@ Or match `sites` / `kind` / `itemId` when id unknown. After unbind, drop StatusE
 ## Suit / gear seeding
 
 When `itemId` references a suit or restraint ItemDefinition, seed missing fields from item Properties (e.g. `bindingDefaults`, `implies`, `sites`, `materials`). Do not invent encasement if the item only implies `hobbled`.
+
+
+## ItemDefinition → bind seeding
+
+When `lewd_bind.itemId` points at a live Item (or template name like `bitchsuit`), Properties seed the graph:
+
+| Property | Becomes |
+|----------|---------|
+| `implies` / `seedsConditions` | `bindings[].implies` |
+| `sites` | `bindings[].sites` |
+| `effects` | `bindings[].effects` (e.g. bitchsuit → `forced_crawl`, `bent_knees_elbows`, `all_fours`) |
+| `posture` | participant `State.posture` if the commit omits `posture` |
+| `materials` / DCs / hp | binding materials + escape/break/hp |
+
+**Narrate from State.** Example: bitchsuit bound → posture `all_fours_crawl` + effects include `forced_crawl` → character crawls on bent knees and elbows; do not narrate upright walking until unbound / effects cleared.
+
+**Spellcasting:** gags/hoods that imply `gagged` (or effects `no_verbal_spellcasting`) stamp StatusEffect `gagged` with `BlocksVerbalComponents` — host casting gate hard-fails V spells. Armbinders / mitts / crawl-suits that block hands stamp `BlocksSomaticComponents`. Prefer Faerûn materials in gear prose (leather, iron, hemp, silk, pitch) — avoid modern latex/nylon/zippers.
 
 ## Limb freedom (enforce in narration)
 

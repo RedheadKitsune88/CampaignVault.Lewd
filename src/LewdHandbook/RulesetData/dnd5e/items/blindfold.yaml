@@ -1,8 +1,22 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
 name: blindfold
 system: dnd5e
-category: bondage_equipment
+category: Other
+tags: [lewd, bondage]
 description: >
-  Blindfold. Implies blinded sensory deprivation for vision (treat as blinded while worn for nonmagical sight).
-Does not by itself apply full Bound Conditions list entries beyond sensory block.
-seedsConditions: [blinded]
-sensory: vision_blocked
+  A thick strip of black silk or soft leather bound over the eyes and knotted behind the head.
+  Blocks ordinary sight while worn (treat as blinded for nonmagical vision). Favored by
+  temple initiates, street kidnappers, and careful lovers alike.
+properties:
+  lewdCategory: bondage_equipment
+  sites: [eyes]
+  materials: [silk, leather]
+  seedsConditions: [blinded]
+  implies: [blinded]
+  effects: [no_sight, sensory_focus]
+  posture: blindfolded
+  escapeDc: 12
+  breakDc: 10
+  hitPoints: 5
+  costGp: 1
+  weight: 0.1

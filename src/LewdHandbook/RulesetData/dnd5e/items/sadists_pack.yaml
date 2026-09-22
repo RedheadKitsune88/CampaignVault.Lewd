@@ -1,6 +1,11 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
 name: sadists_pack
 system: dnd5e
-category: pack
+category: Container
+tags: [lewd, pack]
 description: >
-  Sadist's Pack — impact and sensation toys (paddle/flogger stubs, clamps, wax stub). Starting option for Experienced Kinkster.
-  Catalog stub for LLM/loadout; expand contents at table as needed. (Lewd Handbook sexual-history starting packs.)
+  Sadist's Pack — impact and sensation toys (paddle/flogger stubs, clamps, wax stub).
+  Starting option for Experienced Kinkster. Catalog stub for LLM/loadout; expand contents
+  at table as needed. (Lewd Handbook sexual-history starting packs.)
+properties:
+  lewdCategory: pack

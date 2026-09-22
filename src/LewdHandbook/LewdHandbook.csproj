@@ -16,7 +16,7 @@
 
   <ItemGroup>
     <!-- Compile against Sdk; do not copy CampaignVault.PluginSdk.dll into the plugin drop. -->
-    <PackageReference Include="CampaignVault.PluginSdk" Version="0.1.1">
+    <PackageReference Include="CampaignVault.PluginSdk" Version="0.1.2">
       <ExcludeAssets>runtime</ExcludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>

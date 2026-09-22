@@ -68,6 +68,99 @@ internal static class BindingGraph
         return set;
     }
 
+    public static HashSet<string> CollectEffects(ModeParticipantState participant)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var b in GetBindings(participant))
+        {
+            foreach (var e in b.Effects)
+            {
+                if (!string.IsNullOrWhiteSpace(e))
+                    set.Add(e.Trim());
+            }
+        }
+
+        return set;
+    }
+
+
+    private static readonly HashSet<string> ArmSites = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "wrists", "wrist", "arms", "arm", "hands", "hand", "elbows", "elbow", "forearms", "forearm",
+    };
+
+    private static readonly HashSet<string> LegSites = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "ankles", "ankle", "legs", "leg", "feet", "foot", "knees", "knee", "thighs", "thigh", "calves", "calf",
+    };
+
+    public static bool TouchesArmSites(IEnumerable<string>? sites) =>
+        sites is not null && sites.Any(s => !string.IsNullOrWhiteSpace(s) && ArmSites.Contains(s.Trim()));
+
+    public static bool TouchesLegSites(IEnumerable<string>? sites) =>
+        sites is not null && sites.Any(s => !string.IsNullOrWhiteSpace(s) && LegSites.Contains(s.Trim()));
+
+    /// <summary>
+    /// Normalize orientation tokens for cuffs/ties: front|behind|above|together|apart|crossed|folded|hogtie.
+    /// </summary>
+    public static string NormalizeOrientation(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return "free";
+        var o = raw.Trim().ToLowerInvariant().Replace('-', '_').Replace(' ', '_');
+        return o switch
+        {
+            "in_front" or "infront" or "forward" or "front" => "front",
+            "behind" or "back" or "rear" or "behind_back" or "behind_the_back" => "behind",
+            "above" or "overhead" or "over_head" or "raised" or "up" => "above",
+            "together" or "joined" or "bound_together" => "together",
+            "apart" or "spread" or "forced_spread" => "apart",
+            "crossed" or "cross" => "crossed",
+            "folded" or "bent" => "folded",
+            "hogtie" or "hog_tied" or "hog-tied" => "hogtie",
+            "free" or "none" or "unbound" => "free",
+            _ => o,
+        };
+    }
+
+    /// <summary>
+    /// Recompute participant arm_position / leg_position from structured bindings (last matching bind wins).
+    /// </summary>
+    public static void RefreshLimbPositions(ModeParticipantState participant)
+    {
+        string? arms = null;
+        string? legs = null;
+        foreach (var b in GetBindings(participant))
+        {
+            if (string.IsNullOrWhiteSpace(b.Orientation))
+                continue;
+            var orient = NormalizeOrientation(b.Orientation);
+            if (TouchesArmSites(b.Sites))
+                arms = orient;
+            if (TouchesLegSites(b.Sites))
+                legs = orient;
+        }
+
+        // Suit / encasement without explicit orientation still implies folded limbs.
+        if (arms is null || legs is null)
+        {
+            foreach (var b in GetBindings(participant))
+            {
+                var implies = b.Implies.Select(i => i.ToLowerInvariant()).ToHashSet();
+                var effects = b.Effects.Select(i => i.ToLowerInvariant()).ToHashSet();
+                if (arms is null && (implies.Contains("encased") || effects.Contains("all_fours") || effects.Contains("arms_rear_bound")))
+                    arms = effects.Contains("arms_rear_bound") || implies.Contains("limb_bound") ? "behind" : "folded";
+                if (legs is null && (implies.Contains("encased") || effects.Contains("forced_crawl") || effects.Contains("all_fours")))
+                    legs = "folded";
+                if (legs is null && (implies.Contains("hobbled") || effects.Contains("forced_spread")))
+                    legs = effects.Contains("forced_spread") ? "apart" : "together";
+            }
+        }
+
+        participant.State[LewdKeys.ArmPosition] = arms ?? "free";
+        participant.State[LewdKeys.LegPosition] = legs ?? "free";
+    }
+
     public static HashSet<string> CollectBoundSites(ModeParticipantState participant)
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -158,14 +251,19 @@ internal static class BindingGraph
         entry.Effects = GetList(props, "effects");
         entry.Links = GetList(props, "links");
 
+        if (entry.Implies.Count == 0)
+            entry.Implies = GetList(props, "seedsConditions");
+
         if (entry.Sites.Count == 0 && entry.Implies.Count == 0)
         {
-            // Sensible defaults by kind/name
-            var kind = (itemId ?? entry.Kind).ToLowerInvariant();
+            // Sensible defaults by kind/name / lewdCategory
+            var lewdCat = GetString(props, "lewdCategory");
+            var kind = (lewdCat ?? itemId ?? entry.Kind).ToLowerInvariant();
             if (kind.Contains("gag"))
             {
                 entry.Sites = ["mouth"];
                 entry.Implies = ["gagged"];
+                entry.Effects = ["no_clear_speech", "no_verbal_spellcasting", "jaw_forced_open"];
             }
             else if (kind.Contains("blind"))
             {
@@ -176,22 +274,26 @@ internal static class BindingGraph
             {
                 entry.Sites = ["head", "eyes", "mouth"];
                 entry.Implies = ["gagged", "blinded"];
+                entry.Effects = ["no_sight", "no_clear_speech", "no_verbal_spellcasting"];
             }
             else if (kind.Contains("bitchsuit") || kind.Contains("encase"))
             {
                 entry.Sites = ["torso", "arms", "legs", "head"];
                 entry.Implies = ["encased", "cuffed", "hobbled"];
+                entry.Effects = ["forced_crawl", "bent_knees_elbows", "all_fours", "no_upright_walk", "no_hand_use", "no_somatic_spellcasting"];
             }
             else if (kind.Contains("armbinder"))
             {
                 entry.Sites = ["arms", "wrists"];
                 entry.Implies = ["cuffed", "limb_bound"];
                 entry.Links = ["arm-to-arm"];
+                entry.Effects = ["arms_rear_bound", "no_hand_use", "no_somatic_spellcasting"];
             }
             else if (kind.Contains("cuff") || kind.Contains("rope"))
             {
-                entry.Sites = ["wrists"];
+                entry.Sites = entry.Sites.Count > 0 ? entry.Sites : ["wrists"];
                 entry.Implies = ["cuffed"];
+                // orientation MUST come from lewd_bind / Properties — behind|front|above|…
             }
             else if (kind.Contains("spreader"))
             {

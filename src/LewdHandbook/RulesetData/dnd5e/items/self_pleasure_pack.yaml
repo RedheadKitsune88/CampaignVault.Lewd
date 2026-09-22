@@ -1,6 +1,12 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
 name: self_pleasure_pack
 system: dnd5e
-category: pack
+category: Container
+tags: [lewd, pack]
 description: >
-  Self-Pleasure Pack — personal toys and lubricant for solitary play. Common starting option for Modest Lover, Strictly Vanilla, Virgin, Promiscuous, Willingly Celibate.
-  Catalog stub for LLM/loadout; expand contents at table as needed. (Lewd Handbook sexual-history starting packs.)
+  Self-Pleasure Pack — personal toys and lubricant for solitary play. Common starting
+  option for Modest Lover, Strictly Vanilla, Virgin, Promiscuous, Willingly Celibate.
+  Catalog stub for LLM/loadout; expand contents at table as needed. (Lewd Handbook
+  sexual-history starting packs.)
+properties:
+  lewdCategory: pack

@@ -1,9 +1,22 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
 name: ball_gag
 system: dnd5e
-category: bondage_equipment
+category: Other
+tags: [lewd, bondage, gag]
 description: >
-  Ball gag. Applying implies the gagged condition (no clear speech; no verbal spell components).
-seedsConditions: [gagged]
-escapeDc: 20
-breakDc: 20
-hitPoints: 15
+  A smooth orb of hardwood or ivory held behind the teeth by a wide leather strap and buckle.
+  Forces the jaw open; speech collapses to muffled sounds. Blocks verbal spell components while worn
+  (handbook gagged). Common in dungeons, pleasure-houses, and among slavers who prefer quiet captives.
+properties:
+  lewdCategory: bondage_equipment
+  sites: [mouth]
+  materials: [leather, hardwood]
+  seedsConditions: [gagged]
+  implies: [gagged]
+  effects: [no_clear_speech, no_verbal_spellcasting, jaw_forced_open, drooling]
+  posture: gagged
+  escapeDc: 18
+  breakDc: 16
+  hitPoints: 10
+  costGp: 2
+  weight: 0.5

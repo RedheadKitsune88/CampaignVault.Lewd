@@ -45,6 +45,8 @@ file sealed class LewdEncounterStateMachine : IModeStateMachine
                     [Mechanics.LewdKeys.ArousalMaxMirror] = 10,
                     [Mechanics.LewdKeys.Bindings] = new List<object>(),
                     [Mechanics.LewdKeys.Posture] = "standing",
+                    [Mechanics.LewdKeys.ArmPosition] = "free",
+                    [Mechanics.LewdKeys.LegPosition] = "free",
                 }
             }).ToList(),
             ActiveTurnId = participantIds.FirstOrDefault()

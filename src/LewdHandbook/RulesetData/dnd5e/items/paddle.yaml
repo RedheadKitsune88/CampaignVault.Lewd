@@ -1,11 +1,16 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
 name: paddle
 system: dnd5e
-category: implement
+category: Weapon
+tags: [lewd, implement]
 description: >
   Impact paddle. Bludgeoning stimulation 1d6.
-damageDice: 1d6
-damageType: bludgeoning
-implementTags: [artificial, impact]
-finesse: false
-weight: 2
-cost: 5 gp
+properties:
+  lewdCategory: implement
+  damageDice: 1d6
+  damageType: bludgeoning
+  implementTags: [artificial, impact]
+  finesse: false
+  weight: 2
+  costGp: 5
+  damage: 1d6

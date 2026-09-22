@@ -126,3 +126,11 @@ Natural anatomy example (no item):
 - Narrate a cock/toy die that is absent from Traits / Items.
 - Bypass hard-limit tags carried on the implement (`implementTags` feed the consent probe).
 - Confuse HP weapon damage with stimulation — same Property names, different pool (`arousal`).
+
+## Host ItemDefinition workflow
+
+1. Browse templates: MCP `get_rules_reference` with `kind: "items"` (optional `itemNameQuery` / `itemCategory` / `itemTag`, e.g. tag `lewd`).
+2. Spawn a live instance with `world_build` `items[]` — copy `category`, `tags`, and especially `properties` from the template; set `definitionName` on the Item when the host field is available.
+3. Equip/hold so `HolderId` points at the actor; `lewd_advance` resolves stim from live `Item.Properties` (`damage` / `damageDice`, `damageType`, `implementTags`, `finesse`).
+
+Plugin YAML under `RulesetData/dnd5e/items/` uses the host ItemDefinition schema (`category` enum + nested `properties`). Bondage gear keeps `lewdCategory` / `implies` / `sites` inside `properties` for `lewd_bind` seeding.

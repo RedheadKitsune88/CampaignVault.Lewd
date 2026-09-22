@@ -1,11 +1,23 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
 name: spreader_bar
 system: dnd5e
-category: bondage_equipment
+category: Other
+tags: [lewd, bondage]
 description: >
-  Spreader bar forcing limbs apart (usually ankles or wrists). Seeds forced_spread posture; often pairs with cuffed/hobbled.
-Disadvantage on checks requiring closing the spread limbs; may impose hobbled when on ankles.
-seedsConditions: [cuffed, hobbled]
-forced_spread: true
-escapeDc: 20
-breakDc: 20
-hitPoints: 15
+  A length of oak or iron with leather cuffs at either end, forcing ankles (or wrists) apart.
+  Hobbles a stride and holds a forced open stance; pairs with cuffs. Found in barracks
+  discipline kits and in the play-rooms of decadent courts.
+properties:
+  lewdCategory: bondage_equipment
+  sites: [ankles]
+  materials: [oak, leather, iron]
+  seedsConditions: [cuffed, hobbled]
+  implies: [cuffed, hobbled]
+  effects: [forced_spread, shortened_stride]
+  orientation: apart
+  posture: forced_spread
+  escapeDc: 20
+  breakDc: 22
+  hitPoints: 20
+  costGp: 12
+  weight: 4

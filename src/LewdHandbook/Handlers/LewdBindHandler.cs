@@ -52,7 +52,39 @@ public sealed class LewdBindHandler : IWorldChangeHandler
         if (bind.Sites is { Count: > 0 })
             entry.Sites = bind.Sites;
         if (!string.IsNullOrWhiteSpace(bind.Orientation))
-            entry.Orientation = bind.Orientation;
+            entry.Orientation = BindingGraph.NormalizeOrientation(bind.Orientation);
+        else if (seedProps is not null)
+        {
+            foreach (var (k, v) in seedProps)
+            {
+                if (string.Equals(k, "orientation", StringComparison.OrdinalIgnoreCase) && v is not null)
+                {
+                    entry.Orientation = BindingGraph.NormalizeOrientation(v.ToString());
+                    break;
+                }
+            }
+        }
+
+        // Wrists/arms behind → somatic/hand tags on the binding effects list.
+        if (string.Equals(entry.Orientation, "behind", StringComparison.OrdinalIgnoreCase) &&
+            BindingGraph.TouchesArmSites(entry.Sites))
+        {
+            foreach (var tag in new[] { "arms_rear_bound", "no_hand_use", "no_somatic_spellcasting" })
+            {
+                if (!entry.Effects.Contains(tag, StringComparer.OrdinalIgnoreCase))
+                    entry.Effects.Add(tag);
+            }
+        }
+
+        if (string.Equals(entry.Orientation, "above", StringComparison.OrdinalIgnoreCase) &&
+            BindingGraph.TouchesArmSites(entry.Sites))
+        {
+            foreach (var tag in new[] { "arms_raised", "no_hand_use" })
+            {
+                if (!entry.Effects.Contains(tag, StringComparer.OrdinalIgnoreCase))
+                    entry.Effects.Add(tag);
+            }
+        }
         if (bind.Links is { Count: > 0 })
             entry.Links = bind.Links;
         if (bind.Implies is { Count: > 0 })
@@ -83,52 +115,128 @@ public sealed class LewdBindHandler : IWorldChangeHandler
         bindings.Add(entry);
         BindingGraph.SetBindings(target, bindings);
 
-        if (!string.IsNullOrWhiteSpace(bind.Posture))
-            target.State[LewdKeys.Posture] = bind.Posture!;
+        // Prefer explicit commit posture; else seed from item Properties["posture"].
+        var posture = bind.Posture;
+        if (string.IsNullOrWhiteSpace(posture) && seedProps is not null)
+        {
+            foreach (var (k, v) in seedProps)
+            {
+                if (string.Equals(k, "posture", StringComparison.OrdinalIgnoreCase) && v is not null)
+                {
+                    posture = v.ToString();
+                    break;
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(posture))
+            target.State[LewdKeys.Posture] = posture!;
 
         // Stamp implied condition names into a mirror list for LLM/status tooling.
         var implied = BindingGraph.CollectImplied(target).OrderBy(x => x).ToList();
         target.State["binding_implies"] = implied;
 
-        // Sensory StatusEffects on character when present
+        var effectTags = BindingGraph.CollectEffects(target).OrderBy(x => x).ToList();
+        target.State["binding_effects"] = effectTags;
+
+        // StatusEffects on character — include casting StatModifiers so host CastingComponentGate enforces V/S blocks.
         if (context.Characters.TryGetValue(bind.TargetId, out var targetChar))
         {
-            StampSensoryEffects(targetChar, implied);
+            StampRestraintEffects(targetChar, implied, effectTags);
         }
+
+        BindingGraph.RefreshLimbPositions(target);
 
         var sites = entry.Sites.Count == 0 ? "(unspecified sites)" : string.Join(',', entry.Sites);
         var implies = entry.Implies.Count == 0 ? "(none)" : string.Join(',', entry.Implies);
+        var orient = string.IsNullOrWhiteSpace(entry.Orientation) ? "unspecified" : entry.Orientation;
+        var arms = ConsentGate.GetString(target, LewdKeys.ArmPosition) ?? "free";
+        var legs = ConsentGate.GetString(target, LewdKeys.LegPosition) ?? "free";
         context.RecordMessage(
-            $"Lewd bind {bind.ActorId} → {bind.TargetId}: {entry.Kind} id={entry.Id} sites=[{sites}] implies=[{implies}].");
+            $"Lewd bind {bind.ActorId} → {bind.TargetId}: {entry.Kind} id={entry.Id} sites=[{sites}] orientation={orient} implies=[{implies}]; arms={arms} legs={legs}.");
         context.RecordPhysicalStateNudge(
-            $"{bind.TargetId} is bound ({entry.Kind}) at {sites}; implied: {implies}.");
+            $"{bind.TargetId} is bound ({entry.Kind}) at {sites} ({orient}); arms {arms}, legs {legs}; implied: {implies}.");
 
         return Task.FromResult(ChangeHandlerResult.Ok);
     }
 
-    internal static void StampSensoryEffects(Character character, IEnumerable<string> implied)
+    internal static void StampRestraintEffects(
+        Character character,
+        IEnumerable<string> implied,
+        IEnumerable<string> effectTags)
     {
         var set = new HashSet<string>(implied, StringComparer.OrdinalIgnoreCase);
-        void Ensure(string name, string summary)
+        foreach (var e in effectTags)
         {
-            if (character.SystemStats.StatusEffects.Any(e =>
-                    string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase)))
+            if (!string.IsNullOrWhiteSpace(e))
+                set.Add(e.Trim());
+        }
+
+        void Ensure(string name, string summary, string? conditionName, Action<Dictionary<string, float>>? mods = null)
+        {
+            var existing = character.SystemStats.StatusEffects.FirstOrDefault(e =>
+                string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (existing is not null)
+            {
+                mods?.Invoke(existing.StatModifiers);
+                if (conditionName is not null && string.IsNullOrWhiteSpace(existing.ConditionName))
+                    existing.ConditionName = conditionName;
                 return;
-            character.SystemStats.StatusEffects.Add(new StatusEffect
+            }
+
+            var effect = new StatusEffect
             {
                 Name = name,
                 Category = "Condition",
+                ConditionName = conditionName,
                 RecoveryHint = summary,
-            });
+                AppliedBy = "lewd_bind",
+            };
+            mods?.Invoke(effect.StatModifiers);
+            character.SystemStats.StatusEffects.Add(effect);
         }
 
-        if (set.Contains("blinded") || set.Contains("blind"))
-            Ensure("blinded", "Vision blocked by hood/blindfold binding.");
-        if (set.Contains("gagged") || set.Contains("gag"))
-            Ensure("gagged", "Mouth bound; no verbal spell components / clear speech.");
+        // Keys must match host CastingComponentGate constants (Sdk cannot reference host Services).
+        const string blocksVerbal = "BlocksVerbalComponents";
+        const string blocksSomatic = "BlocksSomaticComponents";
+
+        if (set.Contains("blinded") || set.Contains("blind") || set.Contains("no_sight"))
+            Ensure("blinded", "Vision blocked by hood/blindfold binding.", "blinded");
+
+        if (set.Contains("gagged") || set.Contains("gag") ||
+            set.Contains("no_verbal_spellcasting") || set.Contains("no_clear_speech"))
+        {
+            Ensure(
+                "gagged",
+                "Mouth bound; no clear speech; verbal spell components blocked.",
+                "gagged",
+                m => m[blocksVerbal] = 1f);
+        }
+
+        if (set.Contains("mitted") || set.Contains("limb_bound") || set.Contains("limb-bound") ||
+            set.Contains("no_hand_use") || set.Contains("no_somatic_spellcasting") ||
+            set.Contains("arms_rear_bound"))
+        {
+            Ensure(
+                "mitted",
+                "Hands/arms bound; fine manipulation and somatic components blocked.",
+                "mitted",
+                m => m[blocksSomatic] = 1f);
+        }
+
         if (set.Contains("restrained") || set.Contains("full_tied") || set.Contains("full-tied") ||
             set.Contains("suspended") || set.Contains("encased"))
-            Ensure("restrained", "Restrained by bondage graph.");
+        {
+            Ensure("restrained", "Restrained by bondage graph.", "restrained");
+        }
+
+        if (set.Contains("hobbled") || set.Contains("forced_crawl") || set.Contains("no_upright_walk"))
+        {
+            Ensure(
+                "hobbled",
+                "Movement limited by bondage (hobble, crawl-suit, spreader).",
+                "hobbled");
+        }
     }
 }
 
@@ -181,11 +289,15 @@ public sealed class LewdUnbindHandler : IWorldChangeHandler
         BindingGraph.SetBindings(target, bindings);
         var implied = BindingGraph.CollectImplied(target).OrderBy(x => x).ToList();
         target.State["binding_implies"] = implied;
+        target.State["binding_effects"] = BindingGraph.CollectEffects(target).OrderBy(x => x).ToList();
+        BindingGraph.RefreshLimbPositions(target);
 
+        var arms = ConsentGate.GetString(target, LewdKeys.ArmPosition) ?? "free";
+        var legs = ConsentGate.GetString(target, LewdKeys.LegPosition) ?? "free";
         context.RecordMessage(
-            $"Lewd unbind {unbind.ActorId} → {unbind.TargetId}: removed {before - bindings.Count} binding(s); {bindings.Count} remain.");
+            $"Lewd unbind {unbind.ActorId} → {unbind.TargetId}: removed {before - bindings.Count} binding(s); {bindings.Count} remain; arms={arms} legs={legs}.");
         context.RecordPhysicalStateNudge(
-            $"{unbind.TargetId} bindings updated; remaining implies: {(implied.Count == 0 ? "none" : string.Join(',', implied))}.");
+            $"{unbind.TargetId} bindings updated; arms {arms}, legs {legs}; remaining implies: {(implied.Count == 0 ? "none" : string.Join(',', implied))}.");
 
         return Task.FromResult(ChangeHandlerResult.Ok);
     }

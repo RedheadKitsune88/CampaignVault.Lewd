@@ -3,7 +3,8 @@ system: dnd5e
 durationType: Manual
 mechanicalSummary: >
   Mouth filled or held shut. Cannot open/close mouth; speech limited to unintelligible grunts/moans/whines;
-  cannot perform verbal components of spells.
+  cannot perform verbal components of spells. When stamping StatusEffects, set StatModifiers
+  BlocksVerbalComponents: 1 so the host CastingComponentGate hard-blocks V spells.
 moodHint: silenced, muffled, drooling around the gag
 immunities: []
 suppresses: []

@@ -115,3 +115,14 @@ Curated Item catalog stubs (not a full SRD table in the extract). Implements car
 Prior set kept. Added handbook-named high-value spells (summaries only): `locate_hookup`, `lovenest`, `maddening_desire`, `vilgas_phallic_enhancement`, `ruin_orgasm`, `saint_resolve`, `sinful_caress`, `spectral_stockade`, `power_word_pregnant`, `pregnancy_ward`, `musk_cloud`, `vibe_check`.
 
 **Lustbrands:** `remove curse` does **not** remove Lustbrands; only Wish or specialized features (handbook § Lustbrands). No `remove_lustbrand` spell stub invented. Working extract’s spell list begins at *Gangbang* (A–F spells may be truncated in `lewd-handbook.md`) — verify missing early alphabet against the PDF before encoding more.
+
+## ItemDefinition schema (host)
+
+Host loads `RulesetData/dnd5e/items/*.yaml` via `ItemDefinitionProvider` + `get_rules_reference` kind `items`.
+
+Plugin item files use:
+- `category`: Weapon | Armor | Clothing | Container | … (enum)
+- `tags`: e.g. `lewd`, `implement`, `bondage`
+- `properties`: open bag — `damage`/`damageDice`, `damageType`, `implementTags`, `finesse`, bondage `sites`/`implies`/`materials`, `lewdCategory` for plugin heuristics
+
+Artificial implements → live `Item` instances (world_build). Natural anatomy stays on `SystemExtension.Traits`.

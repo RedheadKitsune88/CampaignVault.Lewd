@@ -1,6 +1,12 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
 name: harlots_pack
 system: dnd5e
-category: pack
+category: Container
+tags: [lewd, pack]
 description: >
-  Harlot's Pack — tools of paid companionship (cosmetics, condoms/contraceptives stubs, soft restraints, lubricant). Starting option for Erotic Professional / Promiscuous.
-  Catalog stub for LLM/loadout; expand contents at table as needed. (Lewd Handbook sexual-history starting packs.)
+  Harlot's Pack — tools of paid companionship (cosmetics, condoms/contraceptives stubs,
+  soft restraints, lubricant). Starting option for Erotic Professional / Promiscuous.
+  Catalog stub for LLM/loadout; expand contents at table as needed. (Lewd Handbook
+  sexual-history starting packs.)
+properties:
+  lewdCategory: pack

@@ -1,9 +1,25 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
 name: bitchsuit
 system: dnd5e
-category: worn_restraint
+category: Clothing
+tags: [lewd, bondage]
 description: >
-  Full-body worn restraint (leather/zippered encasement). Multi-site: seeds encased/hobbled/cuffed binding graph
-when fully fastened. Treat as worn_restraint; escape/break usually require removing multiple fasteners (DM pacing).
-seedsConditions: [encased, hobbled, cuffed]
-sites: [full_body]
-bindingGraph: multi_fastener
+  A full-body sheath of soft leather and buckled straps that folds the arms and legs into the
+  hide, leaving the wearer able to move only by crawling on bent knees and elbows (all fours).
+  When fully laced it seeds encased, hobbled, and cuffed; upright walking is impossible until
+  the fastenings are undone. Rare outside certain Underdark markets and private collections.
+properties:
+  lewdCategory: worn_restraint
+  sites: [full_body, torso, arms, legs, head]
+  materials: [leather]
+  seedsConditions: [encased, hobbled, cuffed]
+  implies: [encased, hobbled, cuffed]
+  effects: [forced_crawl, bent_knees_elbows, all_fours, no_upright_walk, no_hand_use, no_somatic_spellcasting]
+  orientation: folded
+  posture: all_fours_crawl
+  bindingGraph: multi_fastener
+  escapeDc: 22
+  breakDc: 24
+  hitPoints: 30
+  costGp: 75
+  weight: 12

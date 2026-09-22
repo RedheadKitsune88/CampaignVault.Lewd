@@ -3,7 +3,8 @@ system: dnd5e
 durationType: Manual
 mechanicalSummary: >
   Hands wrapped/bound unusable as hands. Also Cuffed; auto-fail Sleight of Hand and fine-hand checks;
-  cannot manipulate objects or perform somatic components with hands.
+  cannot manipulate objects or perform somatic components with hands. Stamp StatusEffects with
+  BlocksSomaticComponents: 1 for host spell gating.
 moodHint: paws useless, no fine motor control
 immunities: []
 suppresses: []

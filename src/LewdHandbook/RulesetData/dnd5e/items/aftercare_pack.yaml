@@ -1,6 +1,12 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
 name: aftercare_pack
 system: dnd5e
-category: pack
+category: Container
+tags: [lewd, pack]
 description: >
-  Aftercare Pack — comfort items for post-scene recovery (blankets, water, soft cloths, mild salve). Sexual history starting gear for Devoted Partner / Willingly Celibate options.
-  Catalog stub for LLM/loadout; expand contents at table as needed. (Lewd Handbook sexual-history starting packs.)
+  Aftercare Pack — comfort items for post-scene recovery (blankets, water, soft cloths,
+  mild salve). Sexual history starting gear for Devoted Partner / Willingly Celibate
+  options. Catalog stub for LLM/loadout; expand contents at table as needed. (Lewd
+  Handbook sexual-history starting packs.)
+properties:
+  lewdCategory: pack

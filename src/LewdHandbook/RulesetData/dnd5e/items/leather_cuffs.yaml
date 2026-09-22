@@ -1,10 +1,25 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
 name: leather_cuffs
 system: dnd5e
-category: bondage_equipment
+category: Other
+tags: [lewd, bondage]
 description: >
-  Paired leather cuffs with fasteners. Commonly apply the cuffed condition to wrists or ankles.
-Default binding: 15 HP; escape DC 20 Dex / break DC 20 Str unless DM rules otherwise.
-seedsConditions: [cuffed]
-escapeDc: 20
-breakDc: 20
-hitPoints: 15
+  Paired cuffs of thick boiled leather with iron D-rings and buckle straps. Fit wrists or ankles.
+  Always set orientation on lewd_bind: behind (hands/ankles at the back), front (before the body),
+  above (raised overhead), together, or apart. Orientation drives State.arm_position / leg_position
+  and whether hands can still gesture. City watch often cuffs wrists in front for marching; escorts
+  who want helplessness buckle them behind.
+properties:
+  lewdCategory: bondage_equipment
+  sites: [wrists]
+  materials: [leather, iron]
+  seedsConditions: [cuffed]
+  implies: [cuffed]
+  effects: [restricted_limbs, ring_attachment, orientation_required]
+  # No default orientation — commit must supply behind|front|above|…
+  orientationRequired: true
+  escapeDc: 18
+  breakDc: 18
+  hitPoints: 15
+  costGp: 5
+  weight: 1

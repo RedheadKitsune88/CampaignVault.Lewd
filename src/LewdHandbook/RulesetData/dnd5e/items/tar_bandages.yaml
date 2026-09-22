@@ -1,12 +1,24 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
 name: tar_bandages
 system: dnd5e
-category: bondage_equipment
+category: Other
+tags: [lewd, bondage]
 description: >
-  Bandage wraps impregnated with tar. Materials: bandage + tar; hardenable after application (DM may raise escape/break DCs once set).
-Can seed limb_bound, cuffed, mitted, or encased depending on coverage.
-materials: [bandage, tar]
-hardenable: true
-seedsConditions: [limb_bound, cuffed, mitted]
-escapeDc: 20
-breakDc: 22
-hitPoints: 15
+  Linen wraps soaked in warm pitch. Soft when applied, they stiffen as they cool — a cruel
+  field binder used by orc slavers and desperate gaolers. Materials bandage + tar; once hardened,
+  escape and break DCs rise. May seed limb_bound, cuffed, or mitted depending on coverage.
+properties:
+  lewdCategory: bondage_equipment
+  sites: [torso]
+  materials: [linen, tar]
+  seedsConditions: [limb_bound, cuffed, mitted]
+  implies: [limb_bound, cuffed, mitted]
+  effects: [progressive_harden, sticky_wrap, no_fine_manipulation]
+  posture: tar_wrapped
+  hardenable: true
+  hardenAtRound: 3
+  escapeDc: 20
+  breakDc: 22
+  hitPoints: 15
+  costGp: 3
+  weight: 2

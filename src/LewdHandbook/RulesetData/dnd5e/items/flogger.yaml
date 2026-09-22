@@ -1,11 +1,16 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
 name: flogger
 system: dnd5e
-category: implement
+category: Weapon
+tags: [lewd, implement]
 description: >
   Multi-tail flogger. Slashing stimulation 1d4.
-damageDice: 1d4
-damageType: slashing
-implementTags: [artificial, impact]
-finesse: false
-weight: 2
-cost: 8 gp
+properties:
+  lewdCategory: implement
+  damageDice: 1d4
+  damageType: slashing
+  implementTags: [artificial, impact]
+  finesse: false
+  weight: 2
+  costGp: 8
+  damage: 1d4

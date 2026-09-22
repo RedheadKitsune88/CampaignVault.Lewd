@@ -82,6 +82,7 @@ internal static class ImplementResolver
         {
             if (string.Equals(item.Id, implementId, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(item.Name, implementId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(item.DefinitionName, implementId, StringComparison.OrdinalIgnoreCase) ||
                 item.Id.EndsWith("/" + implementId, StringComparison.OrdinalIgnoreCase))
             {
                 if (TryFromItem(item, out resolved))

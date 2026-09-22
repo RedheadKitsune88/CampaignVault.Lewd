@@ -18,14 +18,17 @@ Campaign-level content dial for how `lewd_encounter` treats **unwilling** sexual
 
 ## Set the option
 
+1. **Read** MCP `get_config` → `systemOptions.intimacyTone`. Missing key ⇒ treat as `consensual`.
+2. **Write** via `campaign_update` — `systemOptions` **merges** keys (does not wipe the rest of the bag). Host needs PluginSdk **0.1.2+**.
+
 ```json
 {
   "$type": "campaign_update",
-  "systemOptions": { "intimacyTone": "consensual" }
+  "systemOptions": { "intimacyTone": "grimdark" }
 }
 ```
 
-Allowed values: `consensual` | `fade` | `grimdark` (case-insensitive).
+Allowed values: `consensual` | `fade` | `grimdark` (case-insensitive). Re-check with `get_config` after the commit.
 
 ## Behavior matrix
 

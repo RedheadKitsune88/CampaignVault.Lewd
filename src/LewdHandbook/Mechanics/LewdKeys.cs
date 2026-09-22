@@ -18,6 +18,10 @@ internal static class LewdKeys
 
     public const string Bindings = "bindings";
     public const string Posture = "posture";
+    /// <summary>Derived from bindings on wrists/arms: free | front | behind | above | together | crossed.</summary>
+    public const string ArmPosition = "arm_position";
+    /// <summary>Derived from bindings on ankles/legs: free | front | behind | apart | together | crossed | folded.</summary>
+    public const string LegPosition = "leg_position";
 
     public const string PoolArousal = "arousal";
     public const string PoolNumbing = "numbing";

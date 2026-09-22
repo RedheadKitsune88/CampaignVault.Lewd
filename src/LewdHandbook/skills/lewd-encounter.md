@@ -55,7 +55,9 @@ On enter, ensure each participant State includes at least:
 | `climax_successes` / `climax_failures` | int |
 | `edging` | bool |
 | `bindings` | array (see `lewd-bindings`) |
-| `posture` | string / object |
+| `posture` | string |
+| `arm_position` | `free` \| `front` \| `behind` \| `above` \| … |
+| `leg_position` | `free` \| `front` \| `behind` \| `apart` \| … |
 
 Exit with `mode_transition` action `exit` (or when all participants mark `scene_end`).
 

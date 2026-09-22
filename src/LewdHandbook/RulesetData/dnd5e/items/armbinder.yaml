@@ -1,10 +1,25 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
 name: armbinder
 system: dnd5e
-category: bondage_equipment
+category: Clothing
+tags: [lewd, bondage]
 description: >
-  Armbinder sleeve locking both arms behind the back. Multi-site arms restraint; typically applies limb_bound (arms) and cuffed.
-seedsConditions: [limb_bound, cuffed]
-sites: [arms]
-escapeDc: 20
-breakDc: 20
-hitPoints: 15
+  A long leather sleeve that draws both arms behind the back and laces from wrists to shoulders,
+  ending in a strap about the chest. Hands are useless for tools or somatic gestures; seeds
+  limb_bound and cuffed. A favorite of certain Zhentarim handlers and of temples that display
+  penitents.
+properties:
+  lewdCategory: bondage_equipment
+  sites: [arms, wrists]
+  materials: [leather]
+  seedsConditions: [limb_bound, cuffed]
+  implies: [limb_bound, cuffed]
+  effects: [arms_rear_bound, no_hand_use, no_somatic_spellcasting]
+  links: [arm-to-arm]
+  orientation: behind
+  posture: arms_behind
+  escapeDc: 20
+  breakDc: 20
+  hitPoints: 18
+  costGp: 15
+  weight: 3

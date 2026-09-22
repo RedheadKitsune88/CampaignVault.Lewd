@@ -1,11 +1,22 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
 name: nipple_clamps
 system: dnd5e
-category: implement
+category: Other
+tags: [lewd, implement, bondage]
 description: >
-  Accessory clamps. Piercing stimulation 1d4; typically worn/applied rather than swung as a primary weapon.
-damageDice: 1d4
-damageType: piercing
-implementTags: [artificial, accessory, clamps]
-finesse: false
-weight: 0.2
-cost: 3 gp
+  Small bronze spring-clamps lined with soft leather, joined by a short chain. Worn rather than
+  swung; deal piercing stimulation (1d4) when tugged or struck. A jeweled curiosity in Calimshan
+  bazaars and a tormentor's tool in darker cells.
+properties:
+  lewdCategory: implement
+  sites: [chest]
+  materials: [bronze, leather]
+  damage: 1d4
+  damageDice: 1d4
+  damageType: piercing
+  implementTags: [artificial, accessory, clamps]
+  finesse: true
+  effects: [stim_on_tug, weighted_optional]
+  posture: clamped
+  weight: 0.2
+  costGp: 3
