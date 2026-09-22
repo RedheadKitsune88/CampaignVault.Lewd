@@ -1,0 +1,8 @@
+name: flustered
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Incapacitated and speaks only falteringly; disadvantage on Wis/Cha saves; auto-fails contested Wis/Cha checks.
+moodHint: embarrassed, shy, socially stunned
+immunities: []
+suppresses: []

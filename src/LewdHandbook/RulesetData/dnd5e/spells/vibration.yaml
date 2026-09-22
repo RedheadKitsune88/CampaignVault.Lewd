@@ -1,0 +1,14 @@
+name: vibration
+system: dnd5e
+level: 0
+classes: [bard, sorcerer, warlock, wizard]
+concentration: false
+castingTime: 1 bonus action
+verbal: true
+somatic: true
+material: true
+materialText: a buzzing insect
+materialConsumed: false
+description: >
+  Evocation cantrip, self, 1 minute. One natural implement uses spellcasting ability for martial advances/stim
+  and deals +1d4 thunder stimulation. (Lewd Handbook)

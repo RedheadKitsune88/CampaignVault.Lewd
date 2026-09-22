@@ -1,0 +1,16 @@
+# Sexual History — Willingly Celibate (Lewd Handbook). Canonical history; feat mirror may exist under feats/.
+name: willingly_celibate
+system: dnd5e
+description: >
+  Sexual history (chosen in addition to a normal background). Active choice to remain chaste for personal, cultural, or religious reasons.
+  
+  Recovery Dice: d6.
+  Implements: not proficient with natural implements (for pleasuring others) or any artificial implements.
+  Fetishes: may start with Chaste Onlooker or Edge Puppet.
+  Starting gear: Aftercare Pack or Self-Pleasure Pack.
+  Advantage on saving throws against the hyperaroused condition; attempts to seduce you are made at disadvantage.
+skillProficiencies: [Insight, Religion]
+toolProficiencies: []
+languages: []
+feature: >
+  Chosen Chastity — Recovery Dice d6; no natural/artificial implement proficiency; fetish Chaste Onlooker or Edge Puppet; Aftercare or Self-Pleasure Pack; adv vs hyperaroused; seduction vs you at disadvantage.

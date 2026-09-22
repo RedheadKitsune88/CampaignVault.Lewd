@@ -1,0 +1,6 @@
+name: promiscuous
+system: dnd5e
+mechanicalSummary: >
+  Recovery Dice d8; proficient with natural implements + up to 6 artificial; up to 3 fetishes;
+  Dominant's, Harlot's, or Self-Pleasure Pack; advantage on Insight to determine sexual preferences.
+extraPools: [recovery_dice]

@@ -1,0 +1,9 @@
+name: hobbled
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Legs/tail/movement appendages bound. Speed reduced to 5 ft and cannot be raised above that;
+  disadvantage on Dexterity checks and saving throws.
+moodHint: short shuffling steps, legs tied
+immunities: []
+suppresses: []

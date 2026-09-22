@@ -1,0 +1,17 @@
+# Sexual History — Strictly Vanilla (Lewd Handbook). Canonical history; feat mirror may exist under feats/.
+name: strictly_vanilla
+system: dnd5e
+description: >
+  Sexual history (chosen in addition to a normal background). You have had sex, but never anything kinky.
+  
+  Recovery Dice: d6.
+  Implements: proficient with only your reproductive natural implements; proficiency with up to 2 artificial implements of your choice.
+  Fetishes: none.
+  Starting gear: may start with a Self-Pleasure Pack.
+  Disadvantage on Insight checks to determine others' sexual preferences.
+  When gaining stimulation from unusual/unfamiliar sources (e.g. tentacles, elemental effects), you may subtract your Inhibition Bonus from the stimulation dealt.
+skillProficiencies: [Insight]
+toolProficiencies: []
+languages: []
+feature: >
+  Vanilla Limits — Recovery Dice d6; reproductive natural only + up to 2 artificial; no fetishes; optional Self-Pleasure Pack; disadv Insight for sexual prefs; may subtract Inhibition from unfamiliar stim.

@@ -1,0 +1,11 @@
+name: spreader_bar
+system: dnd5e
+category: bondage_equipment
+description: >
+  Spreader bar forcing limbs apart (usually ankles or wrists). Seeds forced_spread posture; often pairs with cuffed/hobbled.
+Disadvantage on checks requiring closing the spread limbs; may impose hobbled when on ankles.
+seedsConditions: [cuffed, hobbled]
+forced_spread: true
+escapeDc: 20
+breakDc: 20
+hitPoints: 15

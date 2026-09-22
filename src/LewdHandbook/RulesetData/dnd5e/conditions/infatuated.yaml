@@ -1,0 +1,9 @@
+name: infatuated
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Charmed by source; willing for that source's Sexual Advances; no positive Inhibition vs them;
+  disadvantage vs their Cha checks; their orders resolve as Persuasion checks.
+moodHint: besotted, eager to please the source
+immunities: []
+suppresses: []

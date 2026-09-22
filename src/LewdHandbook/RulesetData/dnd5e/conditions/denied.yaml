@@ -1,0 +1,7 @@
+name: denied
+system: dnd5e
+durationType: Manual
+mechanicalSummary: Cannot climax; automatically succeeds on climax saving throws.
+moodHint: aching, frustrated, denied release
+immunities: []
+suppresses: []

@@ -1,0 +1,6 @@
+name: modest_lover
+system: dnd5e
+mechanicalSummary: >
+  Recovery Dice d8; proficient with natural implements + up to 4 artificial; may start with 1 fetish;
+  optional Self-Pleasure Pack; once per long rest reroll a sexual advance or save vs sexual advance (choose die).
+extraPools: [recovery_dice]

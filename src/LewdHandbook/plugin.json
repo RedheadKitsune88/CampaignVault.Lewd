@@ -1,0 +1,18 @@
+{
+  "id": "com.campaignvault.lewd-handbook",
+  "displayName": "Lewd Handbook",
+  "version": "0.1.1",
+  "minEngineVersion": "0.2.0",
+  "modeIds": ["lewd_encounter"],
+  "rulesetDataRoots": ["./RulesetData"],
+  "skillsPath": "./skills",
+  "campaignOptions": [
+    {
+      "key": "intimacyTone",
+      "type": "enum",
+      "values": ["consensual", "fade", "grimdark"],
+      "default": "consensual",
+      "description": "How non-consenting sexual advances resolve. hard_limits and revoked always fail-closed. Plugin install is operator opt-in, not per-scene consent."
+    }
+  ]
+}

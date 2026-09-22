@@ -1,0 +1,10 @@
+name: engulfed
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Swallowed/ensnared inside another creature while alive (not true bondage). Share space with engulfer and
+  have total cover; move with engulfer; cannot see/interact outside (may hear/produce muffled sound);
+  attacks vs engulfer have advantage.
+moodHint: trapped inside living flesh, muffled world
+immunities: []
+suppresses: []

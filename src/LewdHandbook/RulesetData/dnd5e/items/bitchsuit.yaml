@@ -1,0 +1,9 @@
+name: bitchsuit
+system: dnd5e
+category: worn_restraint
+description: >
+  Full-body worn restraint (leather/zippered encasement). Multi-site: seeds encased/hobbled/cuffed binding graph
+when fully fastened. Treat as worn_restraint; escape/break usually require removing multiple fasteners (DM pacing).
+seedsConditions: [encased, hobbled, cuffed]
+sites: [full_body]
+bindingGraph: multi_fastener

@@ -1,0 +1,31 @@
+CampaignVault.Lewd — Adult Content Notice
+=========================================
+
+This repository contains optional adult / sexual content for CampaignVault
+(the `lewd_encounter` interaction mode and related data/skills).
+
+1. Operator opt-in only
+   Install this plugin only if every player at your table consents to adult
+   content. Enable the mode per campaign via EnabledModeIds; uninstall by
+   deleting the plugin folder and removing the mode id from campaigns.
+
+2. Full-trust DLL
+   Like any CampaignVault code plugin, LewdHandbook.dll runs in-process with
+   the same trust as first-party host code. Load only from authors you trust.
+   This separate repository isolates content and opt-in install; it does not
+   sandbox the plugin.
+
+3. Do not ship CampaignVault.PluginSdk.dll
+   The plugin PackageReferences CampaignVault.PluginSdk for compile-time
+   contracts. The host supplies the Sdk assembly. Never place
+   CampaignVault.PluginSdk.dll next to LewdHandbook.dll.
+
+4. Handbook text licensing
+   Game-mechanics encoding in this repo is original plugin code under the MIT
+   License (see LICENSE). Third-party handbook prose, tables, and artwork are
+   NOT redistributed here by default. Operators who encode content from a
+   purchased handbook remain responsible for that material's copyright terms.
+
+5. Not affiliated endorsement
+   "CampaignVault" is used to describe compatibility with the CampaignVault
+   host/PluginSdk. This project is an independent optional plugin.

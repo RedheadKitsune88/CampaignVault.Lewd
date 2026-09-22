@@ -1,0 +1,16 @@
+# Sexual History — Experienced Kinkster (Lewd Handbook). Canonical history; feat mirror may exist under feats/.
+name: experienced_kinkster
+system: dnd5e
+description: >
+  Sexual history (chosen in addition to a normal background). Well versed in sex and many kinks.
+  
+  Recovery Dice: d10.
+  Implements: proficient with natural implements; proficiency with up to 8 artificial implements of your choice.
+  Fetishes: access to 4–6 of your choice, but only 3 grant benefits at once (downsides of all still apply). After a long rest, change which fetishes benefit.
+  Starting gear: Dominant's Pack, Rigger's Pack, or Sadist's Pack.
+  Spend 10 minutes observing a creature to determine if they share any of your sexual vulnerabilities or fetishes.
+skillProficiencies: [Insight, Investigation]
+toolProficiencies: []
+languages: []
+feature: >
+  Kink Repertoire — Recovery Dice d10; natural + up to 8 artificial; 4–6 fetishes (3 active benefits); swap active benefits on long rest; 10 min observation detects shared fetishes/vulnerabilities; Dominant's, Rigger's, or Sadist's Pack.

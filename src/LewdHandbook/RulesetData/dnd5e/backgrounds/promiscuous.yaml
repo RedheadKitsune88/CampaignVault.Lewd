@@ -1,0 +1,16 @@
+# Sexual History — Promiscuous (Lewd Handbook). Canonical history; feat mirror may exist under feats/.
+name: promiscuous
+system: dnd5e
+description: >
+  Sexual history (chosen in addition to a normal background). Wide variety of loose partners.
+  
+  Recovery Dice: d8.
+  Implements: proficient with natural implements; proficiency with up to 6 artificial implements of your choice.
+  Fetishes: up to 3 of your choice.
+  Starting gear: Dominant's Pack, Harlot's Pack, or Self-Pleasure Pack.
+  Advantage on Insight checks to determine a creature's sexual alignment or preferences.
+skillProficiencies: [Persuasion, Insight]
+toolProficiencies: []
+languages: []
+feature: >
+  Varied Partners — Recovery Dice d8; natural + up to 6 artificial; up to 3 fetishes; Dominant's, Harlot's, or Self-Pleasure Pack; advantage on Insight for sexual preferences.

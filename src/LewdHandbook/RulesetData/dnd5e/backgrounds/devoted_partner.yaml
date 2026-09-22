@@ -1,0 +1,16 @@
+# Sexual History — Devoted Partner (Lewd Handbook). Canonical history; feat mirror may exist under feats/.
+name: devoted_partner
+system: dnd5e
+description: >
+  Sexual history (chosen in addition to a normal background). Experience is focused on dedicated partners (spouse, fiancé, close polycule).
+  
+  Recovery Dice: d8.
+  Implements: proficient with natural implements; proficiency with up to 4 artificial implements of your choice.
+  Fetishes: up to 2 of your choice, excluding Anonymist, Wanton Whore, and Swinger.
+  Starting gear: Aftercare Pack.
+  Seduction attempts against you are at disadvantage while a dedicated partner is present, or while you wear a token of your bond.
+skillProficiencies: [Insight, Persuasion]
+toolProficiencies: []
+languages: []
+feature: >
+  Devoted Bond — Recovery Dice d8; natural + up to 4 artificial implement proficiencies; up to 2 fetishes (not Anonymist/Wanton Whore/Swinger); start with Aftercare Pack; seduction vs you at disadvantage while bonded partner present or bond-token worn.

@@ -1,0 +1,8 @@
+name: blindfold
+system: dnd5e
+category: bondage_equipment
+description: >
+  Blindfold. Implies blinded sensory deprivation for vision (treat as blinded while worn for nonmagical sight).
+Does not by itself apply full Bound Conditions list entries beyond sensory block.
+seedsConditions: [blinded]
+sensory: vision_blocked

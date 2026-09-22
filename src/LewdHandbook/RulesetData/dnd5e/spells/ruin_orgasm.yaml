@@ -1,0 +1,13 @@
+name: ruin_orgasm
+system: dnd5e
+level: 0
+classes: [bard, sorcerer, warlock, wizard]
+concentration: false
+castingTime: 1 reaction
+verbal: true
+somatic: false
+material: false
+materialConsumed: false
+description: >
+  Abjuration cantrip, reaction when a creature within 30 ft would make a climax saving throw. Instead of the save, target takes
+  psychic damage 1d8 + spellcasting mod and reduces arousal by the same amount. (Lewd Handbook; edge/denial control)

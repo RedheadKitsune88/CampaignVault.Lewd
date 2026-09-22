@@ -1,0 +1,11 @@
+name: glass_wand
+system: dnd5e
+category: implement
+description: >
+  Smooth glass wand implement. Piercing stimulation 1d4; finesse (Dex instead of Str for stim bonus).
+damageDice: 1d4
+damageType: piercing
+implementTags: [finesse, artificial, wand]
+finesse: true
+weight: 0.5
+cost: 15 gp

@@ -1,0 +1,11 @@
+name: paddle
+system: dnd5e
+category: implement
+description: >
+  Impact paddle. Bludgeoning stimulation 1d6.
+damageDice: 1d6
+damageType: bludgeoning
+implementTags: [artificial, impact]
+finesse: false
+weight: 2
+cost: 5 gp

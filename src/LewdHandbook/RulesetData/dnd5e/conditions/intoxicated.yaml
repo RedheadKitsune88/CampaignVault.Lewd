@@ -1,0 +1,7 @@
+name: intoxicated
+system: dnd5e
+durationType: Manual
+mechanicalSummary: Disadvantage on Intelligence, Wisdom, and Charisma saving throws.
+moodHint: drunk, high, mentally fogged
+immunities: []
+suppresses: []

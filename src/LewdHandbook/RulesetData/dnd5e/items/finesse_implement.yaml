@@ -1,0 +1,13 @@
+# Minimal implement stub for martial advances (finesse → Dex for stim bonus).
+name: finesse_implement
+system: dnd5e
+category: implement
+description: >
+  Artificial sexual implement with the finesse property. Martial advances may use Dexterity instead of Strength
+  for the stimulation ability bonus (Lewd Handbook martial advance rule).
+damageDice: 1d4
+damageType: piercing
+implementTags: [finesse, artificial]
+finesse: true
+weight: 1
+cost: 5 gp

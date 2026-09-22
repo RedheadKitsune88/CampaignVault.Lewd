@@ -1,0 +1,9 @@
+name: full_tied
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Hog-tied: all limbs/appendages bound together. Cuffed, Restrained, and Prone; auto-fail Str/Dex saves;
+  attacks and sexual advances against you have advantage; cannot stand up or end prone.
+moodHint: hog-tied, helpless on the ground
+immunities: []
+suppresses: []

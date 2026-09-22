@@ -1,0 +1,40 @@
+# .NET
+[Bb]in/
+[Oo]bj/
+out/
+log/
+*.user
+*.userosscache
+*.sln.docstates
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Secrets / env
+.env
+*.pfx
+*.pem
+
+# Local Sdk feed: keep the checked-in CampaignVault.PluginSdk.*.nupkg until nuget.org publish,
+# then delete it and remove the local-packages source from nuget.config.
+local-packages/*.snupkg
+local-packages/*.nupkg.md5
+local-packages/*.nupkg.sha512
+
+# Pack / build output
+artifacts/
+pack/out/
+
+# Agent / tool local state
+.serena/
+.grok/
+.claude/
+.cursor/
+
+# Handbook source extracts — never commit
+*.pdf
+/source-extracts/

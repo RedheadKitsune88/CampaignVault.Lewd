@@ -1,0 +1,16 @@
+# Sexual History — Erotic Professional (Lewd Handbook). Canonical history; feat mirror may exist under feats/.
+name: erotic_professional
+system: dnd5e
+description: >
+  Sexual history (chosen in addition to a normal background). You make a living selling sexual services and techniques.
+  
+  Recovery Dice: d12.
+  Implements: proficient with natural implements; proficiency with up to 8 artificial implements of your choice.
+  Fetishes: up to 3 of your choice.
+  Starting gear: Harlot's Pack or Dominant's Pack.
+  Always add your proficiency bonus to checks made to seduce other creatures (any check type; ignores conditions/features that would block this).
+skillProficiencies: [Persuasion, Performance]
+toolProficiencies: []
+languages: []
+feature: >
+  Professional Seduction — Recovery Dice d12; natural + up to 8 artificial implement proficiencies; up to 3 fetishes; Harlot's or Dominant's Pack; always add proficiency to seduction checks.

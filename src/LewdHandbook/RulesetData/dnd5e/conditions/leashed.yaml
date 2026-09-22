@@ -1,0 +1,10 @@
+name: leashed
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Physically bound to a person/object by cord/rope/chain of set length. Cannot move beyond leash length;
+  considered grappled by the anchor for escape/forced movement. If anchor forces movement, use your movement
+  to follow or contest Str/Dex vs anchor — success neither moves; failure you fall prone and are dragged.
+moodHint: tethered, following the leash
+immunities: []
+suppresses: []

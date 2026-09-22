@@ -1,0 +1,9 @@
+name: cuffed
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Wrists, ankles, or similar parts bound together. Cannot make full use of bound limbs; disadvantage on
+  attacks or sexual advances requiring those limbs; disadvantage on Dexterity checks and saving throws.
+moodHint: restrained at the joints, limited reach
+immunities: []
+suppresses: []

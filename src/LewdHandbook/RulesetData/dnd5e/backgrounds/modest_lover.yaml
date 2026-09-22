@@ -1,0 +1,16 @@
+# Sexual History — Modest Lover (Lewd Handbook). Canonical history; feat mirror may exist under feats/.
+name: modest_lover
+system: dnd5e
+description: >
+  Sexual history (chosen in addition to a normal background). Average sexual experience for your age.
+  
+  Recovery Dice: d8.
+  Implements: proficient with natural implements; proficiency with up to 4 artificial implements of your choice.
+  Fetishes: may start with 1 of your choice.
+  Starting gear: may start with a Self-Pleasure Pack.
+  Once between long rests, when you make a sexual advance or a save against a sexual advance, roll an extra d20 (after rolling, before outcome) and choose which die to use.
+skillProficiencies: [Insight, Persuasion]
+toolProficiencies: []
+languages: []
+feature: >
+  Steady Experience — Recovery Dice d8; natural + up to 4 artificial; 1 fetish; optional Self-Pleasure Pack; 1/long rest reroll advance or save vs sexual advance (choose die).

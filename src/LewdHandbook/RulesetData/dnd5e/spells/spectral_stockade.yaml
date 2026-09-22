@@ -1,0 +1,14 @@
+name: spectral_stockade
+system: dnd5e
+level: 2
+classes: [sorcerer, warlock, wizard]
+concentration: true
+castingTime: 1 action
+verbal: true
+somatic: true
+material: true
+materialText: wood from stocks or pillory
+materialConsumed: false
+description: >
+  2nd-level conjuration, 60 ft, concentration up to 1 hour. Humanoid: Str save or restrained and limb_bound
+  (unseen force at wrists/ankles/neck). Repeat Str save end of turn to end. Higher slots: +1 hour duration each level above 2nd. (Lewd Handbook)

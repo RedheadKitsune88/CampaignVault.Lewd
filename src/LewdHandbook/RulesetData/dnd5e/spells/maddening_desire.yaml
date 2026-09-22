@@ -1,0 +1,14 @@
+name: maddening_desire
+system: dnd5e
+level: 1
+classes: [bard, sorcerer, warlock, wizard]
+concentration: true
+castingTime: 1 action
+verbal: true
+somatic: true
+material: false
+materialConsumed: false
+description: >
+  1st-level enchantment, 120 ft, concentration 1 minute. One humanoid: Wis save or hyperaroused; must use action each turn
+  to sexually advance a creature you choose (or nearest attractive / self if none in reach). Maintain with your action or spell ends;
+  target repeats Wis save end of turn. (Lewd Handbook; compulsion-of-lust analogue)

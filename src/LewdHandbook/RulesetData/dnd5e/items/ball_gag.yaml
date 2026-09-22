@@ -1,0 +1,9 @@
+name: ball_gag
+system: dnd5e
+category: bondage_equipment
+description: >
+  Ball gag. Applying implies the gagged condition (no clear speech; no verbal spell components).
+seedsConditions: [gagged]
+escapeDc: 20
+breakDc: 20
+hitPoints: 15

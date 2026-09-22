@@ -1,0 +1,14 @@
+name: locate_hookup
+system: dnd5e
+level: 3
+classes: [bard, sorcerer, warlock, wizard]
+concentration: true
+castingTime: 1 bonus action
+verbal: true
+somatic: true
+material: false
+materialConsumed: false
+description: >
+  3rd-level divination, self, concentration up to 1 hour. Sense direction to nearest suitable willing sexual partner
+  within 1,000 miles (moving: know direction of movement). May filter by shared kink/fetish/fantasy, tastes, or attraction.
+  Does not guarantee consent on arrival. Blocked by running water ≥10 ft wide. (Lewd Handbook; detect-desire analogue)

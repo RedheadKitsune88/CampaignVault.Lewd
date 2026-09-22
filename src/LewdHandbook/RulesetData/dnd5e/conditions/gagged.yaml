@@ -1,0 +1,9 @@
+name: gagged
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Mouth filled or held shut. Cannot open/close mouth; speech limited to unintelligible grunts/moans/whines;
+  cannot perform verbal components of spells.
+moodHint: silenced, muffled, drooling around the gag
+immunities: []
+suppresses: []

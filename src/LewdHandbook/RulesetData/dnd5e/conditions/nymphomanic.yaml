@@ -1,0 +1,9 @@
+name: nymphomanic
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Hyperaroused + Intoxicated; willing for all Sexual Advances; Inhibition reduced to 0 if positive;
+  disadvantage on non-pleasure actions; on turn, must sexually advance nearest attractive creature or self.
+moodHint: overcome with lust, compulsive
+immunities: []
+suppresses: []

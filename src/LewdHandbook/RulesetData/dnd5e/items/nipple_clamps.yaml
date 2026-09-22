@@ -1,0 +1,11 @@
+name: nipple_clamps
+system: dnd5e
+category: implement
+description: >
+  Accessory clamps. Piercing stimulation 1d4; typically worn/applied rather than swung as a primary weapon.
+damageDice: 1d4
+damageType: piercing
+implementTags: [artificial, accessory, clamps]
+finesse: false
+weight: 0.2
+cost: 3 gp

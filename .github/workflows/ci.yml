@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Restore
+        run: dotnet restore CampaignVault.Lewd.slnx
+
+      - name: Build
+        run: dotnet build CampaignVault.Lewd.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test CampaignVault.Lewd.slnx -c Release --no-build --verbosity normal
+
+      - name: Stage plugin drop (no Sdk.dll)
+        run: |
+          ./scripts/pack-plugin.sh Release
+          test ! -f artifacts/LewdHandbook/CampaignVault.PluginSdk.dll
+          test -f artifacts/LewdHandbook/LewdHandbook.dll
+          test -f artifacts/LewdHandbook/plugin.json

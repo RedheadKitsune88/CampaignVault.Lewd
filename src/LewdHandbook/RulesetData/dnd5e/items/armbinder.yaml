@@ -1,0 +1,10 @@
+name: armbinder
+system: dnd5e
+category: bondage_equipment
+description: >
+  Armbinder sleeve locking both arms behind the back. Multi-site arms restraint; typically applies limb_bound (arms) and cuffed.
+seedsConditions: [limb_bound, cuffed]
+sites: [arms]
+escapeDc: 20
+breakDc: 20
+hitPoints: 15

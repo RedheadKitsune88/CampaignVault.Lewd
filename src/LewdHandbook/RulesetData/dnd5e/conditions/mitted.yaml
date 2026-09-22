@@ -1,0 +1,9 @@
+name: mitted
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Hands wrapped/bound unusable as hands. Also Cuffed; auto-fail Sleight of Hand and fine-hand checks;
+  cannot manipulate objects or perform somatic components with hands.
+moodHint: paws useless, no fine motor control
+immunities: []
+suppresses: []

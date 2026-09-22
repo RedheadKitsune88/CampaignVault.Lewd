@@ -1,0 +1,8 @@
+name: hyperaroused
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Disadvantage on saves/checks to resist Indirect Advances; Martial Advances against the creature have advantage.
+moodHint: in heat, flushed, urgently needy
+immunities: []
+suppresses: []

@@ -1,0 +1,11 @@
+name: rope_coil
+system: dnd5e
+category: bondage_equipment
+description: >
+  Coil of rope suitable for bondage. Seeds cuffed and/or limb_bound when applied (DM chooses sites).
+Typical nonmagical bindings: 15 HP; escape DC 20 Dexterity or break DC 20 Strength (handbook default; DM may adjust).
+Applying to a willing creature is an action; restrained targets require an action with a free hand.
+seedsConditions: [cuffed, limb_bound]
+escapeDc: 20
+breakDc: 20
+hitPoints: 15

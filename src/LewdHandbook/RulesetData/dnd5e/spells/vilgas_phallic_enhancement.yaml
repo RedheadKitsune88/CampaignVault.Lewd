@@ -1,0 +1,13 @@
+name: vilgas_phallic_enhancement
+system: dnd5e
+level: 1
+classes: [sorcerer, warlock, wizard, bard]
+concentration: false
+castingTime: 1 action
+verbal: true
+somatic: true
+material: false
+materialConsumed: false
+description: >
+  1st-level transmutation, touch, 2 hours. Target grows a cock of appropriate size for its species, or increases existing cock
+  size by one category. Higher slots: +1 size category per slot above 1st (max Gargantuan). (Lewd Handbook; alter-anatomy summary)

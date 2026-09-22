@@ -1,0 +1,7 @@
+name: devoted_partner
+system: dnd5e
+mechanicalSummary: >
+  Recovery Dice d8; proficient with natural implements + up to 4 artificial; up to 2 fetishes
+  (excluding Anonymist, Wanton Whore, Swinger); Aftercare Pack; seduction vs you at disadvantage
+  while dedicated partner present or bond-token worn.
+extraPools: [recovery_dice]

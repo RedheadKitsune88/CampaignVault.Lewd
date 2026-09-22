@@ -1,0 +1,12 @@
+name: tar_bandages
+system: dnd5e
+category: bondage_equipment
+description: >
+  Bandage wraps impregnated with tar. Materials: bandage + tar; hardenable after application (DM may raise escape/break DCs once set).
+Can seed limb_bound, cuffed, mitted, or encased depending on coverage.
+materials: [bandage, tar]
+hardenable: true
+seedsConditions: [limb_bound, cuffed, mitted]
+escapeDc: 20
+breakDc: 22
+hitPoints: 15

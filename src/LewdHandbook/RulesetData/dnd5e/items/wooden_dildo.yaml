@@ -1,0 +1,11 @@
+name: wooden_dildo
+system: dnd5e
+category: implement
+description: >
+  Wooden phallic implement. Piercing stimulation 1d6 on martial advances when used as the method of advance.
+damageDice: 1d6
+damageType: piercing
+implementTags: [phallic, artificial]
+finesse: false
+weight: 1
+cost: 2 gp

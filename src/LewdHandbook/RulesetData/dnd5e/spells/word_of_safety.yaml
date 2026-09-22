@@ -1,0 +1,13 @@
+name: word_of_safety
+system: dnd5e
+level: 2
+classes: [bard, cleric, paladin]
+concentration: false
+castingTime: 10 minutes
+verbal: true
+somatic: true
+material: false
+materialConsumed: false
+description: >
+  2nd-level abjuration, touch, 8 hours. Set a safeword/gesture with a willing creature; free action trigger frees
+  nonmagical bindings and ends restrained/grappled, then spell ends. (Lewd Handbook)

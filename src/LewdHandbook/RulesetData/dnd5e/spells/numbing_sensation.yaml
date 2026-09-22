@@ -1,0 +1,13 @@
+name: numbing_sensation
+system: dnd5e
+level: 1
+classes: [bard, cleric, druid, sorcerer, warlock, wizard]
+concentration: false
+castingTime: 1 bonus action
+verbal: true
+somatic: true
+material: false
+materialConsumed: false
+description: >
+  1st-level abjuration, touch. Con save (may choose to fail). On fail: temp HP and numbing points = 1d8 + spellcasting mod.
+  +1d8 each slot above 1st. (Lewd Handbook)

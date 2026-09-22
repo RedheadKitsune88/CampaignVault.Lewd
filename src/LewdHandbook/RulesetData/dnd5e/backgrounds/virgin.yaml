@@ -1,0 +1,17 @@
+# Sexual History — Virgin (Lewd Handbook). Canonical history; feat mirror may exist under feats/.
+name: virgin
+system: dnd5e
+description: >
+  Sexual history (chosen in addition to a normal background). No penetrative sexual experience yet.
+  
+  Recovery Dice: d6.
+  Implements: not proficient with your own natural implements for the purpose of pleasuring others; may choose 1 artificial implement to gain proficiency in.
+  Fetishes: may start with one of Chaste Onlooker, Edge Puppet, or Voyeur.
+  Starting gear: may start with a Self-Pleasure Pack.
+  When gaining stimulation from unusual/unfamiliar sources, you may subtract your Inhibition Bonus from the stimulation dealt.
+  When a creature attempts to seduce or charm you through subtle/inconspicuous means, you may make an Insight check in place of AC or the saving throw; on a failure you do not recognize the attempt and are immune to its effects.
+skillProficiencies: [Insight]
+toolProficiencies: []
+languages: []
+feature: >
+  Inexperienced — Recovery Dice d6; not proficient natural (pleasuring others) + 1 artificial; fetish: Chaste Onlooker, Edge Puppet, or Voyeur; optional Self-Pleasure Pack; may subtract Inhibition from unfamiliar stim; Insight vs subtle seduction (fail = unrecognized/immune).

@@ -1,0 +1,13 @@
+name: lubricate
+system: dnd5e
+level: 0
+classes: [bard, sorcerer, warlock, wizard, cleric, druid]
+concentration: false
+castingTime: 1 action
+verbal: false
+somatic: true
+material: false
+materialConsumed: false
+description: >
+  Conjuration cantrip, touch, 1 hour. Willing target coated in lubricant; safely withstand/penetrate
+  implements two size categories larger/smaller without harm. (Lewd Handbook)

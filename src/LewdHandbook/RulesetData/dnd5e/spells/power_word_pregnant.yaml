@@ -1,0 +1,15 @@
+name: power_word_pregnant
+system: dnd5e
+level: 8
+classes: [sorcerer, warlock, wizard]
+concentration: false
+castingTime: 1 action
+verbal: true
+somatic: true
+material: true
+materialText: jade fertility idol
+materialConsumed: false
+description: >
+  8th-level transmutation, 60 ft, instantaneous. If target's current arousal > half max, becomes pregnant regardless of race/sex
+  and progresses halfway through term (self-offspring). Already pregnant: offspring count doubles. 9th-level slot: choose race/sex of offspring.
+  No effect if arousal ≤ half max. (Lewd Handbook impregnation spell)

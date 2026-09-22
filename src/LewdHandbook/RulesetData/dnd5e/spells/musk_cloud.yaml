@@ -1,0 +1,15 @@
+name: musk_cloud
+system: dnd5e
+level: 2
+classes: [druid, sorcerer, warlock, wizard]
+concentration: true
+castingTime: 1 action
+verbal: true
+somatic: true
+material: true
+materialText: vial of sweat or sexual fluids
+materialConsumed: false
+description: >
+  2nd-level evocation, self 10-ft radius, concentration 1 minute. Aphrodisiac musk moves with you. Enter/start turn: Con save;
+  fail 2d8 poison stim + hyperaroused until start of next turn (intoxicated while in area if hyperaroused); success half stim, no other effect.
+  Creatures that don't breathe immune. +1d8 stim per slot above 2nd. (Lewd Handbook)

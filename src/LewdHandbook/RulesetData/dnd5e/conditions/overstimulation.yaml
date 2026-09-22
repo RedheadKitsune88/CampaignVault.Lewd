@@ -1,0 +1,10 @@
+name: overstimulation
+system: dnd5e
+durationType: UntilLongRest
+isStacking: true
+mechanicalSummary: >
+  Levels 1–6 (like exhaustion). 1 Intoxicated; 2 Hyperaroused; 3 Inhibition 0; 4 Infatuated by source;
+  5 climax no longer clears edging; 6 Bad-Ended. Long rest reduces 1 level if no sexual stimulation while resting.
+moodHint: sexually overloaded, fraying self-control
+immunities: []
+suppresses: []

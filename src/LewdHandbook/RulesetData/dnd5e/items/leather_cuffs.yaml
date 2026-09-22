@@ -1,0 +1,10 @@
+name: leather_cuffs
+system: dnd5e
+category: bondage_equipment
+description: >
+  Paired leather cuffs with fasteners. Commonly apply the cuffed condition to wrists or ankles.
+Default binding: 15 HP; escape DC 20 Dex / break DC 20 Str unless DM rules otherwise.
+seedsConditions: [cuffed]
+escapeDc: 20
+breakDc: 20
+hitPoints: 15

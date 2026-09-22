@@ -1,0 +1,13 @@
+name: handjob
+system: dnd5e
+level: 0
+classes: [bard, sorcerer, warlock, wizard]
+concentration: false
+castingTime: 1 action
+verbal: true
+somatic: true
+material: false
+materialConsumed: false
+description: >
+  Conjuration cantrip, 120 ft, instantaneous. Ethereal hand deals force stimulation 1d4 + proficiency bonus.
+  Scales +1d4 at 5th/11th/17th. (Lewd Handbook)

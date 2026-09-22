@@ -1,0 +1,7 @@
+name: hood
+system: dnd5e
+category: bondage_equipment
+description: >
+  Sensory hood covering head. Sites: head/eyes/mouth. May seed blinded sensory and/or gagged depending on cutouts.
+seedsConditions: [blinded, gagged]
+sites: [head, eyes, mouth]

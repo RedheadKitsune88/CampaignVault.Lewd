@@ -1,0 +1,14 @@
+name: saint_resolve
+system: dnd5e
+level: 1
+classes: [cleric, paladin, bard]
+concentration: false
+castingTime: 1 action
+verbal: true
+somatic: true
+material: true
+materialText: holy symbol or miniature shield
+materialConsumed: false
+description: >
+  1st-level abjuration, touch, 8 hours. Willing target: immunity to hyperaroused; Inhibition Bonus +2.
+  Ends if target makes a sexual advance, or if dismissed as a free action. (Lewd Handbook)

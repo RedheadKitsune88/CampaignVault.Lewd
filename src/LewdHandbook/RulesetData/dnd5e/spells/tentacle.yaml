@@ -1,0 +1,14 @@
+name: tentacle
+system: dnd5e
+level: 0
+classes: [sorcerer, warlock, wizard]
+concentration: false
+castingTime: 1 action
+verbal: true
+somatic: true
+material: true
+materialText: a squid or octopus tentacle
+materialConsumed: false
+description: >
+  Conjuration cantrip, 30 ft, 1 minute. Summon tentacle; Str save or grappled; while grappled take 1d8 cold stim
+  at start of turn. Tentacle HP 10 AC 15. Extra tentacles at 5/11/17. (Lewd Handbook)

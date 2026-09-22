@@ -1,0 +1,13 @@
+name: magecock
+system: dnd5e
+level: 2
+classes: [sorcerer, warlock, wizard]
+concentration: false
+castingTime: 1 action
+verbal: true
+somatic: true
+material: false
+materialConsumed: false
+description: >
+  2nd-level conjuration, 60 ft, 1 minute. Spectral implement; spell attack martial advance within 5 ft for
+  1d8 + spellcasting mod force stim. Bonus action move 20 ft and repeat. Higher slots summon extras. (Lewd Handbook)

@@ -1,0 +1,13 @@
+name: suppress_inhibition
+system: dnd5e
+level: 4
+classes: [bard, sorcerer, warlock, wizard]
+concentration: true
+castingTime: 1 action
+verbal: true
+somatic: true
+material: false
+materialConsumed: false
+description: >
+  4th-level enchantment, 10 ft, concentration up to 10 minutes. Int save; fail → 2d10 psychic stim and Inhibition
+  −1d4 (min −6); periodic Cha saves may deepen penalty. Higher slots scale stim/duration. (Lewd Handbook)

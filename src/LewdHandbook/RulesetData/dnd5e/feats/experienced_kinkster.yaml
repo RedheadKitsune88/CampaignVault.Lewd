@@ -1,0 +1,7 @@
+name: experienced_kinkster
+system: dnd5e
+mechanicalSummary: >
+  Recovery Dice d10; proficient with natural implements + up to 8 artificial; access to 4–6 fetishes
+  (3 active benefits; downsides of all); change active benefits after long rest; 10 min observation
+  detects shared fetishes/vulnerabilities; Dominant's, Rigger's, or Sadist's Pack.
+extraPools: [recovery_dice]

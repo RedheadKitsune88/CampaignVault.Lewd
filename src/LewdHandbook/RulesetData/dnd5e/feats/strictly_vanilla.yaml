@@ -1,0 +1,6 @@
+name: strictly_vanilla
+system: dnd5e
+mechanicalSummary: >
+  Recovery Dice d6; proficient with reproductive natural implements only + up to 2 artificial; no fetishes;
+  optional Self-Pleasure Pack; disadvantage on Insight for sexual prefs; may subtract Inhibition from unfamiliar stim.
+extraPools: [recovery_dice]

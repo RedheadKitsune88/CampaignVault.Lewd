@@ -1,0 +1,9 @@
+name: encased
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Fully encased head-to-toe (usually multiple bindings). Incapacitated; also Cuffed and Hobbled;
+  automatically fails Strength and Dexterity saves; attacks and sexual advances against you have advantage.
+moodHint: sealed in, barely able to twitch
+immunities: []
+suppresses: []

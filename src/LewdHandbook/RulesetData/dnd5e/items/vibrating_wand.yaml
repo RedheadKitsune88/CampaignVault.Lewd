@@ -1,0 +1,11 @@
+name: vibrating_wand
+system: dnd5e
+category: implement
+description: >
+  Powered vibrating wand. Thunder stimulation 1d6 (vibration).
+damageDice: 1d6
+damageType: thunder
+implementTags: [artificial, wand, vibration]
+finesse: false
+weight: 1
+cost: 25 gp

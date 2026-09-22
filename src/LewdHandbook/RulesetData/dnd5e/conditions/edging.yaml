@@ -1,0 +1,9 @@
+name: edging
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Near-climax. Treated as nymphomanic without forcing Inhibition to 0; must climax-save at start of turn;
+  half movement to brace or fall prone; successful advances against this creature deal maximum stimulation.
+moodHint: overwhelmed with lust, trembling on the edge
+immunities: []
+suppresses: []

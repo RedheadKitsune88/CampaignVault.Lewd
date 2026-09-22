@@ -1,0 +1,14 @@
+name: incite_lust
+system: dnd5e
+level: 3
+classes: [bard, sorcerer, warlock]
+concentration: true
+castingTime: 1 action
+verbal: true
+somatic: true
+material: true
+materialText: your own natural implement
+materialConsumed: false
+description: >
+  3rd-level enchantment, 30 ft, concentration 1 minute. Wis save or become infatuated; must sexually advance you
+  (if within 5 ft) or self. Repeat Wis save end of turn. (Lewd Handbook)

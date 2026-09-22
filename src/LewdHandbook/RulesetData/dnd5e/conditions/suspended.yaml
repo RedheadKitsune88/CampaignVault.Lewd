@@ -1,0 +1,9 @@
+name: suspended
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Hung above ground away from leverage. Restrained; cannot reach ground/solid surface; auto-fail Str/Dex saves;
+  attacks and sexual advances against you have advantage.
+moodHint: dangling, no foothold, exposed
+immunities: []
+suppresses: []

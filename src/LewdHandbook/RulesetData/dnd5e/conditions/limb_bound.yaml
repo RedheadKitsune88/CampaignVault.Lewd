@@ -1,0 +1,9 @@
+name: limb_bound
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Arms or legs tightly bound together, completely preventing their use. Cannot use bound limbs or make
+  attacks/sexual advances requiring them; disadvantage on Dexterity checks and saving throws.
+moodHint: limbs locked useless against each other
+immunities: []
+suppresses: []
