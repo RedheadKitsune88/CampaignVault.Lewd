@@ -11,7 +11,7 @@ metadata:
 
 Adult opt-in interaction mode. **Engine State is source of truth.** Never invent consent, limits, bindings, or pool values that contradict participant / character State.
 
-Companion skills: `lewd-intimacy-tone`, `lewd-implements-anatomy`, `lewd-bindings`, `lewd-sexual-histories`, `lewd-catalog`.
+Companion skills: `lewd-intimacy-tone`, `lewd-implements-anatomy`, `lewd-bindings`, `lewd-sexual-histories`, `lewd-pregnancy`, `lewd-brands`, `lewd-imprints-conditioning`, `lewd-vices`, `lewd-bad-ending`, `lewd-catalog`.
 
 ## When to use
 
@@ -54,10 +54,20 @@ On enter, ensure each participant State includes at least:
 | `inhibition` | int (locked Int/Wis/Cha mod) |
 | `climax_successes` / `climax_failures` | int |
 | `edging` | bool |
+| `overstimulation` | int 0–6; StatusEffect name `Overstimulation N`, `conditionName` `overstimulation` |
+| `climax_streak` / `climax_incapacitated` | repeated climax while still down |
+| `had_physical` / `flirt_beats` | verbal-cap tracking |
 | `bindings` | array (see `lewd-bindings`) |
 | `posture` | string |
 | `arm_position` | `free` \| `front` \| `behind` \| `above` \| … |
 | `leg_position` | `free` \| `front` \| `behind` \| `apart` \| … |
+| `imprints` | trait mirror `id:points:level:origin:day`. See `lewd-imprints-conditioning` |
+| `intrusive_thoughts` | comma tokens (`imprint:ordeal`, `vice:sex`, …) |
+| `lustbrands` / `lustbrand_inhib` / `lustbrand_glow` | brand list + inhib sum + glow. See `lewd-brands` |
+| `pregnant` / `pregnancy_progress` / `pregnancy_type` | see `lewd-pregnancy` |
+| `bad_ended` | defeat flag; consequences via `lewd-bad-ending` |
+
+Character Traits/Attributes also hold durable `vice.<id>.*` (see `lewd-vices`) and pregnancy/brand/imprint mirrors outside the mode.
 
 Exit with `mode_transition` action `exit` (or when all participants mark `scene_end`).
 
@@ -69,6 +79,12 @@ Exit with `mode_transition` action `exit` (or when all participants mark `scene_
 | `lewd_climax_check` | Start-of-turn / forced climax save (DC 15) |
 | `lewd_bind` | Add structured binding entry before narrating restraint |
 | `lewd_unbind` | Remove binding / clear implies before narrating freedom |
+| `lewd_pregnancy` | Impregnate, term, rest poison, termination — see `lewd-pregnancy` |
+| `lewd_apply_brand` | Apply, remove, vow, trigger, release, or stabilize a lustbrand — see `lewd-brands` |
+| `lewd_bad_end` | Record defeat or explicit bad-end — see `lewd-bad-ending` |
+| `lewd_imprint` / `lewd_decondition` | Fetish tracks — see `lewd-imprints-conditioning` |
+| `lewd_vice` | Addiction consume/resist/rest — see `lewd-vices` (no mode required) |
+| core `rest` / travel / elapsed | Rest + time passage drive imprint/brand/vice/pregnancy observers |
 | core `resource` / `status` / `engagement_relation` | Pools, StatusEffects, pairwise holds |
 | core `mode_transition` | Enter / exit |
 
@@ -99,6 +115,11 @@ Rules the handler enforces:
 - Soft/kink tag adjust after amount.
 - Numbing absorbs stim first; leftover raises `arousal`.
 - At/over max → auto climax-failure path; stim ≥ arousal max → instant climax.
+- Lewd verbs do **not** tick a filth counter. Dirt, mud, dust, fluids, and cleanup are yours to record with core changes when the fiction actually changes, including from the ground — not only from sex. Verbal / non-contact beats never dirty anyone by themselves.
+- Character: `character_update.appearanceOverride` (e.g. "Covered in mud") and temporary `tagsToAdd` / `tagsToRemove` (`muddy`, `wet`, `disheveled`). Tag the person, not every item they carry.
+- Worn or dropped gear: `item_update.tagsToAdd` / `tagsToRemove` and `newState` for a short override ("Covered in mud"). Tag the container, not the contents. Durable marks (stains, scorch) use `upsertItemDetail`; retire the detail when cleaned. Never auto-deleted.
+- Verbal/non-contact skilled or indirect advances are capped by sexual history (see `lewd-sexual-histories`). Engine enforces the cap and blocks verbal climax until `had_physical`.
+- Climax while `climax_incapacitated`: 2nd stunned, 3rd paralyzed, 4th+ +1 `overstimulation` and stamps `Overstimulation N`. Level ≥5 keeps edging after climax. Level 6 marks `bad_ended`. Triggers, the record verb, and consequences: `lewd-bad-ending`. Do not drain levels in the marking commit.
 
 Stim source resolution: see `lewd-implements-anatomy`. Tone gating: see `lewd-intimacy-tone`.
 
@@ -154,6 +175,19 @@ Mirror keys on participant State: `arousal_current`, `arousal_max`.
 4. `selective` without actor on `allowed_partners` → refuse.
 5. Willing / wanted advances treat Inhibition as `min(0, raw)` for AC/saves vs advances; climax saves still use raw Inhibition unless overridden.
 6. Plugin install, campaign enablement, and NPC flirt prose are **not** consent.
+
+## Rests and time passage
+
+Host `RestChange`, `TravelChange`, and any change with `minutesElapsed` are the clock. Observers (not a plugin background tick) react after a successful commit:
+
+- Time-passing changes sync vice withdrawal from `last_hours` vs campaign time.
+- Long rest: imprint time-drop when unexposed; brand rest hooks; vice withdrawal saves when addicted and overdue (sheet ability mod + disadvantage).
+- Short or long rest while pregnant: Con DC 15 rest poison (sheet Con). `lewd_pregnancy action=rest` is the Rolls-null fallback.
+- Rest/status also applies a pending `bad_end_imprint_*` jump (same eagerness as `bad_end_vice_id`).
+- Overstimulation −1 on long rest is host-side when the stacking name is `Overstimulation N`.
+- If `IChangeContext.Rolls` is null, observers ask you to emit the matching verb with `d20` / ability mod.
+
+There is no plugin API to start a rest. Propose a small host/Sdk helper only if rest commits are missing from the table flow.
 
 ## Do not invent
 

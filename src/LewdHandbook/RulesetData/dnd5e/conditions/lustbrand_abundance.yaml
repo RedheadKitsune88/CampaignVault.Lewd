@@ -1,0 +1,8 @@
+name: "lustbrand:abundance"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Tier 1. Rest without climax raises endowment by 1 (−1 AC and Dex saves). Climax produces 1 liter and reduces that penalty by 1. Inhibition reduced by tier. remove curse does not remove this.
+moodHint: swollen, marked, glowing when aroused
+immunities: []
+suppresses: []

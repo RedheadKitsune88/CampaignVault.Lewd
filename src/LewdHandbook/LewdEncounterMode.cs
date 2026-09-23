@@ -41,6 +41,18 @@ file sealed class LewdEncounterStateMachine : IModeStateMachine
                     [Mechanics.LewdKeys.ClimaxFailures] = 0,
                     [Mechanics.LewdKeys.Edging] = false,
                     [Mechanics.LewdKeys.Overstimulation] = 0,
+                    [Mechanics.LewdKeys.ClimaxStreak] = 0,
+                    [Mechanics.LewdKeys.ClimaxIncapacitated] = false,
+                    [Mechanics.LewdKeys.EdgingBeats] = 0,
+                    [Mechanics.LewdKeys.HadPhysical] = false,
+                    [Mechanics.LewdKeys.FlirtBeats] = 0,
+                    [Mechanics.LewdKeys.BadEnded] = false,
+                    [Mechanics.LewdKeys.Lustbrands] = "",
+                    [Mechanics.LewdKeys.LustbrandGlow] = "",
+                    [Mechanics.LewdKeys.LustbrandInhib] = 0,
+                    [Mechanics.LewdKeys.Imprints] = "",
+                    [Mechanics.LewdKeys.IntrusiveThoughts] = "",
+                    [Mechanics.LewdKeys.ImprintInhib] = 0,
                     [Mechanics.LewdKeys.ArousalCurrentMirror] = 0,
                     [Mechanics.LewdKeys.ArousalMaxMirror] = 10,
                     [Mechanics.LewdKeys.Bindings] = new List<object>(),
@@ -89,6 +101,27 @@ file sealed class LewdEncounterStateMachine : IModeStateMachine
         var max = Mechanics.ConsentGate.GetInt(active, Mechanics.LewdKeys.ArousalMaxMirror);
         if (max > 0 && cur >= max)
             active.State[Mechanics.LewdKeys.Edging] = true;
+
+        if (Mechanics.ConsentGate.GetBool(active, Mechanics.LewdKeys.Edging))
+        {
+            var beats = Mechanics.ConsentGate.GetInt(active, Mechanics.LewdKeys.EdgingBeats) + 1;
+            active.State[Mechanics.LewdKeys.EdgingBeats] = beats;
+            var inhib = Mechanics.ConsentGate.GetInt(active, Mechanics.LewdKeys.Inhibition);
+            var os = Mechanics.ConsentGate.GetInt(active, Mechanics.LewdKeys.Overstimulation);
+            var next = Mechanics.OverstimMath.ExtendedEdgingOverstim(beats, inhib, os);
+            if (next is int level)
+            {
+                active.State[Mechanics.LewdKeys.Overstimulation] = level;
+                if (level >= 3)
+                    active.State[Mechanics.LewdKeys.Inhibition] = 0;
+                if (level >= Mechanics.OverstimMath.MaxLevel)
+                    active.State[Mechanics.LewdKeys.BadEnded] = true;
+            }
+        }
+        else
+        {
+            active.State[Mechanics.LewdKeys.EdgingBeats] = 0;
+        }
 
         return true;
     }

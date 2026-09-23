@@ -1,0 +1,10 @@
+id: sexual_fluids
+system: dnd5e
+kind: psychological
+baseDc: 18
+defaultAbility: cha
+withdrawalHours: 24
+mechanicalSummary: >
+  Psychological vice (Brand of Addiction line). Base DC 18. Locked while Brand of Addiction remains.
+  Withdrawal failure adds overstimulation (nat 1 = +2), not exhaustion.
+moodHint: hungry for fluids, fixated

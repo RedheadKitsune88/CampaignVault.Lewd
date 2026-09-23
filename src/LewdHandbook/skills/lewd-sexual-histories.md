@@ -63,7 +63,7 @@ Apply to **purely verbal or non-contact** Skilled/Indirect advances (flirting, d
 | `devoted_partner` | Treat as modest-tier for strangers; full dice with dedicated partners (table call). |
 | `willingly_celibate` | Use modest-tier caps; seduction already at disadv. |
 
-Commit the **capped** `stimulationAmount`, not the uncapped roll.
+The engine caps verbal/non-contact `lewd_advance` amounts (max 2 for inexperienced histories; uncapped for kinkster/promiscuous/professional). Still tag `verbal` and set `Traits.sexual_history`. Do not narrate a verbal climax for capped histories until State `had_physical` is true.
 
 ```json
 {

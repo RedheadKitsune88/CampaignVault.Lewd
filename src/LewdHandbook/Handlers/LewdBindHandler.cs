@@ -9,27 +9,27 @@ public sealed class LewdBindHandler : IWorldChangeHandler
 {
     public bool ShouldHandle(WorldChange change) => change is LewdBindChange;
 
-    public Task<ChangeHandlerResult> ApplyAsync(
+    public async Task<ChangeHandlerResult> ApplyAsync(
         WorldChange change,
         IChangeContext context,
         CancellationToken ct = default)
     {
         var bind = (LewdBindChange)change;
         if (string.IsNullOrWhiteSpace(bind.TargetId))
-            return Task.FromResult(ChangeHandlerResult.Failure("targetId is required."));
+            return ChangeHandlerResult.Failure("targetId is required.");
 
         var mode = context.ActiveMode;
         if (mode is null || !mode.IsActive ||
             !string.Equals(mode.ModeId, LewdEncounterMode.ModeIdValue, StringComparison.OrdinalIgnoreCase))
         {
-            return Task.FromResult(ChangeHandlerResult.Failure(
-                "lewd_bind requires an active lewd_encounter mode."));
+            return ChangeHandlerResult.Failure(
+                "lewd_bind requires an active lewd_encounter mode.");
         }
 
         var target = mode.Participants.FirstOrDefault(p =>
             string.Equals(p.CharacterId, bind.TargetId, StringComparison.OrdinalIgnoreCase));
         if (target is null)
-            return Task.FromResult(ChangeHandlerResult.Failure($"Target '{bind.TargetId}' is not in the lewd encounter."));
+            return ChangeHandlerResult.Failure($"Target '{bind.TargetId}' is not in the lewd encounter.");
 
         Dictionary<string, object>? seedProps = null;
         if (!string.IsNullOrWhiteSpace(bind.ItemId) &&
@@ -157,8 +157,26 @@ public sealed class LewdBindHandler : IWorldChangeHandler
         context.RecordPhysicalStateNudge(
             $"{bind.TargetId} is bound ({entry.Kind}) at {sites} ({orient}); arms {arms}, legs {legs}; implied: {implies}.");
 
-        return Task.FromResult(ChangeHandlerResult.Ok);
+        var bitchsuit = Contains(bind.ItemId, "bitchsuit") || Contains(entry.Kind, "bitchsuit") ||
+                        entry.Effects.Any(e => Contains(e, "bitchsuit")) ||
+                        entry.Materials.Any(m => Contains(m, "bitchsuit"));
+        if (bitchsuit && context.Characters.TryGetValue(bind.TargetId, out var imprintChar))
+        {
+            await ImprintState.AutoAsync(
+                context,
+                target,
+                imprintChar,
+                ["bitchsuit", "training"],
+                ConsentGate.IsAdvanceWanted(target, bind.ActorId),
+                bitchsuit: true,
+                ct).ConfigureAwait(false);
+        }
+
+        return ChangeHandlerResult.Ok;
     }
+
+    private static bool Contains(string? value, string needle) =>
+        value?.Contains(needle, StringComparison.OrdinalIgnoreCase) == true;
 
     internal static void StampRestraintEffects(
         Character character,

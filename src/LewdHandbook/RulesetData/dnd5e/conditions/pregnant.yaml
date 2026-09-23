@@ -1,0 +1,11 @@
+name: pregnant
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Disadvantage on Strength and Dexterity saving throws. Attacks against this creature crit on 18–20.
+  A critical hit forces a Constitution save with DC equal to the damage taken; failure terminates the pregnancy.
+  After a short or long rest, DC 15 Constitution or poisoned for 1d4 hours.
+  Emit lewd_pregnancy action rest / termination_save / advance / terminate. Do not invent the counter.
+moodHint: gravid, burdened, protective of the womb
+immunities: []
+suppresses: []

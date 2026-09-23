@@ -1,8 +1,8 @@
-# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[] + definitionName.
 name: tar_bandages
 system: dnd5e
-category: Other
-tags: [lewd, bondage]
+category: Bondage
+tags: [lewd, bondage, restraint, hardenable]
 description: >
   Linen wraps soaked in warm pitch. Soft when applied, they stiffen as they cool — a cruel
   field binder used by orc slavers and desperate gaolers. Materials bandage + tar; once hardened,
@@ -22,3 +22,5 @@ properties:
   hitPoints: 15
   costGp: 3
   weight: 2
+equipZones: [Torso]
+equipLayer: Base

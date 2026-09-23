@@ -1,8 +1,8 @@
-# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[] + definitionName.
 name: vibrating_wand
 system: dnd5e
-category: Weapon
-tags: [lewd, implement]
+category: Implement
+tags: [lewd, implement, wand, vibration]
 description: >
   Powered vibrating wand. Thunder stimulation 1d6 (vibration).
 properties:
@@ -14,3 +14,5 @@ properties:
   weight: 1
   costGp: 25
   damage: 1d6
+equipZones: [MainHand]
+equipLayer: Held

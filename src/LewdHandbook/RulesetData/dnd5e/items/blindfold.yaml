@@ -1,8 +1,8 @@
-# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[] + definitionName.
 name: blindfold
 system: dnd5e
-category: Other
-tags: [lewd, bondage]
+category: Bondage
+tags: [lewd, bondage, sensory]
 description: >
   A thick strip of black silk or soft leather bound over the eyes and knotted behind the head.
   Blocks ordinary sight while worn (treat as blinded for nonmagical vision). Favored by
@@ -20,3 +20,5 @@ properties:
   hitPoints: 5
   costGp: 1
   weight: 0.1
+equipZones: [Face]
+equipLayer: Outer

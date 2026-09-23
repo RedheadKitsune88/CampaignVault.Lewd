@@ -1,0 +1,9 @@
+name: vice_alcohol
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Addicted to alcohol. Must partake every 4 hours or become intoxicated. Narrate temptation when withdrawal
+  or in presence. Engine verb: lewd_vice.
+moodHint: shaky, thirsty, short-tempered
+immunities: []
+suppresses: []

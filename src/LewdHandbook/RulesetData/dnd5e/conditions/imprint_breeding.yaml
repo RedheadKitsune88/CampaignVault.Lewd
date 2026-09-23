@@ -1,0 +1,8 @@
+name: "imprint:breeding"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Level 3 breeding imprint. Seedbed identity. Decondition with lewd_decondition unless Brand of Fertility is live.
+moodHint: full, claimed, fertile
+immunities: []
+suppresses: []

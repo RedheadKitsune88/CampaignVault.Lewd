@@ -1,0 +1,10 @@
+id: sex
+system: dnd5e
+kind: psychological
+baseDc: 8
+defaultAbility: cha
+withdrawalHours: 24
+mechanicalSummary: >
+  Psychological vice. Addiction save uses Cha. Addicted: always hyperaroused; nymphomanic while arousal
+  is above half maximum. Withdrawal failure adds overstimulation (nat 1 = +2), not exhaustion.
+moodHint: craving contact, restless heat

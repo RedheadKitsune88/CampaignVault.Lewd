@@ -1,6 +1,6 @@
 # CampaignVault.Lewd
 
-Opt-in **Lewd Handbook** plugin for CampaignVault: adult `lewd_encounter` interaction mode for `ActiveSystem=dnd5e`, plus YAML data overlays and LLM-client skill sidecars.
+Opt-in **Lewd Handbook** plugin for CampaignVault: adult `lewd_encounter` interaction mode for `ActiveSystem=dnd5e`, plus YAML data overlays and LLM-client skill sidecars. What is this **Lewd Handbook**? It is a homebrew extension for fifth edition D&D system; you can [read more](https://www.patreon.com/Miss_Mycelia/posts/sex-dungeons-5e-79225409) at it's creator's patreon.
 
 > **Adult content.** See [NOTICE](NOTICE). Operator and table consent required. Full-trust DLL (same trust model as any CampaignVault code plugin).
 
@@ -59,6 +59,11 @@ Host does **not** inject skills. Point your LLM client at the plugin skill pack:
 | `lewd-bindings.md` | Structured `bindings[]` / bind verbs |
 | `lewd-sexual-histories.md` | Eight histories, verbal caps |
 | `lewd-catalog.md` | RulesetData spells/conditions |
+| `lewd-brands.md` | Lustbrands: `lewd_apply_brand`, per-brand effects |
+| `lewd-imprints-conditioning.md` | Imprint tracks + decondition |
+| `lewd-vices.md` | Vices/addictions: `lewd_vice` |
+| `lewd-pregnancy.md` | Pregnancy / fertility |
+| `lewd-bad-ending.md` | Bad-end record + consequences |
 
 ## Plugin identity
 
@@ -67,7 +72,7 @@ Host does **not** inject skills. Point your LLM client at the plugin skill pack:
 | Manifest id | `com.campaignvault.lewd-handbook` |
 | Mode id | `lewd_encounter` |
 | Compatible systems | `dnd5e` |
-| Custom `$type`s | `lewd_advance`, `lewd_climax_check`, `lewd_bind`, `lewd_unbind` |
+| Custom `$type`s | `lewd_advance`, `lewd_climax_check`, `lewd_bind`, `lewd_unbind`, `lewd_pregnancy`, `lewd_bad_end`, `lewd_apply_brand`, `lewd_imprint`, `lewd_decondition`, `lewd_vice` |
 
 ## Layout
 

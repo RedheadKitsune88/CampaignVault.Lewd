@@ -1,0 +1,8 @@
+name: "lustbrand:obedience"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Tier 5. Infatuated by the source. Cannot willingly move more than 1 mile from them. While overstimulated, DC 20 Wis or dominated. remove curse does not remove this.
+moodHint: owned, marked, glowing when aroused
+immunities: []
+suppresses: []

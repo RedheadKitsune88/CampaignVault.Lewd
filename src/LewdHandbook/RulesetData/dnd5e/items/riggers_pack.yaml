@@ -1,8 +1,8 @@
-# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[] + definitionName.
 name: riggers_pack
 system: dnd5e
 category: Container
-tags: [lewd, pack]
+tags: [lewd, pack, bondage, rope]
 description: >
   Rigger's Pack — rope and bondage hardware for complex ties (rope coils,
   carabiners/rings, safety shears). Starting option for Experienced Kinkster. Catalog

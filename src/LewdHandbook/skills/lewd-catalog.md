@@ -41,7 +41,7 @@ For bound and sexual conditions, commit structured `status` / StatusEffects (nam
 | `edging`, `overstimulation`, `denied`, `flustered`, `hyperaroused`, `infatuated`, `intoxicated`, `nymphomanic` | Free-text “they’re really turned on” with no State |
 | Bind implies → `cuffed`, `hobbled`, `encased`, `gagged`, … | Prose-only “tied up” (see `lewd-bindings`) |
 
-`lewd_bind` should keep `bindings[]` and StatusEffects aligned. Overstimulation is a **stacking** 1–6 condition (level 6 = Bad-Ended).
+`lewd_bind` should keep `bindings[]` and StatusEffects aligned. Overstimulation is a **stacking** 1–6 condition (level 6 = Bad-Ended). When the engine stamps it, the effect **name** is `Overstimulation N` (space + level) and `conditionName` is `overstimulation`, so a long rest decrements one level. Do not also narrate a full clear.
 
 Example:
 
@@ -72,12 +72,17 @@ Example:
 |----|------|
 | `edging` | At max; climax saves; max stim on hits; half move or prone |
 | `overstimulation` | Stacking exhaustion-like 1–6 |
+| `bad_ended` | Permanent sexual defeat. Engine does not drain levels. See `lewd-bad-ending` |
 | `denied` | Cannot climax; auto-succeed climax saves |
 | `flustered` | Social stun-like |
 | `hyperaroused` | Disadv resist indirect; martial adv vs them |
 | `infatuated` | Charmed-like; willing to source; Inhibition benefit suppressed |
 | `intoxicated` | Disadv Int/Wis/Cha saves |
 | `nymphomanic` | Hyperaroused + intoxicated; willing; Inhibition ≤ 0; must pursue sex |
+| `pregnant` | Str/Dex disadv, crit 18–20, rest poison, termination save. Verb: `lewd_pregnancy` |
+| `lustbrand:<id>` | Per-brand curse. Name `Lustbrand: <Title>`. Verb: `lewd_apply_brand`. See `lewd-brands` |
+| `imprint:<id>` | Level-3 fetish track. Name `Imprint: <Title>`. Verb: `lewd_imprint`. See `lewd-imprints-conditioning` |
+| `hyperfertile` / `hypervirile` / `infertile` | Fertility modifiers. See `lewd-pregnancy` |
 
 ## Feats (sexual-history stubs shipped)
 
@@ -85,9 +90,29 @@ Example:
 
 ## Items
 
-| Id | Role |
-|----|------|
-| `finesse_implement` | Artificial implement; finesse → Dex for stim bonus |
+Create live instances with `world_build` `items[]` + `definitionName` (copies category/tags/properties/equipZones/equipLayer once). Categories/zones are open strings (`Implement`, `Bondage`, `Jewelry`, custom `nipples`, …).
+
+Contraceptive stubs: `condom`, `oil_of_impotence`, `potion_of_infertility`, `beads_of_prevention`. Pass the matching `contraceptive` on `lewd_pregnancy`; the engine does not consume charges.
+
+| definitionName | category | zones / layer | Role |
+|----------------|----------|---------------|------|
+| `finesse_implement` | Implement | MainHand / Held | Artificial implement; finesse → Dex for stim bonus |
+| `wooden_dildo` | Implement | MainHand / Held | Phallic 1d6 piercing |
+| `glass_wand` | Implement | MainHand / Held | Finesse wand 1d4 piercing |
+| `vibrating_wand` | Implement | MainHand / Held | Thunder 1d6 vibration |
+| `flogger` | Implement | MainHand / Held | Impact 1d4 slashing |
+| `paddle` | Implement | MainHand / Held | Impact 1d6 bludgeoning |
+| `nipple_clamps` | Jewelry | nipples / Base | Worn clamps; 1d4 piercing on tug |
+| `leather_cuffs` | Bondage | Wrists / Base | Cuffs; orientation required |
+| `armbinder` | Bondage | Wrists+Hands / Base | Arms rear-bound |
+| `spreader_bar` | Bondage | Legs / Base | Ankles apart; hobbled |
+| `ball_gag` | Bondage | Face / Base | Gagged |
+| `blindfold` | Bondage | Face / Outer | Blinded |
+| `hood` | Clothing | Head / Outer | Blinded + gagged |
+| `bitchsuit` | Bondage | Torso+Legs+Hands+Head / Base | Encased crawl-suit |
+| `tar_bandages` | Bondage | Torso / Base | Hardenable wrap |
+| `rope_coil` | Tool | MainHand / Held | Versatile tie |
+| `*_pack` | Container | — | Starting kits (not equippable) |
 
 Extend with campaign Items using Properties from `lewd-implements-anatomy`.
 
@@ -130,3 +155,5 @@ For `word_of_safety` triggers, follow with `lewd_unbind` on non-`hardened` entri
 - Invent spell names that collide with shipped ids but change mechanics.
 - Apply bondage conditions without updating `bindings[]`.
 - Assume the catalog is the full handbook — it is curated priority content only.
+
+Also see `lewd-vices` for addiction StatusEffects `vice_*` and yaml under `RulesetData/dnd5e/vices/`.

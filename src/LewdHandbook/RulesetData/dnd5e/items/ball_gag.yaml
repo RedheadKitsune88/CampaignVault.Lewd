@@ -1,7 +1,7 @@
-# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[] + definitionName.
 name: ball_gag
 system: dnd5e
-category: Other
+category: Bondage
 tags: [lewd, bondage, gag]
 description: >
   A smooth orb of hardwood or ivory held behind the teeth by a wide leather strap and buckle.
@@ -20,3 +20,5 @@ properties:
   hitPoints: 10
   costGp: 2
   weight: 0.5
+equipZones: [Face]
+equipLayer: Base

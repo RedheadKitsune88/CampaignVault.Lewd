@@ -1,0 +1,8 @@
+name: "imprint:cruelty"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Level 3 cruelty imprint. +1 stimulation when the bearer inflicts pain or the target is overstimulated. Not a vice.
+moodHint: pleased by the flinch
+immunities: []
+suppresses: []

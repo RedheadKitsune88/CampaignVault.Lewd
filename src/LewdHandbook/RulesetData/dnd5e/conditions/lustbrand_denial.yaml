@@ -1,0 +1,8 @@
+name: "lustbrand:denial"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Tier 5. Denied until a stored release condition is met. Release lasts until the next rest, heal, advance, or climax commit. remove curse does not remove this.
+moodHint: aching, denied, glowing when aroused
+immunities: []
+suppresses: []

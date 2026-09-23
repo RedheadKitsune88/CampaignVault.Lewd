@@ -1,0 +1,10 @@
+name: hyperfertile
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Impregnation checks involving this creature are made with advantage.
+  This creature has disadvantage on saving throws to avoid becoming pregnant.
+  Does not cancel infertility or allow impossible species pairings.
+moodHint: in heat, painfully fertile
+immunities: []
+suppresses: []

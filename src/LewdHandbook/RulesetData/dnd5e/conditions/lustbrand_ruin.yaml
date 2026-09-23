@@ -1,0 +1,8 @@
+name: "lustbrand:ruin"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Tier 1, can rise to 5. A would-be climax spends one recovery die and reduces arousal by the die plus tier as psychic damage. No dice: 1d12 psychic and +1 overstimulation. HP 0 becomes 1 and raises tier. remove curse does not remove this.
+moodHint: ruined, marked, glowing when aroused
+immunities: []
+suppresses: []

@@ -1,8 +1,8 @@
-# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[] + definitionName.
 name: nipple_clamps
 system: dnd5e
-category: Other
-tags: [lewd, implement, bondage]
+category: Jewelry
+tags: [lewd, implement, bondage, jewelry, clamps]
 description: >
   Small bronze spring-clamps lined with soft leather, joined by a short chain. Worn rather than
   swung; deal piercing stimulation (1d4) when tugged or struck. A jeweled curiosity in Calimshan
@@ -20,3 +20,5 @@ properties:
   posture: clamped
   weight: 0.2
   costGp: 3
+equipZones: [nipples]
+equipLayer: Base

@@ -1,0 +1,8 @@
+name: "lustbrand:betrayal"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Tier 5. Nymphomanic within 10 ft of the stored foe type. Their climax infatuates the bearer for 1d6 hours. Distance is not engine-known. remove curse does not remove this.
+moodHint: compromised, marked, glowing when aroused
+immunities: []
+suppresses: []

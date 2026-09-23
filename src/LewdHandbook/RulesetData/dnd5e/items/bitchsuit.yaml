@@ -1,8 +1,8 @@
-# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[] + definitionName.
 name: bitchsuit
 system: dnd5e
-category: Clothing
-tags: [lewd, bondage]
+category: Bondage
+tags: [lewd, bondage, restraint, worn, encasement]
 description: >
   A full-body sheath of soft leather and buckled straps that folds the arms and legs into the
   hide, leaving the wearer able to move only by crawling on bent knees and elbows (all fours).
@@ -23,3 +23,5 @@ properties:
   hitPoints: 30
   costGp: 75
   weight: 12
+equipZones: [Torso, Legs, Hands, Head]
+equipLayer: Base

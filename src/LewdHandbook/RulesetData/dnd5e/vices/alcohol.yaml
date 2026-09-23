@@ -1,0 +1,10 @@
+id: alcohol
+system: dnd5e
+kind: complex
+baseDc: 10
+defaultAbility: con
+withdrawalHours: 4
+mechanicalSummary: >
+  Complex vice. Caller picks Con/Wis/Cha for the addiction save. Must partake every 4 hours or become
+  intoxicated. Prior addiction makes later partakes +2 DC instead of +1. Withdrawal failure adds exhaustion.
+moodHint: shaky, thirsty, short-tempered

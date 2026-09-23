@@ -1,0 +1,8 @@
+name: "lustbrand:altruism"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Tier 1, can rise to 5. Healing another reduces arousal max by the same amount until a short rest. Con save or hyperaroused. Stabilizing raises tier. remove curse does not remove this.
+moodHint: aching, marked, glowing when aroused
+immunities: []
+suppresses: []

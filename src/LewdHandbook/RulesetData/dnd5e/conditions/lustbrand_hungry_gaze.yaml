@@ -1,0 +1,8 @@
+name: "lustbrand:hungry_gaze"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Tier 3. Disadvantage on Stealth and hiding. Viewers make DC 15 Wis or become sexually aggressive until climax. Charm-immune creatures succeed. remove curse does not remove this.
+moodHint: watched, marked, glowing when aroused
+immunities: []
+suppresses: []

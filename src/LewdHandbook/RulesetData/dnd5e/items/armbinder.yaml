@@ -1,8 +1,8 @@
-# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[] + definitionName.
 name: armbinder
 system: dnd5e
-category: Clothing
-tags: [lewd, bondage]
+category: Bondage
+tags: [lewd, bondage, restraint]
 description: >
   A long leather sleeve that draws both arms behind the back and laces from wrists to shoulders,
   ending in a strap about the chest. Hands are useless for tools or somatic gestures; seeds
@@ -23,3 +23,5 @@ properties:
   hitPoints: 18
   costGp: 15
   weight: 3
+equipZones: [Wrists, Hands]
+equipLayer: Base

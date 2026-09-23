@@ -1,0 +1,9 @@
+name: hypervirile
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Saving throws made to avoid being impregnated by this creature are made at disadvantage.
+  Does not cancel infertility or allow impossible species pairings.
+moodHint: aggressively potent
+immunities: []
+suppresses: []

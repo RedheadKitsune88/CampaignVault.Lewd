@@ -1,0 +1,8 @@
+name: "lustbrand:fertility"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Tier 2, can rise to 5. Hyperfertile. Climax only through unprotected sex. Hyperaroused while pregnant. Extra pregnancies −1 Str and Dex each. remove curse does not remove this.
+moodHint: ripe, marked, glowing when aroused
+immunities: []
+suppresses: []

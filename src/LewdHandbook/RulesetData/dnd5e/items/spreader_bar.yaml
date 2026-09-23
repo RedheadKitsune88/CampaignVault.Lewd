@@ -1,8 +1,8 @@
-# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[] + definitionName.
 name: spreader_bar
 system: dnd5e
-category: Other
-tags: [lewd, bondage]
+category: Bondage
+tags: [lewd, bondage, restraint, hobble]
 description: >
   A length of oak or iron with leather cuffs at either end, forcing ankles (or wrists) apart.
   Hobbles a stride and holds a forced open stance; pairs with cuffs. Found in barracks
@@ -21,3 +21,5 @@ properties:
   hitPoints: 20
   costGp: 12
   weight: 4
+equipZones: [Legs]
+equipLayer: Base

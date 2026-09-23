@@ -1,0 +1,10 @@
+name: infertile
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Traditional impregnation checks involving this creature automatically fail.
+  Does not by itself auto-succeed saves against magical or nontraditional pregnancy
+  (Pregnancy Ward does both). Hyperfertility does not cancel this.
+moodHint: barren, warded, chemically closed
+immunities: []
+suppresses: []

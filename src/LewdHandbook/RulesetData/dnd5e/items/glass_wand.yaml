@@ -1,8 +1,8 @@
-# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[] + definitionName.
 name: glass_wand
 system: dnd5e
-category: Weapon
-tags: [lewd, implement]
+category: Implement
+tags: [lewd, implement, wand, finesse]
 description: >
   Smooth glass wand implement. Piercing stimulation 1d4; finesse (Dex instead of Str for
   stim bonus).
@@ -15,3 +15,5 @@ properties:
   weight: 0.5
   costGp: 15
   damage: 1d4
+equipZones: [MainHand]
+equipLayer: Held

@@ -1,0 +1,9 @@
+name: vice_succubus_venom
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Addicted to succubus venom. Disadvantage vs charmed and infatuated (narrate). Withdrawal stamps Denied.
+  Engine verb: lewd_vice.
+moodHint: aching for venom, suggestible
+immunities: []
+suppresses: []

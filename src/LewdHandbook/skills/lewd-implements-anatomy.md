@@ -130,7 +130,7 @@ Natural anatomy example (no item):
 ## Host ItemDefinition workflow
 
 1. Browse templates: MCP `get_rules_reference` with `kind: "items"` (optional `itemNameQuery` / `itemCategory` / `itemTag`, e.g. tag `lewd`).
-2. Spawn a live instance with `world_build` `items[]` — copy `category`, `tags`, and especially `properties` from the template; set `definitionName` on the Item when the host field is available.
+2. Spawn a live instance with `world_build` `items[]` and `definitionName` (e.g. `"finesse_implement"`) — host copies category/tags/properties/equipZones/equipLayer once; explicit fields on the same entry override.
 3. Equip/hold so `HolderId` points at the actor; `lewd_advance` resolves stim from live `Item.Properties` (`damage` / `damageDice`, `damageType`, `implementTags`, `finesse`).
 
 Plugin YAML under `RulesetData/dnd5e/items/` uses the host ItemDefinition schema (`category` enum + nested `properties`). Bondage gear keeps `lewdCategory` / `implies` / `sites` inside `properties` for `lewd_bind` seeding.

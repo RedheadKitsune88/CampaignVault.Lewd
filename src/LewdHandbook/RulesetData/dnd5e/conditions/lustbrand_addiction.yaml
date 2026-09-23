@@ -1,0 +1,8 @@
+name: "lustbrand:addiction"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Tier 1. Sexual-fluids vice DC 18, locked while the brand remains. Long-rest benefits need 8 oz of sexual fluids. Craving, saves, and withdrawal are not rolled here. remove curse does not remove this.
+moodHint: hungry, marked, glowing when aroused
+immunities: []
+suppresses: []

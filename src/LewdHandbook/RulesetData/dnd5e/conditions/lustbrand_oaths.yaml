@@ -1,0 +1,8 @@
+name: "lustbrand:oaths"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Tier 2. An explicit vow binds. A breach compels public sexual humiliation, or nymphomanic and −1 arousal max per day. The engine stores the vow. remove curse does not remove this.
+moodHint: bound, marked, glowing when aroused
+immunities: []
+suppresses: []

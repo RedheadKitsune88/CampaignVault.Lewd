@@ -1,0 +1,8 @@
+name: "lustbrand:emptiness"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Tier 1. No penalty for larger penetration. Disadvantage on saves, attacks, and checks while not penetrated by a larger implement. remove curse does not remove this.
+moodHint: hollow, marked, glowing when aroused
+immunities: []
+suppresses: []

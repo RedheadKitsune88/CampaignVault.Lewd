@@ -53,8 +53,8 @@ public sealed class LewdClimaxCheckHandler : IWorldChangeHandler
                 arousal.Current,
                 EdgingAfter: false,
                 Summary: "Forced climax.");
-            LewdAdvanceHandler.ApplyClimaxResult(target, targetChar, arousal, forced);
-            context.RecordMessage($"Lewd climax check {check.TargetId}: forced climax.");
+            var note = LewdAdvanceHandler.ApplyClimaxResult(target, targetChar, arousal, forced, sourceId: null, context);
+            context.RecordMessage($"Lewd climax check {check.TargetId}: forced climax.{note}");
             return ChangeHandlerResult.Ok;
         }
 
@@ -83,7 +83,11 @@ public sealed class LewdClimaxCheckHandler : IWorldChangeHandler
         if (arousal.Current >= arousal.Max)
             LewdPoolHelper.SetEdging(target, targetChar, true);
 
-        var inhib = check.InhibitionBonus ?? ConsentGate.GetInt(target, LewdKeys.Inhibition);
+        if (targetChar is not null)
+            BrandState.Mirror(target, targetChar);
+        var inhib = check.InhibitionBonus
+            ?? ConsentGate.GetInt(target, LewdKeys.Inhibition) - ConsentGate.GetInt(target, LewdKeys.LustbrandInhib);
+        var wasIncap = ConsentGate.GetBool(target, LewdKeys.ClimaxIncapacitated);
         var successes = ConsentGate.GetInt(target, LewdKeys.ClimaxSuccesses);
         var failures = ConsentGate.GetInt(target, LewdKeys.ClimaxFailures);
 
@@ -95,8 +99,22 @@ public sealed class LewdClimaxCheckHandler : IWorldChangeHandler
             arousal.Current,
             arousal.Max);
 
-        LewdAdvanceHandler.ApplyClimaxResult(target, targetChar, arousal, result);
-        context.RecordMessage($"Lewd climax check {check.TargetId}: {result.Summary}");
+        var aftermath = LewdAdvanceHandler.ApplyClimaxResult(target, targetChar, arousal, result, context: context);
+        context.RecordMessage($"Lewd climax check {check.TargetId}: {result.Summary}{aftermath}");
+        if (targetChar is not null &&
+            result.Kind is ClimaxOutcomeKind.Climaxed or ClimaxOutcomeKind.InstantClimax &&
+            (wasIncap || check.ForceClimax))
+        {
+            await ImprintState.AutoAsync(
+                context,
+                target,
+                targetChar,
+                ["ordeal", "incapacitated"],
+                ConsentGate.IsAdvanceWanted(target, check.TargetId),
+                bitchsuit: false,
+                ct).ConfigureAwait(false);
+        }
+
         return ChangeHandlerResult.Ok;
     }
 }

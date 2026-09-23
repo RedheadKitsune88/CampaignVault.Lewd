@@ -157,6 +157,23 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
             tags = tags.Concat(implement.Tags).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
         stim = ConsentGate.AdjustStimulationForTags(target, stim, stimType, tags);
+        var flirtBeats = ConsentGate.GetInt(target, LewdKeys.FlirtBeats);
+        var verbal = ConsentGate.IsVerbalOrNonContact(kind, tags);
+        if (verbal)
+        {
+            flirtBeats++;
+            target.State[LewdKeys.FlirtBeats] = flirtBeats;
+        }
+        else
+        {
+            target.State[LewdKeys.HadPhysical] = true;
+            target.State[LewdKeys.FlirtBeats] = 0;
+        }
+
+        var beforeCap = stim;
+        stim = ConsentGate.CapVerbalStimulation(target, targetChar, kind, tags, stim, flirtBeats);
+        if (!verbal)
+            stim += ImprintState.SufferingBonus(actorChar, tags, ConsentGate.GetInt(target, LewdKeys.Overstimulation));
 
         var arousal = targetChar is not null
             ? LewdPoolHelper.EnsurePool(targetChar, LewdKeys.PoolArousal, defaultMax: 10, RecoveryType.Never)
@@ -184,21 +201,41 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         arousal.Current = result.ArousalAfter;
         LewdPoolHelper.MirrorArousal(target, arousal);
 
+        var wasIncap = ConsentGate.GetBool(target, LewdKeys.ClimaxIncapacitated);
         var successes = ConsentGate.GetInt(target, LewdKeys.ClimaxSuccesses);
         var failures = ConsentGate.GetInt(target, LewdKeys.ClimaxFailures);
         var climaxNote = "";
 
         if (result.InstantClimax || result.AutoClimaxFailures > 0)
         {
-            var climax = ClimaxMath.ApplyAutoFailures(
-                result.AutoClimaxFailures,
-                successes,
-                failures,
-                arousal.Current,
-                arousal.Max,
-                result.InstantClimax);
-            ApplyClimaxResult(target, targetChar, arousal, climax);
-            climaxNote = " " + climax.Summary;
+            var blockVerbal = ConsentGate.BlocksVerbalClimax(target, targetChar, kind, tags);
+            if (blockVerbal && result.InstantClimax)
+            {
+                LewdPoolHelper.SetEdging(target, targetChar, true);
+                climaxNote = " Verbal/non-contact climax blocked (inexperienced history, no prior physical scene); edging held.";
+            }
+            else
+            {
+                var climax = ClimaxMath.ApplyAutoFailures(
+                    result.AutoClimaxFailures,
+                    successes,
+                    failures,
+                    arousal.Current,
+                    arousal.Max,
+                    result.InstantClimax && !blockVerbal);
+                var selfEcho = string.Equals(advance.ActorId, advance.TargetId, StringComparison.OrdinalIgnoreCase) &&
+                               targetChar is not null && BrandState.Has(targetChar, BrandCatalog.Echoes);
+                if (selfEcho)
+                {
+                    if (arousal.Current >= arousal.Max)
+                        LewdPoolHelper.SetEdging(target, targetChar, true);
+                    climaxNote = " Brand of Echoes: cannot self-climax.";
+                }
+                else
+                {
+                    climaxNote = " " + climax.Summary + ApplyClimaxResult(target, targetChar, arousal, climax, advance.ActorId, context, tags);
+                }
+            }
         }
         else
         {
@@ -207,23 +244,139 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
 
         var typeLabel = string.IsNullOrWhiteSpace(stimType) ? "untyped" : stimType;
         var implLabel = implement is null ? "" : $" via {implement.Source}";
+        var capNote = stim < beforeCap ? $" Verbal cap {beforeCap}→{stim}." : "";
         context.RecordMessage(
             $"Lewd {kind} advance {advance.ActorId} → {advance.TargetId}{implLabel}: +{stim} {typeLabel} stim " +
             $"(numbing {result.NumbingBefore}→{result.NumbingAfter}, arousal {result.ArousalBefore}→{result.ArousalAfter}/{arousal.Max})." +
-            climaxNote);
+            capNote + climaxNote);
+        if (!string.Equals(advance.ActorId, advance.TargetId, StringComparison.OrdinalIgnoreCase) &&
+            actorChar is not null &&
+            BrandState.Has(actorChar, BrandCatalog.Echoes) &&
+            stim > 0)
+        {
+            BrandState.EchoStim(actor, actorChar, stim, context);
+        }
+
+        if (!verbal && targetChar is not null)
+        {
+            var tickTags = tags.ToList();
+            if (wasIncap)
+                tickTags.Add("incapacitated");
+            await ImprintState.AutoAsync(context, target, targetChar, tickTags, wanted, bitchsuit: false, ct)
+                .ConfigureAwait(false);
+        }
+
+        if (!verbal && actorChar is not null && tags.Any(ImprintMath.IsCruelty))
+        {
+            await ImprintState.AutoAsync(
+                context,
+                actor,
+                actorChar,
+                tags.Where(ImprintMath.IsCruelty),
+                ConsentGate.IsAdvanceWanted(actor, advance.ActorId),
+                bitchsuit: false,
+                ct).ConfigureAwait(false);
+        }
 
         return ChangeHandlerResult.Ok;
     }
 
-    internal static void ApplyClimaxResult(
+    internal static string ApplyClimaxResult(
         ModeParticipantState target,
         Character? character,
         ResourcePool arousal,
-        ClimaxSaveResult climax)
+        ClimaxSaveResult climax,
+        string? sourceId = null,
+        IChangeContext? context = null,
+        IEnumerable<string>? tags = null)
     {
+        var climaxed = climax.Kind is ClimaxOutcomeKind.Climaxed or ClimaxOutcomeKind.InstantClimax;
+        var overstim = ConsentGate.GetInt(target, LewdKeys.Overstimulation);
+        var wasEdging = ConsentGate.GetBool(target, LewdKeys.Edging);
+        ResourcePool? recovery = null;
+        var hasRecovery = character?.SystemStats.ResourcePools.TryGetValue(LewdKeys.PoolRecoveryDice, out recovery) == true &&
+                          recovery is not null;
+        var recoveryCurrent = recovery?.Current ?? 0;
+
+        if (climaxed && BrandState.InterceptClimax(target, character, arousal, context, out var intercepted))
+            return intercepted;
+
         arousal.Current = climax.ArousalAfter;
         LewdPoolHelper.MirrorArousal(target, arousal);
         LewdPoolHelper.WriteClimaxCounters(target, climax.Successes, climax.Failures);
-        LewdPoolHelper.SetEdging(target, character, climax.EdgingAfter);
+
+        if (!climaxed)
+        {
+            LewdPoolHelper.SetEdging(target, character, climax.EdgingAfter);
+            return "";
+        }
+
+        var wasIncap = ConsentGate.GetBool(target, LewdKeys.ClimaxIncapacitated);
+        var streak = ConsentGate.GetInt(target, LewdKeys.ClimaxStreak);
+        var tick = OverstimMath.OnClimax(streak, wasIncap, overstim);
+        target.State[LewdKeys.ClimaxStreak] = tick.ClimaxStreak;
+        target.State[LewdKeys.ClimaxIncapacitated] = true;
+
+        var level = tick.OverstimulationAfter;
+        if (tick.OverstimIncreased)
+            LewdPoolHelper.SetOverstimulation(target, character, level, sourceId, context);
+
+        var decision = BadEndMath.Evaluate(new BadEndProbe(
+            BadEndState.IsMarked(target, character),
+            level,
+            Climaxed: true,
+            wasEdging,
+            hasRecovery,
+            recoveryCurrent,
+            HasArousalPool: false,
+            ArousalMax: 1,
+            CurrentHp: null));
+        var markedReason = decision.Reason;
+        if (decision.Mark && decision.Reason is not null)
+            BadEndState.Apply(target, character, decision.Reason, sourceId, context: context);
+        else if (BadEndState.IsMarked(target, character) && level >= OverstimMath.MaxLevel)
+            markedReason = PregnancyState.Text(character, LewdKeys.BadEndReason) ?? BadEndMath.Overstim;
+
+        var keepEdging = climax.EdgingAfter || level >= 5;
+        LewdPoolHelper.SetEdging(target, character, keepEdging);
+        StampOverstimCascade(character, level, tick.IncapacitationCondition, sourceId);
+
+        var extra = tick.IncapacitationCondition is null ? "" : $" {tick.IncapacitationCondition}.";
+        var osNote = tick.OverstimIncreased ? $" Overstimulation {level}." : "";
+        var bad = markedReason is null ? "" : $" Bad-Ended ({markedReason}).";
+        var missing = decision.MissingRecoveryPool ? " recovery_dice pool missing; do not assume zero." : "";
+        var brandNote = character is null ? "" : BrandState.OnClimax(target, character, tags, context);
+        return $" Climax streak {tick.ClimaxStreak}.{extra}{osNote}{bad}{missing}{brandNote}";
+    }
+
+    private static void StampOverstimCascade(
+        Character? character,
+        int level,
+        string? incapacitation,
+        string? sourceId)
+    {
+        if (character is null || level <= 0 && incapacitation is null)
+            return;
+
+        if (level >= 1)
+            LewdPoolHelper.EnsureNamedCondition(character, LewdKeys.ConditionIntoxicated, LewdKeys.ConditionIntoxicated,
+                "Overstimulation 1+: Intoxicated.");
+        if (level >= 2)
+            LewdPoolHelper.EnsureNamedCondition(character, LewdKeys.ConditionHyperaroused, LewdKeys.ConditionHyperaroused,
+                "Overstimulation 2+: Hyperaroused.");
+        if (level >= 4)
+            LewdPoolHelper.EnsureNamedCondition(character, LewdKeys.ConditionInfatuated, LewdKeys.ConditionInfatuated,
+                "Overstimulation 4+: Infatuated by the source of overstimulation.");
+        if (incapacitation is not null)
+            LewdPoolHelper.EnsureNamedCondition(character, incapacitation, incapacitation,
+                "Repeated climax while still incapacitated.");
+
+        if (!string.IsNullOrWhiteSpace(sourceId))
+        {
+            var inf = character.SystemStats.StatusEffects.FirstOrDefault(e =>
+                string.Equals(e.Name, LewdKeys.ConditionInfatuated, StringComparison.OrdinalIgnoreCase));
+            if (inf is not null && level >= 4)
+                inf.AppliedBy = sourceId;
+        }
     }
 }

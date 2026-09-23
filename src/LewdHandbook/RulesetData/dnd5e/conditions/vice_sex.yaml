@@ -1,0 +1,9 @@
+name: vice_sex
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Addicted to sex. Always hyperaroused; nymphomanic while arousal is above half maximum.
+  Narrate temptation when withdrawal or in presence. Engine verb: lewd_vice.
+moodHint: craving contact, restless heat
+immunities: []
+suppresses: []

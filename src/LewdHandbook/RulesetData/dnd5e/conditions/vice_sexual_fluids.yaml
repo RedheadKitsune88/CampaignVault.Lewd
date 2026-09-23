@@ -1,0 +1,9 @@
+name: vice_sexual_fluids
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Addicted to sexual fluids (often Brand of Addiction). Narrate temptation when withdrawal or in presence.
+  Engine verb: lewd_vice. Locked while the brand remains.
+moodHint: hungry for fluids, fixated
+immunities: []
+suppresses: []

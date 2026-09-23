@@ -1,0 +1,11 @@
+name: potion_of_infertility
+system: dnd5e
+category: Consumable
+tags: [lewd, contraceptive]
+description: >
+  Drinking it imposes the infertile condition for 7 days. Stamp infertile (StatusEffect or trait),
+  then traditional lewd_pregnancy checks fail until it ends. Does not auto-succeed nontraditional saves.
+properties:
+  lewdCategory: contraceptive
+  contraceptive: infertile
+  durationDays: 7

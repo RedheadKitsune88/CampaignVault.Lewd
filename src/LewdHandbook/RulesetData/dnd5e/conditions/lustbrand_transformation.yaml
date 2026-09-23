@@ -1,0 +1,8 @@
+name: "lustbrand:transformation"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Tier 5. Stored trigger. DC 18 Con or a hybrid form for 1 hour: nymphomanic, advantage on sexual advances, disadvantage vs charm or domination. remove curse does not remove this.
+moodHint: unstable, marked, glowing when aroused
+immunities: []
+suppresses: []

@@ -1,8 +1,8 @@
-# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[] + definitionName.
 name: rope_coil
 system: dnd5e
 category: Tool
-tags: [lewd, bondage, adventuring-gear]
+tags: [lewd, bondage, adventuring-gear, tool]
 description: >
   Fifty feet of sturdy hempen rope, oil-treated against fray. Serves adventurers and riggers alike:
   when used to bind, it seeds cuffed or limb_bound depending on the knots and sites chosen.
@@ -20,3 +20,5 @@ properties:
   hitPoints: 15
   costGp: 1
   weight: 10
+equipZones: [MainHand]
+equipLayer: Held

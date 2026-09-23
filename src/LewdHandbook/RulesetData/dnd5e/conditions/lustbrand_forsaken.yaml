@@ -1,0 +1,8 @@
+name: "lustbrand:forsaken"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Tier 3. Touching True Love poisons the bearer and deals 1d6 radiant at the start of each turn. The engine does not detect that touch. remove curse does not remove this.
+moodHint: burned, marked, glowing when aroused
+immunities: []
+suppresses: []

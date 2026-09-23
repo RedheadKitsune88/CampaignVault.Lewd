@@ -95,8 +95,8 @@ internal static class ConsentGate
     {
         var raw = GetInt(target, LewdKeys.Inhibition);
         if (advanceIsWanted)
-            return Math.Min(0, raw);
-        return raw;
+            raw = Math.Min(0, raw);
+        return raw - GetInt(target, LewdKeys.LustbrandInhib) - GetInt(target, LewdKeys.ImprintInhib);
     }
 
     public static bool IsAdvanceWanted(ModeParticipantState target, string actorId)
@@ -138,11 +138,113 @@ internal static class ConsentGate
         return amount;
     }
 
+    public static bool IsVerbalOrNonContact(string? kind, IEnumerable<string>? tags)
+    {
+        if (ContainsTag(tags, "physical", "contact", "touch", "penetration", "phallic"))
+            return false;
+
+        if (ContainsTag(tags, "verbal", "noncontact", "non-contact", "flirt", "dirty_talk", "words"))
+            return true;
+
+        var k = kind?.Trim().ToLowerInvariant();
+        return k is "skilled" or "indirect" && !ContainsTag(tags, "spell_touch", "touch");
+    }
+
+    /// <summary>
+    /// Handbook verbal/non-contact cap. Inexperienced histories: max 2 unless physical or ≥3 flirt beats.
+    /// Returns the capped amount (never raises).
+    /// </summary>
+    public static int CapVerbalStimulation(
+        ModeParticipantState target,
+        Character? character,
+        string? kind,
+        IEnumerable<string>? tags,
+        int stimulation,
+        int flirtBeats)
+    {
+        if (stimulation <= 0 || !IsVerbalOrNonContact(kind, tags))
+            return stimulation;
+
+        if (flirtBeats >= 3 || ContainsTag(tags, "physical", "contact", "touch"))
+            return stimulation;
+
+        var history = SexualHistory(target, character);
+        if (AllowsFullVerbalDice(history, target))
+            return stimulation;
+
+        return Math.Min(stimulation, 2);
+    }
+
+    public static bool BlocksVerbalClimax(
+        ModeParticipantState target,
+        Character? character,
+        string? kind,
+        IEnumerable<string>? tags)
+    {
+        if (!IsVerbalOrNonContact(kind, tags))
+            return false;
+        if (GetBool(target, LewdKeys.HadPhysical))
+            return false;
+
+        var history = SexualHistory(target, character);
+        return !AllowsFullVerbalDice(history, target);
+    }
+
+    public static string? SexualHistory(ModeParticipantState target, Character? character)
+    {
+        if (character?.SystemStats.Traits.TryGetValue(LewdKeys.TraitSexualHistory, out var trait) == true &&
+            trait is not null &&
+            !string.IsNullOrWhiteSpace(trait.ToString()))
+            return trait.ToString()!.Trim().ToLowerInvariant();
+
+        return GetString(target, LewdKeys.TraitSexualHistory)?.Trim().ToLowerInvariant();
+    }
+
+    private static bool AllowsFullVerbalDice(string? history, ModeParticipantState target)
+    {
+        if (string.IsNullOrWhiteSpace(history))
+            return false;
+
+        if (history is "experienced_kinkster" or "promiscuous" or "erotic_professional")
+            return true;
+
+        if (history == "devoted_partner")
+        {
+            var allowed = GetStringList(target, LewdKeys.AllowedPartners);
+            return allowed.Count > 0;
+        }
+
+        return false;
+    }
+
+    private static bool ContainsTag(IEnumerable<string>? tags, params string[] needles)
+    {
+        if (tags is null)
+            return false;
+        foreach (var t in tags)
+        {
+            if (string.IsNullOrWhiteSpace(t))
+                continue;
+            foreach (var n in needles)
+            {
+                if (string.Equals(t.Trim(), n, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
     private static HashSet<string> BuildProbe(string? stimulationType, IEnumerable<string>? tags)
     {
         var probe = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (!string.IsNullOrWhiteSpace(stimulationType))
-            probe.Add(stimulationType.Trim());
+        {
+            var type = stimulationType.Trim();
+            probe.Add(type);
+            foreach (var alias in StimTypeAliases(type))
+                probe.Add(alias);
+        }
         if (tags is not null)
         {
             foreach (var t in tags)
@@ -153,6 +255,51 @@ internal static class ConsentGate
         }
 
         return probe;
+    }
+
+    private static IEnumerable<string> StimTypeAliases(string type)
+    {
+        switch (type.ToLowerInvariant())
+        {
+            case "piercing":
+                yield return "penetration";
+                yield return "phallic";
+                break;
+            case "penetration":
+            case "phallic":
+                yield return "piercing";
+                break;
+            case "bludgeoning":
+                yield return "impact";
+                yield return "spanking";
+                break;
+            case "slashing":
+                yield return "claws";
+                yield return "edgeplay";
+                break;
+            case "thunder":
+                yield return "vibration";
+                yield return "verbal";
+                break;
+            case "poison":
+                yield return "aphrodisiac";
+                yield return "heat";
+                break;
+            case "psychic":
+                yield return "verbal";
+                yield return "mental";
+                break;
+            case "fire":
+                yield return "wax";
+                yield return "heat";
+                break;
+            case "cold":
+                yield return "ice";
+                break;
+            case "lightning":
+                yield return "shock";
+                break;
+        }
     }
 
     public static string? GetString(ModeParticipantState p, string key) =>

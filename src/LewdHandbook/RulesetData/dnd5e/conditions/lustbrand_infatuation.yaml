@@ -1,0 +1,8 @@
+name: "lustbrand:infatuation"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Tier 3. Infatuated by the stored source. Cannot be removed while the brand remains. remove curse does not remove this.
+moodHint: besotted, marked, glowing when aroused
+immunities: []
+suppresses: []

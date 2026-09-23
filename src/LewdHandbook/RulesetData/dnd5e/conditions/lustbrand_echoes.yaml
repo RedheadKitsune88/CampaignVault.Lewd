@@ -1,0 +1,8 @@
+name: "lustbrand:echoes"
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Tier 2. Stim inflicted on another echoes as psychic stim. Cannot self-climax. A climax within 5 ft forces one. Distance is not engine-known. remove curse does not remove this.
+moodHint: echoing, marked, glowing when aroused
+immunities: []
+suppresses: []

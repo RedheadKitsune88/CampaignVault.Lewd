@@ -1,0 +1,12 @@
+name: condom
+system: dnd5e
+category: Consumable
+tags: [lewd, contraceptive]
+description: >
+  Translucent sleeve. As an action before penetration, apply to a willing or restrained cock.
+  For 10 minutes, impregnation checks using that cock are DC 25. Then it stops working.
+  Pass contraceptive "condom" on lewd_pregnancy. Catalog stub; price at the table.
+properties:
+  lewdCategory: contraceptive
+  contraceptive: condom
+  durationMinutes: 10

@@ -1,8 +1,8 @@
-# ItemDefinition template (CampaignVault items/). Live instances via world_build items[].
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[] + definitionName.
 name: leather_cuffs
 system: dnd5e
-category: Other
-tags: [lewd, bondage]
+category: Bondage
+tags: [lewd, bondage, restraint, cuffs]
 description: >
   Paired cuffs of thick boiled leather with iron D-rings and buckle straps. Fit wrists or ankles.
   Always set orientation on lewd_bind: behind (hands/ankles at the back), front (before the body),
@@ -23,3 +23,5 @@ properties:
   hitPoints: 15
   costGp: 5
   weight: 1
+equipZones: [Wrists]
+equipLayer: Base

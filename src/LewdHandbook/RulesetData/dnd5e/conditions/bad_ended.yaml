@@ -1,0 +1,9 @@
+name: bad_ended
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Permanent sexual defeat. The engine does not drain levels. Follow-up commit chooses the
+  consequence. See lewd-bad-ending.
+moodHint: spent, claimed, past the point of fighting it
+immunities: []
+suppresses: []

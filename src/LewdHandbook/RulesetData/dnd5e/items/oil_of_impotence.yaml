@@ -1,0 +1,12 @@
+name: oil_of_impotence
+system: dnd5e
+category: Consumable
+tags: [lewd, contraceptive]
+description: >
+  Contraceptive lubricant. One application coats a natural implement for 10 minutes;
+  impregnation checks involving it automatically fail. Pass contraceptive "oil" on lewd_pregnancy.
+properties:
+  lewdCategory: contraceptive
+  contraceptive: oil
+  durationMinutes: 10
+  doses: 1

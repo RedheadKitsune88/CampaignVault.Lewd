@@ -1,0 +1,10 @@
+id: succubus_venom
+system: dnd5e
+kind: chemical
+baseDc: 14
+defaultAbility: con
+withdrawalHours: 24
+mechanicalSummary: >
+  Chemical vice. Addiction save uses Con. Addicted: disadvantage vs charmed and infatuated (narrate).
+  Withdrawal failure stamps Denied.
+moodHint: aching for venom, suggestible

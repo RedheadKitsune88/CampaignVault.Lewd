@@ -198,6 +198,61 @@ public class LewdAdvanceHandlerTests
     }
 
     [Fact]
+    public async Task Incapacitated_fourth_climax_stamps_overstim_without_filth_tick()
+    {
+        var (mode, bob) = BuildMode();
+        bob.State[LewdKeys.ClimaxStreak] = 3;
+        bob.State[LewdKeys.ClimaxIncapacitated] = true;
+        var character = BuildCharacter("bob", 0, 10, 0);
+        var ctx = new FakeChangeContext(mode, character);
+
+        var result = await new LewdAdvanceHandler().ApplyAsync(
+            new LewdAdvanceChange
+            {
+                ActorId = "alice",
+                TargetId = "bob",
+                Kind = "martial",
+                Hit = true,
+                StimulationAmount = 10,
+                StimulationType = "piercing",
+                Tags = ["fluids"],
+            },
+            ctx);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, ConsentGate.GetInt(bob, LewdKeys.Overstimulation));
+        Assert.Contains(character.SystemStats.StatusEffects, e => e.Name == "Overstimulation 1");
+        Assert.False(bob.State.ContainsKey("filth"));
+        Assert.True(ConsentGate.GetBool(bob, LewdKeys.HadPhysical));
+    }
+
+    [Fact]
+    public async Task Verbal_advance_caps_virgin_and_does_not_dirty()
+    {
+        var (mode, bob) = BuildMode();
+        bob.State[LewdKeys.TraitSexualHistory] = "virgin";
+        var character = BuildCharacter("bob", 0, 20, 0);
+        var ctx = new FakeChangeContext(mode, character);
+
+        var result = await new LewdAdvanceHandler().ApplyAsync(
+            new LewdAdvanceChange
+            {
+                ActorId = "alice",
+                TargetId = "bob",
+                Kind = "skilled",
+                StimulationAmount = 9,
+                StimulationType = "psychic",
+                Tags = ["verbal"],
+            },
+            ctx);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, character.SystemStats.ResourcePools[LewdKeys.PoolArousal].Current);
+        Assert.False(ConsentGate.GetBool(bob, LewdKeys.HadPhysical));
+        Assert.False(bob.State.ContainsKey("filth"));
+    }
+
+    [Fact]
     public async Task Climax_check_third_failure_clears_edging()
     {
         var (mode, bob) = BuildMode();

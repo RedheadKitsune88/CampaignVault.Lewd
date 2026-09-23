@@ -1,0 +1,12 @@
+name: beads_of_prevention
+system: dnd5e
+category: Wondrous
+tags: [lewd, contraceptive]
+description: >
+  Attuned creature within 5 ft: a pregnancy that would take fails instead, and one bead cracks.
+  10 beads. Pass contraceptive "beads" on lewd_pregnancy and decrement a property or retire a detail
+  when the last bead greys. The engine does not consume charges.
+properties:
+  lewdCategory: contraceptive
+  contraceptive: beads
+  charges: 10
