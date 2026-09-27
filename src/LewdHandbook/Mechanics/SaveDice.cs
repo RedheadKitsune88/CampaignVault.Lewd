@@ -12,7 +12,8 @@ internal static class SaveDice
         int faceOrZero,
         int abilityMod,
         bool disadvantage,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool advantage = false)
     {
         if (faceOrZero is >= 1 and <= 20)
         {
@@ -29,7 +30,8 @@ internal static class SaveDice
                 Tag = tag,
                 Expression = "1d20",
                 Bonus = abilityMod,
-                Mechanic = disadvantage ? DiceMechanic.Disadvantage : DiceMechanic.Standard,
+                Mechanic = disadvantage == advantage ? DiceMechanic.Standard
+                    : disadvantage ? DiceMechanic.Disadvantage : DiceMechanic.Advantage,
             },
             ct).ConfigureAwait(false);
 

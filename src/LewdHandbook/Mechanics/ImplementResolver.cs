@@ -10,8 +10,9 @@ internal sealed record ResolvedImplement(
     bool IsFinesse);
 
 /// <summary>
-/// Resolution order for martial stimulation dice:
-/// held Item Properties → implementId Item (by id/name match) → Traits anatomy.* → explicit stimulationDice.
+/// Resolution order for stimulation dice. Anything the commit names explicitly wins:
+/// implementId → anatomyKey → stimulationDice. Only when the commit names nothing (and needs dice) does the engine
+/// guess: a held item that is marked as an implement, then the actor's first anatomy Trait.
 /// </summary>
 internal static class ImplementResolver
 {
@@ -21,41 +22,15 @@ internal static class ImplementResolver
         string? implementId,
         string? anatomyKey,
         string? explicitDice,
-        string? explicitType)
+        string? explicitType,
+        bool allowGuess = true)
     {
-        // 1) Explicit implementId → item in context
-        if (!string.IsNullOrWhiteSpace(implementId))
-        {
-            if (TryFromItemId(items, implementId, out var fromId))
-                return fromId;
-        }
+        if (!string.IsNullOrWhiteSpace(implementId) && TryFromItemId(items, implementId, out var fromId))
+            return fromId;
 
-        // 2) Held/equipped items on actor with implement-like properties
-        if (actor is not null)
-        {
-            foreach (var item in items.Values)
-            {
-                if (!IsHeldBy(item, actor.Id))
-                    continue;
-                if (TryFromItem(item, out var held))
-                    return held;
-            }
-        }
+        if (!string.IsNullOrWhiteSpace(anatomyKey) && AnatomyTraits.Find(actor, anatomyKey) is { } named)
+            return FromAnatomy(named);
 
-        // 3) Anatomy trait
-        var anatomy = AnatomyTraits.Find(actor, anatomyKey) ??
-                      AnatomyTraits.ListAnatomy(actor).FirstOrDefault();
-        if (anatomy is not null)
-        {
-            return new ResolvedImplement(
-                anatomy.Key,
-                anatomy.DieExpression,
-                GuessType(anatomy.Tags),
-                anatomy.Tags,
-                anatomy.IsFinesse);
-        }
-
-        // 4) Explicit dice on the commit
         if (!string.IsNullOrWhiteSpace(explicitDice))
         {
             return new ResolvedImplement(
@@ -66,14 +41,59 @@ internal static class ImplementResolver
                 IsFinesse: false);
         }
 
-        return null;
+        if (!allowGuess || actor is null)
+            return null;
+
+        foreach (var item in items.Values)
+        {
+            if (IsHeldBy(item, actor.Id) && IsImplement(item) && TryFromItem(item, out var held))
+                return held;
+        }
+
+        // The engine never guesses a receptive part: the commit names it when it does the work. Declared implements beat
+        // plugin defaults, pure implements beat "both" (mouth); ties break by catalogue order.
+        return AnatomyTraits.Effective(actor)
+            .Where(a => a.CanStimulate)
+            .OrderBy(a => a.IsDefault)
+            .ThenBy(a => a.Role == AnatomyRole.Both)
+            .FirstOrDefault() is { } first ? FromAnatomy(first) : null;
     }
 
+    private static ResolvedImplement FromAnatomy(AnatomyImplement anatomy) =>
+        new(anatomy.Key, anatomy.DieExpression, GuessType(anatomy.Tags), anatomy.Tags, anatomy.IsFinesse);
+
+    /// <summary>A held weapon is not a toy: guessing only considers items marked as implements.</summary>
+    private static bool IsImplement(Item item) =>
+        item.Properties.Keys.Any(k =>
+            k.Equals("implementTags", StringComparison.OrdinalIgnoreCase) ||
+            k.Equals("stimulationDice", StringComparison.OrdinalIgnoreCase) ||
+            k.Equals("lewdCategory", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Every die at its highest face, plus the expression's flat modifiers ("2d6+1" → 13).</summary>
     public static int MaximizeDice(string expression)
     {
         if (!AnatomyTraits.TryParseDice(expression, out var count, out var faces))
             return 0;
-        return count * faces;
+        return Math.Max(0, count * faces + FlatModifier(expression));
+    }
+
+    /// <summary>Sum of the +N / −N terms after the first dice term ("1d8+2-1" → 1). Dice terms after the first are ignored.</summary>
+    public static int FlatModifier(string expression)
+    {
+        var total = 0;
+        var expr = (expression ?? "").Replace(" ", "").ToLowerInvariant();
+        var i = expr.IndexOfAny(['+', '-'], 1);
+        while (i > 0 && i < expr.Length)
+        {
+            var sign = expr[i] == '-' ? -1 : 1;
+            var end = expr.IndexOfAny(['+', '-'], i + 1);
+            var term = end < 0 ? expr[(i + 1)..] : expr[(i + 1)..end];
+            if (!term.Contains('d') && int.TryParse(term, out var n))
+                total += sign * n;
+            i = end;
+        }
+
+        return total;
     }
 
     private static bool TryFromItemId(IReadOnlyDictionary<string, Item> items, string implementId, out ResolvedImplement resolved)

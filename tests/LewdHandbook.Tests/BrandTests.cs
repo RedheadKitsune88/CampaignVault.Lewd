@@ -17,13 +17,13 @@ public class BrandTests
     {
         var (mode, bob) = Mode();
         var character = Character("bob");
-        var ctx = new Recorder(mode, character) { Tone = LewdKeys.ToneGrimdark };
+        var ctx = new Recorder(mode, character) { Tone = LewdKeys.NonConsentOn };
         var handler = new LewdApplyBrandHandler();
 
         var unknown = await handler.ApplyAsync(new LewdApplyBrandChange { TargetId = "bob", BrandId = "nope" }, ctx);
         Assert.False(unknown.Success);
 
-        ctx.Tone = LewdKeys.ToneConsensual;
+        ctx.Tone = LewdKeys.NonConsentOff;
         var unwilling = await handler.ApplyAsync(new LewdApplyBrandChange { TargetId = "bob", BrandId = "denial" }, ctx);
         Assert.False(unwilling.Success);
 
@@ -61,7 +61,7 @@ public class BrandTests
     {
         var (mode, _) = Mode();
         var character = Character("bob");
-        var ctx = new Recorder(mode, character) { Tone = LewdKeys.ToneGrimdark };
+        var ctx = new Recorder(mode, character) { Tone = LewdKeys.NonConsentOn };
         var handler = new LewdApplyBrandHandler();
         await handler.ApplyAsync(new LewdApplyBrandChange { TargetId = "bob", BrandId = "denial" }, ctx);
 
@@ -96,13 +96,14 @@ public class BrandTests
     {
         var (mode, _) = Mode();
         var character = Character("bob");
-        var ctx = new Recorder(mode, character) { Tone = LewdKeys.ToneGrimdark };
+        var ctx = new Recorder(mode, character) { Tone = LewdKeys.NonConsentOn };
         await new LewdApplyBrandHandler().ApplyAsync(new LewdApplyBrandChange { TargetId = "bob", BrandId = "addiction" }, ctx);
 
         Assert.Equal("true", character.SystemStats.Traits[BrandState.ViceLocked]);
         Assert.Equal("true", character.SystemStats.Traits[BrandState.ViceAddicted]);
         Assert.Equal(18, character.SystemStats.Attributes[BrandState.ViceDc]);
-        Assert.False(character.SystemStats.Traits.ContainsKey("vice.sexual_fluids.withdrawal"));
+        Assert.False(character.SystemStats.Traits.ContainsKey(ViceState.WithdrawalKey(ViceCatalog.SexualFluids)));
+        Assert.False(character.SystemStats.Traits.ContainsKey(ViceState.LegacyWithdrawalKey(ViceCatalog.SexualFluids)));
         Assert.Contains(character.SystemStats.StatusEffects, e => e.ConditionName == "vice_sexual_fluids");
 
         await new LewdApplyBrandHandler().ApplyAsync(new LewdApplyBrandChange
@@ -123,23 +124,23 @@ public class BrandTests
         var (mode, bob) = Mode();
         var character = Character("bob");
         character.SystemStats.ResourcePools[LewdKeys.PoolArousal] = new ResourcePool { Current = 2, Max = 10 };
-        var ctx = new Recorder(mode, character) { Tone = LewdKeys.ToneGrimdark };
+        var ctx = new Recorder(mode, character) { Tone = LewdKeys.NonConsentOn };
         var handler = new LewdApplyBrandHandler();
         await handler.ApplyAsync(new LewdApplyBrandChange { TargetId = "bob", BrandId = "abundance" }, ctx);
         await handler.ApplyAsync(new LewdApplyBrandChange { TargetId = "bob", BrandId = "altruism" }, ctx);
 
         var observer = new LewdBrandObserver();
         Assert.False(observer.IsInterestedIn(new ResourceChange { CharacterId = "bob", PoolName = "arousal", Delta = 1 }, ctx));
-        await observer.OnCommittedAsync(new RestChange
-        {
-            CharacterId = "bob",
-            LocationId = "loc",
-            RestType = RestType.LongRest,
-            IntendedHours = 8,
-        }, ctx);
-        Assert.Equal("1", character.SystemStats.Traits["lustbrand.abundance.endowment"]);
+        await new LewdRestHandler().ApplyAsync(new LewdRestChange { CharacterId = "bob", RestType = "long" }, ctx);
+        Assert.Equal("1", character.SystemStats.Traits[LewdKeys.LustbrandTraitPrefix + "abundance.endowment"]);
 
+        // Being healed is not Altruism: the bearer must be the healer, which HpChange does not name.
         await observer.OnCommittedAsync(new HpChange { CharacterId = "bob", Delta = 4 }, ctx);
+        Assert.Equal(10, character.SystemStats.ResourcePools[LewdKeys.PoolArousal].Max);
+
+        var heal = await handler.ApplyAsync(
+            new LewdApplyBrandChange { TargetId = "bob", BrandId = "altruism", Action = "heal", Amount = 4 }, ctx);
+        Assert.True(heal.Success);
         Assert.Equal(6, character.SystemStats.ResourcePools[LewdKeys.PoolArousal].Max);
         Assert.Contains(ctx.Messages, m => m.Contains("did not roll"));
         _ = bob;
@@ -153,11 +154,17 @@ public class BrandTests
         character.SystemStats.Traits[LewdKeys.Lustbrands] = "ruin:1";
         character.SystemStats.ResourcePools[LewdKeys.PoolRecoveryDice] = new ResourcePool { Current = 2, Max = 4 };
         var arousal = new ResourcePool { Current = 8, Max = 10 };
-        var note = LewdAdvanceHandler.ApplyClimaxResult(bob, character, arousal, Climax());
+        character.SystemStats.Traits[LewdKeys.TraitRecoveryDie] = "d6";
+        character.MaxHp = 20;
+        character.CurrentHp = 20;
+        var note = LewdAdvanceHandler.ApplyClimaxResult(
+            bob, character, arousal, Climax(), ruin: new BrandState.RuinDice(RecoveryFace: 4, PsychicFace: 9));
         Assert.Contains("Ruin", note);
         Assert.Equal(0, ConsentGate.GetInt(bob, LewdKeys.ClimaxStreak));
         Assert.Equal(1, character.SystemStats.ResourcePools[LewdKeys.PoolRecoveryDice].Current);
-        Assert.Equal(7, arousal.Current);
+        // Rolled 4 on the d6 + tier 1: arousal −5 and 5 psychic.
+        Assert.Equal(3, arousal.Current);
+        Assert.Equal(15, character.CurrentHp);
         Assert.False(ConsentGate.GetBool(bob, LewdKeys.LustbrandJustClimaxed));
     }
 
@@ -205,7 +212,7 @@ public class BrandTests
     }
 
     private static Character Character(string id) => new()
-    {
+    { LifeStage = LifeStage.Adult,
         Id = id,
         Name = id,
         SystemStats = new SystemExtension(),
@@ -216,11 +223,11 @@ public class BrandTests
         public Recorder(ModeEncounter mode, Character character)
         {
             ActiveMode = mode;
-            Characters = new Dictionary<string, Character>(StringComparer.OrdinalIgnoreCase) { [character.Id] = character };
+            Characters = WithActor(new Dictionary<string, Character>(StringComparer.OrdinalIgnoreCase) { [character.Id] = character });
         }
 
         public List<string> Messages { get; } = [];
-        public string Tone { get; set; } = LewdKeys.ToneConsensual;
+        public string Tone { get; set; } = LewdKeys.NonConsentOff;
         public IReadOnlyDictionary<string, Character> Characters { get; }
         public IReadOnlyDictionary<string, Item> Items { get; } = new Dictionary<string, Item>();
         public IReadOnlyDictionary<string, Location> Locations { get; } = new Dictionary<string, Location>();
@@ -229,6 +236,10 @@ public class BrandTests
         public Microsoft.Extensions.Logging.ILogger Logger { get; } = NullLogger.Instance;
         public CombatEncounter? ActiveCombat => null;
         public ModeEncounter? ActiveMode { get; }
+        public IReadOnlyDictionary<string, ModeEncounter> ActiveModes =>
+            ActiveMode is { } m
+                ? new Dictionary<string, ModeEncounter>(StringComparer.OrdinalIgnoreCase) { [m.ModeId] = m }
+                : new Dictionary<string, ModeEncounter>(StringComparer.OrdinalIgnoreCase);
         public CampaignConfig? Config => null;
         public IRollService? Rolls { get; set; }
         public string? CampaignName => "test";
@@ -237,13 +248,16 @@ public class BrandTests
         public int BatchIndex => 0;
         public Func<Task<CampaignTime>> GetCurrentTimeAsync { get; } = () => Task.FromResult(new CampaignTime());
         public Func<Task<Dictionary<string, string>>> GetSystemOptionsAsync =>
-            () => Task.FromResult(new Dictionary<string, string> { [LewdKeys.IntimacyToneOption] = Tone });
+            () => Task.FromResult(new Dictionary<string, string> { [LewdKeys.NonConsentOption] = Tone });
         public Func<Event, Task> LogEventAsync { get; } = _ => Task.CompletedTask;
         public void RegisterNewLocation(Location loc) { }
         public void RegisterNewCharacter(Character c) { }
         public void RegisterNewItem(Item i) { }
         public void RegisterNewFaction(Faction f) { }
         public void RegisterNewQuest(Quest q) { }
+        public void Publish(string topic, object? data = null) =>
+            Published.Add((topic, data));
+        public List<(string Topic, object? Data)> Published { get; } = [];
         public void RecordMessage(string message) => Messages.Add(message);
         public void RecordPhysicalStateNudge(string message) => Messages.Add(message);
         public void RecordFailure() { }
@@ -254,5 +268,11 @@ public class BrandTests
         public Task<string?> SuggestItemMatchAsync(string? nameQuery) => Task.FromResult<string?>(null);
         public Task<string?> SuggestFactionMatchAsync(string? nameQuery) => Task.FromResult<string?>(null);
         public Task<string?> SuggestQuestMatchAsync(string? nameQuery) => Task.FromResult<string?>(null);
+    }
+
+    private static Dictionary<string, Character> WithActor(Dictionary<string, Character> characters)
+    {
+        characters.TryAdd("alice", new Character { Id = "alice", Name = "alice", LifeStage = LifeStage.Adult });
+        return characters;
     }
 }

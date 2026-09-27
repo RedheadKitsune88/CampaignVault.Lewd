@@ -28,7 +28,7 @@ public class ConsentGateTests
     public void Revoked_consent_fails()
     {
         var t = Target(p => p.State[LewdKeys.Consent] = LewdKeys.ConsentRevoked);
-        Assert.False(ConsentGate.TryAuthorizeAdvance(t, "alice", "piercing", null, out var err));
+        Assert.False(ConsentGate.AuthorizeAdvance(t, null, "alice", "piercing", null, LewdSettings.Default, out var err));
         Assert.Contains("revoked", err, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -36,7 +36,7 @@ public class ConsentGateTests
     public void Hard_limit_fails_commit()
     {
         var t = Target(p => p.State[LewdKeys.HardLimits] = new List<string> { "tentacles" });
-        Assert.False(ConsentGate.TryAuthorizeAdvance(t, "alice", "cold", ["tentacles"], out var err));
+        Assert.False(ConsentGate.AuthorizeAdvance(t, null, "alice", "cold", ["tentacles"], LewdSettings.Default, out var err));
         Assert.Contains("hard limit", err, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -58,8 +58,8 @@ public class ConsentGateTests
             p.State[LewdKeys.SoftLimits] = new List<string> { "fire" };
             p.State[LewdKeys.Kinks] = new List<string> { "psychic" };
         });
-        Assert.Equal(5, ConsentGate.AdjustStimulationForTags(t, 10, "fire", null));
-        Assert.Equal(15, ConsentGate.AdjustStimulationForTags(t, 10, "psychic", null));
+        Assert.Equal(5, ConsentGate.AdjustStimulationForTags(t, null, 10, "fire", null));
+        Assert.Equal(15, ConsentGate.AdjustStimulationForTags(t, null, 10, "psychic", null));
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class ConsentGateTests
             p.State[LewdKeys.Consent] = LewdKeys.ConsentSelective;
             p.State[LewdKeys.AllowedPartners] = new List<string> { "alice" };
         });
-        Assert.False(ConsentGate.TryAuthorizeAdvance(t, "eve", null, null, out _));
-        Assert.True(ConsentGate.TryAuthorizeAdvance(t, "alice", null, null, out _));
+        Assert.False(ConsentGate.AuthorizeAdvance(t, null, "eve", null, null, LewdSettings.Default, out _));
+        Assert.True(ConsentGate.AuthorizeAdvance(t, null, "alice", null, null, LewdSettings.Default, out _));
     }
 }

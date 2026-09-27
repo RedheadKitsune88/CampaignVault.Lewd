@@ -1,7 +1,10 @@
 # Lewd Handbook — arousal pool (reverse HP). Starts at 0; rises with stimulation.
-# Long-rest half-max reduction is handler/LLM-driven (Recovery Never — do not fill to max).
+# ownerManaged: the plugin derives Max (recovery die + Con per level) and moves Current; core creates it once and
+# never rebuilds it on character updates or level-ups. Long rest lowers it by half its max (lewd_rest), never fills it.
 name: arousal
-description: Current arousal toward climax (0 .. max). Stimulation raises Current; soothing lowers it.
+description: Current arousal toward climax (0 .. max). Stimulation raises Current; soothing and recovery dice lower it.
 applicableSystems: [dnd5e]
 recovery: Never
 defaultMax: 10
+ownerManaged: true
+startsAt: zero

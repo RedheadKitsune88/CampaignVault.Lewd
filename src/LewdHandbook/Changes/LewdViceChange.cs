@@ -8,7 +8,7 @@ public sealed class LewdViceChange : WorldChange
 {
     public string CharacterId { get; set; } = null!;
 
-    /// <summary>consume | resist | note_presence | rest</summary>
+    /// <summary>consume | note_presence | resist | rest | treat</summary>
     public string Action { get; set; } = "consume";
 
     public string? ViceId { get; set; }
@@ -25,4 +25,10 @@ public sealed class LewdViceChange : WorldChange
 
     /// <summary>Recorded in the message only. LLM emits item/item_use if a charge is spent.</summary>
     public string? ItemId { get; set; }
+
+    /// <summary>For treat: lesser_restoration | healers_kit | greater_restoration | remove_curse.</summary>
+    public string? Method { get; set; }
+
+    /// <summary>For treat with remove_curse: the spell slot level.</summary>
+    public int SlotLevel { get; set; }
 }

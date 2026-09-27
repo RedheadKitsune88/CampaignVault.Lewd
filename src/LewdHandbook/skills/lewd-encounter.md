@@ -1,196 +1,113 @@
 ---
 name: lewd-encounter
-description: Master skill for CampaignVault lewd_encounter mode — enter/exit, consent State, advance/climax/bind verbs, pools.
+description: lewd_encounter mode — adults only, player settings (narration / non-consent / hard limits), lewd_stance, turns, advance/climax, pools.
 metadata:
   type: skill
   plugin: com.campaignvault.lewd-handbook
   mode: lewd_encounter
 ---
 
-# Lewd Encounter (`lewd_encounter`)
+# Lewd encounter
 
-Adult opt-in interaction mode. **Engine State is source of truth.** Never invent consent, limits, bindings, or pool values that contradict participant / character State.
+Engine State wins. Do not invent stance, limits, bindings, or pool values.
 
-Companion skills: `lewd-intimacy-tone`, `lewd-implements-anatomy`, `lewd-bindings`, `lewd-sexual-histories`, `lewd-pregnancy`, `lewd-brands`, `lewd-imprints-conditioning`, `lewd-vices`, `lewd-bad-ending`, `lewd-catalog`.
+Companions: `lewd-bindings`, `lewd-tracks`, `lewd-catalog`.
 
-## When to use
+## Adults only (hard rule)
 
-- Campaign wants explicit arousal / stimulation / climax / bondage resolution under `ActiveSystem=dnd5e`.
-- Entering or running a lewd scene after table consent and plugin install.
-- Any commit that would change arousal, numbing, climax counters, or restraint graph.
-
-## Prerequisites
-
-1. Plugin installed under host `Plugins/LewdHandbook/` (`plugin.json` + `LewdHandbook.dll` + optional `RulesetData/` + `skills/`).
-2. Campaign `EnabledModeIds` includes `lewd_encounter`.
-3. Campaign option `intimacyTone` set (`consensual` | `fade` | `grimdark`) — see `lewd-intimacy-tone`.
-4. Characters have pools `arousal`, `numbing`, `recovery_dice` (RulesetData templates) and Traits for sexual history / anatomy when relevant.
-
-**Install ≠ scene consent.** Enabling the plugin or mode does not make any character willing. Set per-participant `consent` on enter (or before the first advance).
-
-## Enter / exit
-
-Enter via core `mode_transition`:
+Every character a lewd verb touches must have `lifeStage` `adult` or `elder`. `Unspecified` is refused, minors are always refused, and so is any character whose name, appearance, tags or features read as a minor. Set it when you create the character:
 
 ```json
-{
-  "$type": "mode_transition",
-  "action": "enter",
-  "modeId": "lewd_encounter",
-  "locationId": "locs/...",
-  "participantIds": ["chars/alice", "chars/bob"]
-}
+{ "$type": "character_update", "characterId": "chars/mara", "lifeStage": "adult" }
 ```
 
-On enter, ensure each participant State includes at least:
+A character recorded as `child` or `adolescent` can never be changed to adult. No campaign option changes any of this. Characters from before `lifeStage` existed are unset: a context line names the ones in play, so record their stage from the fiction (never guess adult for someone who reads as young).
 
-| Key | Values / shape |
-|-----|----------------|
-| `consent` | `willing` \| `selective` \| `unwilling` \| `revoked` |
-| `allowed_partners` | string[] character ids (when `selective`) |
-| `hard_limits` | string[] tags — **always fail-closed** |
-| `soft_limits` | string[] tags — stim ×0.5 |
-| `kinks` | string[] tags — stim ×1.5 |
-| `inhibition` | int (locked Int/Wis/Cha mod) |
-| `climax_successes` / `climax_failures` | int |
-| `edging` | bool |
-| `overstimulation` | int 0–6; StatusEffect name `Overstimulation N`, `conditionName` `overstimulation` |
-| `climax_streak` / `climax_incapacitated` | repeated climax while still down |
-| `had_physical` / `flirt_beats` | verbal-cap tracking |
-| `bindings` | array (see `lewd-bindings`) |
-| `posture` | string |
-| `arm_position` | `free` \| `front` \| `behind` \| `above` \| … |
-| `leg_position` | `free` \| `front` \| `behind` \| `apart` \| … |
-| `imprints` | trait mirror `id:points:level:origin:day`. See `lewd-imprints-conditioning` |
-| `intrusive_thoughts` | comma tokens (`imprint:ordeal`, `vice:sex`, …) |
-| `lustbrands` / `lustbrand_inhib` / `lustbrand_glow` | brand list + inhib sum + glow. See `lewd-brands` |
-| `pregnant` / `pregnancy_progress` / `pregnancy_type` | see `lewd-pregnancy` |
-| `bad_ended` | defeat flag; consequences via `lewd-bad-ending` |
+## Player settings (the player owns these)
 
-Character Traits/Attributes also hold durable `vice.<id>.*` (see `lewd-vices`) and pregnancy/brand/imprint mirrors outside the mode.
+| Option | Values | Effect |
+|--------|--------|--------|
+| `lewdNarration` | `explicit` \| `suggestive` (default) \| `fade` | How you narrate. Mechanics always resolve in full; `fade` = before and after, never the act |
+| `lewdNonConsent` | `off` (default) \| `not_against_pc` \| `on` | Whether acts a character doesn't want can resolve. `not_against_pc`: among NPCs only, never against the player's character |
+| `lewdHardLimits` | comma list | Content the player never wants. Refused in every verb |
 
-Exit with `mode_transition` action `exit` (or when all participants mark `scene_end`).
-
-## Engine verbs
-
-| `$type` | Use when |
-|---------|----------|
-| `lewd_advance` | Apply resolved stimulation (martial / indirect / skilled) |
-| `lewd_climax_check` | Start-of-turn / forced climax save (DC 15) |
-| `lewd_bind` | Add structured binding entry before narrating restraint |
-| `lewd_unbind` | Remove binding / clear implies before narrating freedom |
-| `lewd_pregnancy` | Impregnate, term, rest poison, termination — see `lewd-pregnancy` |
-| `lewd_apply_brand` | Apply, remove, vow, trigger, release, or stabilize a lustbrand — see `lewd-brands` |
-| `lewd_bad_end` | Record defeat or explicit bad-end — see `lewd-bad-ending` |
-| `lewd_imprint` / `lewd_decondition` | Fetish tracks — see `lewd-imprints-conditioning` |
-| `lewd_vice` | Addiction consume/resist/rest — see `lewd-vices` (no mode required) |
-| core `rest` / travel / elapsed | Rest + time passage drive imprint/brand/vice/pregnancy observers |
-| core `resource` / `status` / `engagement_relation` | Pools, StatusEffects, pairwise holds |
-| core `mode_transition` | Enter / exit |
-
-### `lewd_advance`
-
-Prefer supplying resolved `stimulationAmount` / `hit`. When host wires Sdk `IChangeContext.Rolls`, you may omit amount and set `stimulationDice` / `anatomyKey` / `implementId` (and for unwilling martial, `attackBonus` + `targetAc`) so the handler rolls. Unwilling martial still **requires** a hit path.
+Change them only when the player asks, in its own commit, quoting them:
 
 ```json
-{
-  "$type": "lewd_advance",
-  "actorId": "chars/alice",
-  "targetId": "chars/bob",
-  "kind": "martial",
-  "stimulationAmount": 7,
-  "stimulationType": "piercing",
-  "tags": ["phallic"],
-  "hit": true,
-  "isCritical": false,
-  "maximizeStimulation": false,
-  "notes": "cock thrust"
-}
+{ "$type": "campaign_update", "systemOptions": { "lewdNarration": "fade" }, "playerRequest": "can we fade to black from now on?" }
 ```
 
-Rules the handler enforces:
+## Setup
 
-- Must be inside active `lewd_encounter`.
-- `revoked` or matching `hard_limits` → commit **fails**.
-- Soft/kink tag adjust after amount.
-- Numbing absorbs stim first; leftover raises `arousal`.
-- At/over max → auto climax-failure path; stim ≥ arousal max → instant climax.
-- Lewd verbs do **not** tick a filth counter. Dirt, mud, dust, fluids, and cleanup are yours to record with core changes when the fiction actually changes, including from the ground — not only from sex. Verbal / non-contact beats never dirty anyone by themselves.
-- Character: `character_update.appearanceOverride` (e.g. "Covered in mud") and temporary `tagsToAdd` / `tagsToRemove` (`muddy`, `wet`, `disheveled`). Tag the person, not every item they carry.
-- Worn or dropped gear: `item_update.tagsToAdd` / `tagsToRemove` and `newState` for a short override ("Covered in mud"). Tag the container, not the contents. Durable marks (stains, scorch) use `upsertItemDetail`; retire the detail when cleaned. Never auto-deleted.
-- Verbal/non-contact skilled or indirect advances are capped by sexual history (see `lewd-sexual-histories`). Engine enforces the cap and blocks verbal climax until `had_physical`.
-- Climax while `climax_incapacitated`: 2nd stunned, 3rd paralyzed, 4th+ +1 `overstimulation` and stamps `Overstimulation N`. Level ≥5 keeps edging after climax. Level 6 marks `bad_ended`. Triggers, the record verb, and consequences: `lewd-bad-ending`. Do not drain levels in the marking commit.
-
-Stim source resolution: see `lewd-implements-anatomy`. Tone gating: see `lewd-intimacy-tone`.
-
-### `lewd_climax_check`
+Campaign `EnabledModeIds` includes `lewd_encounter`. Only the player switches it on or off: `campaign_update` with `playerRequest`, in its own commit.
 
 ```json
-{
-  "$type": "lewd_climax_check",
-  "targetId": "chars/bob",
-  "d20": 12,
-  "forceClimax": false
-}
+{ "$type": "mode_transition", "action": "enter", "modeId": "lewd_encounter", "locationId": "locs/…", "participantIds": ["chars/a", "chars/b"] }
 ```
 
-- Save: d20 + Inhibition vs DC 15 (use raw Inhibition for climax saves).
-- Track successes/failures separately to 3; Nat 1 = two failures; Nat 20 = drop to max−1 and clear edging.
-- `forceClimax: true` for effects like `power_word_cum`.
+**One action per participant, on their own turn**: `lewd_advance`, `lewd_bind` or a `lewd_escape` attempt. The first participant listed starts. `mode_transition` `action: turn` hands the action to the next one and runs their start-of-turn rules (edging at max arousal, extended-edging overstimulation, climax incapacitation ending, timed hardening). Several steps can share one commit: `[lewd_advance a→b, mode_transition turn, lewd_advance b→a]`. Saves, stance, recovery dice and DM rulings (`lewd_bad_end`) are free. End: `action: exit` (resolves imprints once per track, clears incapacitation/edging; bindings stay).
 
-Call at start of turn when edging / at max arousal (mode may flag edging on turn start).
+## Stance — `lewd_stance` (in-fiction willingness)
 
-### `lewd_bind` / `lewd_unbind`
-
-Emit **before** narrating cuffs, hobbles, hoods, suits, etc. No prose keyword scanner — if State `bindings[]` does not say it, limbs are free. Full schema: `lewd-bindings`.
+The characters' own disposition, separate from the player's settings. Set NPCs' from the fiction; set the PC's from what the player says.
 
 ```json
-{
-  "$type": "lewd_bind",
-  "targetId": "chars/bob",
-  "kind": "cuffs",
-  "sites": ["wrists"],
-  "implies": ["cuffed"],
-  "itemId": "items/iron_cuffs",
-  "materials": ["iron"],
-  "hardened": false
-}
+{ "$type": "lewd_stance", "characterId": "chars/b", "stance": "selective", "allowedPartners": ["chars/a"], "kinks": ["rope"], "softLimits": ["fire"], "inhibition": 2 }
+```
+
+| Field | Notes |
+|-------|-------|
+| `stance` | `willing` (default) \| `selective` \| `unwilling` \| `revoked` — `revoked` is a hard stop for every lewd verb |
+| `scope` | `scene` (default in an encounter) \| `default` (lasting character Traits `lewd_encounter.*`) |
+| `hardLimits` / `softLimits` / `kinks` | Personal. Soft ×0.5, kink ×1.5 stimulation |
+| `inhibition` | Int/Wis/Cha modifier chosen at creation |
+
+## Verb visibility
+
+| Mode-scoped (`ModeId=lewd_encounter`) | Global |
+|---|---|
+| `lewd_advance`, `lewd_bad_end` | `lewd_stance`, `lewd_bind`, `lewd_unbind`, `lewd_escape`, `lewd_climax_check`, `lewd_recover`, `lewd_vice`, `lewd_apply_brand`, `lewd_imprint`, `lewd_decondition`, `lewd_pregnancy` |
+
+`lewd_turn_start`, `lewd_scene_end`, `lewd_rest` and `lewd_echo_check` are emitted by the plugin itself; don't send them.
+
+## `lewd_advance`
+
+Needs the mode. Prefer resolved `stimulationAmount`/`hit`. Refused on revoked stance or any hard limit; an unwanted advance resolves only if `lewdNonConsent` allows it for that target.
+
+```json
+{ "$type": "lewd_advance", "actorId": "chars/a", "targetId": "chars/b", "kind": "martial", "stimulationAmount": 7, "stimulationType": "piercing", "tags": ["phallic"], "hit": true }
+```
+
+Dice source when `stimulationAmount` is omitted: `implementId` → `anatomyKey` → `stimulationDice`, then a held item marked as an implement, then the character's declared implement anatomy (`lewd-catalog`), then derived `hands`. The engine never guesses a receptive part (name it via `anatomyKey` when it does the work). A held weapon is never a toy. Finesse → Dex. Verbal/non-contact: history caps (`lewd-catalog`); no verbal climax until `had_physical` for modest-tier histories. Dirt/fluids: core `character_update`/`item_update`.
+
+## `lewd_climax_check`
+
+Only at the edge (edging or arousal at max) — otherwise refused. Works in or out of an encounter. d20 + Inhibition (minus brand tiers and unwilling imprint levels) vs DC 15; `d20: 0` rolls. `forceClimax` for effects that force one (`power_word_cum`).
+
+```json
+{ "$type": "lewd_climax_check", "targetId": "chars/b", "d20": 12 }
+```
+
+A climax incapacitates until the end of that participant's next turn. Climaxing again meanwhile: 2nd stunned, 3rd paralyzed, 4th+ +1 overstimulation (`Overstimulation N`), each adding a turn. Level ≥5 keeps edging; 6 marks bad-end.
+
+Right after a climax (before that character's next turn) they may spend Recovery Dice: up to the proficiency bonus, each die + Con lowers arousal, and incapacitation lasts one round per die. With no dice left, an edging climax is a bad end.
+
+```json
+{ "$type": "lewd_recover", "characterId": "chars/b", "dice": 2 }
 ```
 
 ## Pools
 
 | Pool | Role |
 |------|------|
-| `arousal` | Reverse HP; Never recovery; long rest → reduce by half of **maximum** (LLM/handler) |
-| `numbing` | Absorbs stim first; does not stack (replace) |
-| `recovery_dice` | Spend on climax / short rest to lower arousal; faces from sexual history |
+| `arousal` | Reverse HP, starts at 0. Max = recovery die + Con at 1st level, + average + Con per level (re-derived on level-up). Long rest −½ **max**. Max ≤ 0 is a bad end |
+| `numbing` | Absorbs stim (replace, no stack); cleared by a long rest |
+| `recovery_dice` | One per level; die from `lewd_encounter.recovery_die` or the sexual history. Spend with `lewd_recover` after a climax or a short rest; all back on a long rest |
 
-Mirror keys on participant State: `arousal_current`, `arousal_max`.
+## Rest / time
 
-## Consent — fail closed
+A completed rest (not an interrupted one) runs `lewd_rest` on its own: vice withdrawal saves, brand hooks, imprint decay, pregnancy progress and rest save, arousal −½ max and numbing cleared (long), the recovery-dice window (short). Travel and elapsed minutes move vice and pregnancy clocks. If Rolls is null, emit the matching verb with `d20`.
 
-1. Read participant `consent` / `hard_limits` / `allowed_partners` **before** narrating willingness.
-2. Never narrate consent that contradicts State.
-3. `hard_limits` and `revoked` always block advances in **all** intimacy tones.
-4. `selective` without actor on `allowed_partners` → refuse.
-5. Willing / wanted advances treat Inhibition as `min(0, raw)` for AC/saves vs advances; climax saves still use raw Inhibition unless overridden.
-6. Plugin install, campaign enablement, and NPC flirt prose are **not** consent.
+## Do not
 
-## Rests and time passage
-
-Host `RestChange`, `TravelChange`, and any change with `minutesElapsed` are the clock. Observers (not a plugin background tick) react after a successful commit:
-
-- Time-passing changes sync vice withdrawal from `last_hours` vs campaign time.
-- Long rest: imprint time-drop when unexposed; brand rest hooks; vice withdrawal saves when addicted and overdue (sheet ability mod + disadvantage).
-- Short or long rest while pregnant: Con DC 15 rest poison (sheet Con). `lewd_pregnancy action=rest` is the Rolls-null fallback.
-- Rest/status also applies a pending `bad_end_imprint_*` jump (same eagerness as `bad_end_vice_id`).
-- Overstimulation −1 on long rest is host-side when the stacking name is `Overstimulation N`.
-- If `IChangeContext.Rolls` is null, observers ask you to emit the matching verb with `d20` / ability mod.
-
-There is no plugin API to start a rest. Propose a small host/Sdk helper only if rest commits are missing from the table flow.
-
-## Do not invent
-
-- Consent, hard limits, bindings, posture, pool currents, climax counters.
-- New handbook spells/feats when curated YAML already covers the beat — prefer `lewd-catalog`.
-- Unstructured “they’re tied up” without `lewd_bind`.
+Invent State. Leave `lifeStage` unset on a character you mean to include. Change player settings without the player's words. Prose-only “tied up”. Auto-enter the mode on combat downed.

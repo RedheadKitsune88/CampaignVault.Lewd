@@ -5,17 +5,27 @@ namespace LewdHandbook.Mechanics;
 
 internal static class ViceState
 {
-    public static string KindKey(string id) => $"vice.{id}.kind";
-    public static string AddictedKey(string id) => $"vice.{id}.addicted";
-    public static string WithdrawalKey(string id) => $"vice.{id}.withdrawal";
-    public static string LockedKey(string id) => $"vice.{id}.locked";
-    public static string AbilityKey(string id) => $"vice.{id}.ability";
-    public static string PriorKey(string id) => $"vice.{id}.prior_addiction";
+    // Mode-gated Traits (NpcCard.SystemTraits). Attributes stay on vice.<id>.* (numeric sheet state).
+    public static string KindKey(string id) => LewdKeys.ModeTraitPrefix + $"vice.{id}.kind";
+    public static string AddictedKey(string id) => LewdKeys.ModeTraitPrefix + $"vice.{id}.addicted";
+    public static string WithdrawalKey(string id) => LewdKeys.ModeTraitPrefix + $"vice.{id}.withdrawal";
+    public static string LockedKey(string id) => LewdKeys.ModeTraitPrefix + $"vice.{id}.locked";
+    public static string AbilityKey(string id) => LewdKeys.ModeTraitPrefix + $"vice.{id}.ability";
+    public static string PriorKey(string id) => LewdKeys.ModeTraitPrefix + $"vice.{id}.prior_addiction";
+    public static string LegacyKindKey(string id) => $"vice.{id}.kind";
+    public static string LegacyAddictedKey(string id) => $"vice.{id}.addicted";
+    public static string LegacyWithdrawalKey(string id) => $"vice.{id}.withdrawal";
+    public static string LegacyLockedKey(string id) => $"vice.{id}.locked";
+    public static string LegacyAbilityKey(string id) => $"vice.{id}.ability";
+    public static string LegacyPriorKey(string id) => $"vice.{id}.prior_addiction";
     public static string DcKey(string id) => $"vice.{id}.dc";
     public static string BaseDcKey(string id) => $"vice.{id}.base_dc";
     public static string LastHoursKey(string id) => $"vice.{id}.last_hours";
     public static string WeekStartKey(string id) => $"vice.{id}.week_start_hours";
     public static string WeekCountKey(string id) => $"vice.{id}.week_count";
+
+    public static readonly string[] TraitSuffixes =
+        ["kind", "addicted", "withdrawal", "locked", "ability", "prior_addiction"];
 
     public static float HoursNow(CampaignTime time) => time.TotalDaysElapsed * 24f + time.Hour;
 
@@ -26,13 +36,16 @@ internal static class ViceState
     }
 
     public static bool IsAddicted(Character character, string id) =>
-        PregnancyState.Flag(character, AddictedKey(id));
+        PregnancyState.Flag(character, AddictedKey(id)) ||
+        PregnancyState.Flag(character, LegacyAddictedKey(id));
 
     public static bool IsLocked(Character character, string id) =>
-        PregnancyState.Flag(character, LockedKey(id));
+        PregnancyState.Flag(character, LockedKey(id)) ||
+        PregnancyState.Flag(character, LegacyLockedKey(id));
 
     public static bool IsWithdrawal(Character character, string id) =>
-        PregnancyState.Flag(character, WithdrawalKey(id));
+        PregnancyState.Flag(character, WithdrawalKey(id)) ||
+        PregnancyState.Flag(character, LegacyWithdrawalKey(id));
 
     public static float Attr(Character character, string key, float fallback = 0f) =>
         character.SystemStats.Attributes.TryGetValue(key, out var v) ? v : fallback;
@@ -52,22 +65,33 @@ internal static class ViceState
             return;
         EnsureSeed(character, def, locked: true, addicted: true, dc: BrandState.AddictionDc);
         Stamp(character, def);
+        PublishState(context, character, def, "addicted");
         context?.RecordMessage(
             $"{character.Id} sexual_fluids vice locked and addicted at DC {BrandState.AddictionDc}. No withdrawal roll from the brand.");
     }
 
-    public static void ClearLock(Character character, string id) =>
+    public static void ClearLock(Character character, string id)
+    {
         character.SystemStats.Traits.Remove(LockedKey(id));
+        character.SystemStats.Traits.Remove(LegacyLockedKey(id));
+    }
+
+    public static void RemoveTraitPair(Character character, string currentKey, string legacyKey)
+    {
+        character.SystemStats.Traits.Remove(currentKey);
+        character.SystemStats.Traits.Remove(legacyKey);
+    }
 
     public static void ApplyPendingBadEnd(Character character, IChangeContext? context)
     {
-        var pending = PregnancyState.Text(character, LewdKeys.BadEndViceId);
+        var pending = PregnancyState.Text(character, LewdKeys.TraitBadEndViceId);
         if (string.IsNullOrWhiteSpace(pending) || !ViceCatalog.TryGet(pending, out var def))
             return;
         EnsureSeed(character, def, locked: false, addicted: true, dc: def.BaseDc);
         Stamp(character, def);
         ApplyAddictedSideEffects(character, null, def, context);
-        character.SystemStats.Traits.Remove(LewdKeys.BadEndViceId);
+        PregnancyState.Remove(character, LewdKeys.TraitBadEndViceId);
+        PublishState(context, character, def, "addicted");
         context?.RecordMessage(
             $"{character.Id} bad-end vice jump applied: {def.Id} addicted at DC {def.BaseDc}. Pending id cleared.");
     }
@@ -82,9 +106,18 @@ internal static class ViceState
             PregnancyState.Set(character, AddictedKey(def.Id), "true");
 
         if (locked)
+        {
             PregnancyState.Set(character, LockedKey(def.Id), "true");
+            character.SystemStats.Traits.Remove(LegacyLockedKey(def.Id));
+        }
         else
-            character.SystemStats.Traits.Remove(LockedKey(def.Id));
+            ClearLock(character, def.Id);
+
+        // Drop legacy trait copies once current keys are written.
+        character.SystemStats.Traits.Remove(LegacyKindKey(def.Id));
+        character.SystemStats.Traits.Remove(LegacyAbilityKey(def.Id));
+        if (addicted)
+            character.SystemStats.Traits.Remove(LegacyAddictedKey(def.Id));
     }
 
     public static void SyncWithdrawal(Character character, ViceDef def, float nowHours, IChangeContext? context)
@@ -95,19 +128,29 @@ internal static class ViceState
             return;
         }
 
+        if (!character.SystemStats.Attributes.ContainsKey(LastHoursKey(def.Id)))
+        {
+            // Addicted without ever partaking here (brand, bad end): the clock starts now.
+            SetAttr(character, LastHoursKey(def.Id), nowHours);
+            return;
+        }
+
         var last = Attr(character, LastHoursKey(def.Id), nowHours);
         var gap = nowHours - last;
+        ViceTrack.AnnounceStage(character, def, nowHours, context);
         if (gap >= def.WithdrawalHours)
         {
             if (!IsWithdrawal(character, def.Id))
             {
                 PregnancyState.Set(character, WithdrawalKey(def.Id), "true");
                 AppendThought(character, def.Id);
+                ViceTrack.StampWithdrawal(character, def);
                 var voice = CurrentDc(character, def) >= def.BaseDc + 6 || IsLocked(character, def.Id)
                     ? "constant"
                     : "intrusive";
                 context?.RecordMessage(
-                    $"{character.Id} vice {def.Id} withdrawal ({voice} temptation). Narrate the intrusive thought, then emit lewd_vice action=resist or consume.");
+                    $"{character.Id} vice {def.Id} withdrawal ({voice} temptation). Narrate the intrusive thought; when the vice is at hand, " +
+                    "emit lewd_vice action=note_presence (a save), or consume if they give in.");
             }
 
             if (def.Id == ViceCatalog.Alcohol && gap >= 4)
@@ -117,6 +160,8 @@ internal static class ViceState
         else
         {
             ClearWithdrawal(character, def.Id);
+            if (def.Id == ViceCatalog.Alcohol)
+                RemoveOwned(character, LewdKeys.ConditionIntoxicated, "vice.alcohol");
         }
     }
 
@@ -134,6 +179,10 @@ internal static class ViceState
         PregnancyState.Set(character, AbilityKey(def.Id), ability);
         SetAttr(character, LastHoursKey(def.Id), nowHours);
         ClearWithdrawal(character, def.Id);
+        SetAttr(character, ViceTrack.StreakKey(def.Id), 0);
+        SetAttr(character, ViceTrack.StageKey(def.Id), (int)ViceStage.Sated);
+        if (def.Id == ViceCatalog.Alcohol)
+            RemoveOwned(character, LewdKeys.ConditionIntoxicated, "vice.alcohol");
         BumpWeek(character, def, nowHours);
         if (becameAddicted || IsAddicted(character, def.Id))
         {
@@ -191,8 +240,10 @@ internal static class ViceState
     public static void ClearAddicted(Character character, ViceDef def)
     {
         PregnancyState.Set(character, PriorKey(def.Id), "true");
-        character.SystemStats.Traits.Remove(AddictedKey(def.Id));
+        character.SystemStats.Traits.Remove(LegacyPriorKey(def.Id));
+        RemoveTraitPair(character, AddictedKey(def.Id), LegacyAddictedKey(def.Id));
         ClearWithdrawal(character, def.Id);
+        ViceTrack.Reset(character, def.Id);
         SetAttr(character, DcKey(def.Id), def.BaseDc);
         RemoveEffect(character, def.Id);
         if (def.Id is ViceCatalog.Sex or ViceCatalog.SexualFluids)
@@ -206,8 +257,11 @@ internal static class ViceState
             RemoveOwned(character, LewdKeys.ConditionIntoxicated, "vice.alcohol");
     }
 
-    public static void ClearWithdrawal(Character character, string id) =>
-        character.SystemStats.Traits.Remove(WithdrawalKey(id));
+    public static void ClearWithdrawal(Character character, string id)
+    {
+        RemoveTraitPair(character, WithdrawalKey(id), LegacyWithdrawalKey(id));
+        ViceTrack.ClearWithdrawalEffects(character, id);
+    }
 
     public static void FailWithdrawal(
         Character character,
@@ -309,10 +363,10 @@ internal static class ViceState
     public static void AppendThought(Character character, string id)
     {
         var token = "vice:" + id;
-        var existing = PregnancyState.Text(character, LewdKeys.IntrusiveThoughts);
+        var existing = PregnancyState.Text(character, LewdKeys.TraitIntrusiveThoughts);
         if (string.IsNullOrWhiteSpace(existing))
         {
-            PregnancyState.Set(character, LewdKeys.IntrusiveThoughts, token);
+            PregnancyState.Set(character, LewdKeys.TraitIntrusiveThoughts, token);
             return;
         }
 
@@ -321,7 +375,7 @@ internal static class ViceState
         if (parts.Any(p => string.Equals(p, token, StringComparison.OrdinalIgnoreCase)))
             return;
         parts.Add(token);
-        PregnancyState.Set(character, LewdKeys.IntrusiveThoughts, string.Join(",", parts));
+        PregnancyState.Set(character, LewdKeys.TraitIntrusiveThoughts, string.Join(",", parts));
     }
 
     public static void BumpOverstim(
@@ -445,6 +499,10 @@ internal static class ViceState
         }
     }
 
+    /// <summary>
+    /// Stamps a condition this vice owns. If the character already has it from another source (a brand, overstimulation),
+    /// that one is left alone and not claimed, so ending the vice never strips a condition something else still applies.
+    /// </summary>
     private static void StampOwned(Character character, string name, string condition, string hint, string owner)
     {
         var effects = character.SystemStats.StatusEffects;
@@ -453,10 +511,8 @@ internal static class ViceState
             string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
         if (existing is not null)
         {
-            existing.Name = name;
-            existing.ConditionName = condition;
-            existing.RecoveryHint = hint;
-            existing.AppliedBy = owner;
+            if (string.Equals(existing.AppliedBy, owner, StringComparison.OrdinalIgnoreCase))
+                existing.RecoveryHint = hint;
             return;
         }
 
@@ -469,6 +525,51 @@ internal static class ViceState
             RecoveryHint = hint,
         });
     }
+
+    /// <summary>Completed rest (from lewd_rest): syncs every vice's clock; a long rest rolls the withdrawal saves.</summary>
+    public static async Task OnRestAsync(
+        Character character,
+        ModeParticipantState? participant,
+        bool longRest,
+        float now,
+        IChangeContext context,
+        CancellationToken ct)
+    {
+        foreach (var def in ViceCatalog.All)
+        {
+            if (!IsAddicted(character, def.Id) &&
+                string.IsNullOrWhiteSpace(PregnancyState.Text(character, LewdKeys.TraitBadEndViceId)))
+                continue;
+
+            SyncWithdrawal(character, def, now, context);
+            if (!longRest || !IsWithdrawal(character, def.Id))
+                continue;
+
+            if (context.Rolls is null && ViceTrack.Aid(character, def.Id) != ViceTrack.Auto)
+            {
+                context.RecordMessage(
+                    $"{character.Id} vice {def.Id} long rest withdrawal save pending. Emit lewd_vice action=rest with d20 (Rolls unavailable).");
+                continue;
+            }
+
+            var ability = PregnancyState.Text(character, AbilityKey(def.Id));
+            if (string.IsNullOrWhiteSpace(ability))
+                ability = def.DefaultAbility;
+            context.RecordMessage(await ViceTrack.RestSaveAsync(context, character, participant, def, ability, 0, null, ct).ConfigureAwait(false));
+        }
+
+        // Aid lasts "until the next long rest", used or not.
+        if (longRest)
+        {
+            foreach (var def in ViceCatalog.All)
+                character.SystemStats.Traits.Remove(ViceTrack.AidKey(def.Id));
+        }
+    }
+
+    public static void PublishState(IChangeContext? context, Character character, ViceDef def, string state) =>
+        context?.Publish(
+            Events.LewdEvents.ViceState,
+            new { characterId = character.Id, viceId = def.Id, state, dc = state == "clean" ? (int?)null : CurrentDc(character, def) });
 
     private static void RemoveOwned(Character character, string condition, string owner)
     {

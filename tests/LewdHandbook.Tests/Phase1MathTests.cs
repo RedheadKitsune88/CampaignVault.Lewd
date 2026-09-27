@@ -61,7 +61,7 @@ public class Phase1MathTests
     {
         var t = Target("virgin");
         t.State[LewdKeys.Kinks] = new List<string> { "penetration" };
-        Assert.Equal(15, ConsentGate.AdjustStimulationForTags(t, 10, "piercing", null));
+        Assert.Equal(15, ConsentGate.AdjustStimulationForTags(t, null, 10, "piercing", null));
     }
 
     [Fact]

@@ -8,7 +8,7 @@ namespace LewdHandbook.Observers;
 public sealed class LewdBrandObserver : IWorldChangeObserver
 {
     public bool IsInterestedIn(WorldChange committed, IChangeContext context) =>
-        committed is RestChange or HpChange or StatusRemove
+        committed is HpChange or StatusRemove
             or LewdAdvanceChange or LewdClimaxCheckChange or LewdPregnancyChange;
 
     public Task OnCommittedAsync(WorldChange committed, IChangeContext context, CancellationToken ct = default)
@@ -17,7 +17,7 @@ public sealed class LewdBrandObserver : IWorldChangeObserver
         if (string.IsNullOrWhiteSpace(id) || !context.Characters.TryGetValue(id, out var character))
             return Task.CompletedTask;
 
-        var participant = context.ActiveMode?.Participants.FirstOrDefault(p =>
+        var participant = LewdModeAccess.TryGetActive(context)?.Participants.FirstOrDefault(p =>
             string.Equals(p.CharacterId, id, StringComparison.OrdinalIgnoreCase));
 
         switch (committed)
@@ -25,11 +25,9 @@ public sealed class LewdBrandObserver : IWorldChangeObserver
             case StatusRemove remove:
                 BrandState.Restamp(character, remove.Status, context);
                 break;
-            case RestChange rest when IsShortOrLong(rest):
-                BrandState.OnRest(character, participant, IsLong(rest), context);
-                break;
             case HpChange hp when hp.Delta > 0:
-                BrandState.OnHeal(character, participant, hp.Delta, context);
+                // Altruism triggers on the healer, whom HpChange does not name: lewd_apply_brand action=heal.
+                BrandState.RelockDenial(character, context);
                 break;
             case LewdPregnancyChange:
                 if (BrandState.Has(character, BrandCatalog.Fertility))
@@ -51,41 +49,16 @@ public sealed class LewdBrandObserver : IWorldChangeObserver
         return Task.CompletedTask;
     }
 
+    /// <summary>Clears the just-climaxed marker; Echoes itself is <see cref="Handlers.LewdEchoesHandler"/>.</summary>
     private static void NoteEchoes(WorldChange committed, IChangeContext context, string climaxId)
     {
-        var mode = context.ActiveMode;
-        if (mode is null)
-            return;
-        var climaxed = mode.Participants.FirstOrDefault(p =>
-            string.Equals(p.CharacterId, climaxId, StringComparison.OrdinalIgnoreCase));
-        if (climaxed is null || !ConsentGate.GetBool(climaxed, LewdKeys.LustbrandJustClimaxed))
-            return;
-        climaxed.State[LewdKeys.LustbrandJustClimaxed] = false;
-        foreach (var other in mode.Participants)
-        {
-            if (string.Equals(other.CharacterId, climaxId, StringComparison.OrdinalIgnoreCase))
-                continue;
-            if (!context.Characters.TryGetValue(other.CharacterId, out var otherChar))
-                continue;
-            if (!BrandState.Has(otherChar, BrandCatalog.Echoes))
-                continue;
-            context.RecordMessage(
-                $"{other.CharacterId} has Brand of Echoes. If within 5 ft of {climaxId}'s climax, emit lewd_climax_check forceClimax. Do not assume distance.");
-        }
-
+        if (LewdModeAccess.TryGetParticipant(context, climaxId) is { } climaxed)
+            climaxed.State[LewdKeys.LustbrandJustClimaxed] = false;
         _ = committed;
     }
 
-    private static bool IsShortOrLong(RestChange rest) =>
-        rest.RestType is RestType.LongRest or RestType.ShortRest ||
-        (rest.RestType is null && rest.IntendedHours >= 1);
-
-    private static bool IsLong(RestChange rest) =>
-        rest.RestType == RestType.LongRest || (rest.RestType is null && rest.IntendedHours >= 8);
-
     private static string? CharacterId(WorldChange change) => change switch
     {
-        RestChange rest => rest.CharacterId,
         HpChange hp => hp.CharacterId,
         StatusRemove remove => remove.CharacterId,
         LewdAdvanceChange advance => advance.TargetId,

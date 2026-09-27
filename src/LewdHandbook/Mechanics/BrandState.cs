@@ -6,9 +6,9 @@ namespace LewdHandbook.Mechanics;
 
 internal static class BrandState
 {
-    public const string ViceLocked = "vice.sexual_fluids.locked";
-    public const string ViceAddicted = "vice.sexual_fluids.addicted";
-    public const string ViceKind = "vice.sexual_fluids.kind";
+    public static string ViceLocked => ViceState.LockedKey(ViceCatalog.SexualFluids);
+    public static string ViceAddicted => ViceState.AddictedKey(ViceCatalog.SexualFluids);
+    public static string ViceKind => ViceState.KindKey(ViceCatalog.SexualFluids);
     public const string ViceDc = "vice.sexual_fluids.dc";
     public const string ViceBaseDc = "vice.sexual_fluids.base_dc";
     public const int AddictionDc = 18;
@@ -28,11 +28,31 @@ internal static class BrandState
             var id = bits[0].ToLowerInvariant();
             if (!BrandCatalog.TryGet(id, out var def))
                 continue;
-            var tier = bits.Length > 1 && int.TryParse(bits[1], out var n) ? n : def.Tier;
-            list.Add((id, Math.Clamp(tier, 1, BrandCatalog.MaxTier)));
+            var tier = Math.Clamp(bits.Length > 1 && int.TryParse(bits[1], out var n) ? n : def.Tier, 1, BrandCatalog.MaxTier);
+            // A brand listed twice (hand-edited Trait, old writes) counts once, at its highest tier.
+            var existing = list.FindIndex(b => b.Id == id);
+            if (existing >= 0)
+                list[existing] = (id, Math.Max(list[existing].Tier, tier));
+            else
+                list.Add((id, tier));
         }
 
         return list;
+    }
+
+    /// <summary>Changes the tier of a brand the character already bears, keeping its source.</summary>
+    public static void SetTier(Character character, string id, int tier)
+    {
+        if (!BrandCatalog.TryGet(id, out var def))
+            return;
+        var brands = Parse(PregnancyState.Text(character, LewdKeys.Lustbrands)).ToList();
+        var index = brands.FindIndex(b => b.Id == id);
+        if (index < 0)
+            return;
+        tier = Math.Clamp(tier, 1, BrandCatalog.MaxTier);
+        brands[index] = (id, tier);
+        PregnancyState.Set(character, LewdKeys.Lustbrands, Format(brands));
+        StampBrand(character, def, tier, PregnancyState.Text(character, PayloadKey(id, "source")));
     }
 
     public static string Format(IEnumerable<(string Id, int Tier)> brands) =>
@@ -154,16 +174,41 @@ internal static class BrandState
     public static bool BlocksClimax(Character character) =>
         Has(character, BrandCatalog.Denial) && !PregnancyState.Flag(character, InactiveKey(BrandCatalog.Denial));
 
+    /// <summary>Dice Brand of Ruin needs if it intercepts a climax, rolled up front by the async callers.</summary>
+    public readonly record struct RuinDice(int RecoveryFace, int PsychicFace);
+
+    /// <summary>Null unless the character bears Ruin. Rolls one recovery die and the fallback 1d12.</summary>
+    public static async Task<RuinDice?> PreRollRuinAsync(IChangeContext context, Character? character, CancellationToken ct)
+    {
+        if (character is null || !Has(character, BrandCatalog.Ruin))
+            return null;
+        var sides = ArousalMath.RecoveryDieSides(character) ?? 8;
+        var recovery = await LewdDice.RollAsync(context, "lewd_ruin_recovery_die", 1, sides, ct: ct).ConfigureAwait(false);
+        var psychic = await LewdDice.RollAsync(context, "lewd_ruin_psychic", 1, 12, ct: ct).ConfigureAwait(false);
+        return new RuinDice(recovery.Total, psychic.Total);
+    }
+
     public static bool InterceptClimax(
         ModeParticipantState target,
         Character? character,
         ResourcePool arousal,
         IChangeContext? context,
-        out string note)
+        out string note,
+        RuinDice? ruin = null,
+        IEnumerable<string>? tags = null,
+        bool forced = false)
     {
         note = "";
         if (character is null)
             return false;
+        if (!forced && Has(character, BrandCatalog.Fertility) && !ClimaxUnprotected(character, tags))
+        {
+            LewdPoolHelper.SetEdging(target, character, true);
+            note = " Brand of Fertility: only unprotected sex brings climax; still edging.";
+            context?.RecordMessage($"{character.Id} Brand of Fertility: climax blocked (not unprotected sex). Tag the advance \"unprotected\" when it is.");
+            return true;
+        }
+
         if (BlocksClimax(character))
         {
             LewdPoolHelper.SetEdging(target, character, true);
@@ -175,7 +220,7 @@ internal static class BrandState
         if (!Has(character, BrandCatalog.Ruin))
             return false;
 
-        note = ApplyRuin(target, character, arousal, context);
+        note = ApplyRuin(target, character, arousal, context, ruin);
         return true;
     }
 
@@ -199,7 +244,7 @@ internal static class BrandState
             notes.Add($" Abundance climax: 1 liter, endowment {endowment}.");
         }
 
-        if (Has(character, BrandCatalog.Bestial) && Unprotected(tags))
+        if (Has(character, BrandCatalog.Bestial) && ClimaxUnprotected(character, tags))
         {
             ClearOwned(character, LewdKeys.ConditionNymphomanic, OwnsKey(BrandCatalog.Bestial, LewdKeys.ConditionNymphomanic));
             notes.Add(" Bestial nymphomanic cleared.");
@@ -209,8 +254,8 @@ internal static class BrandState
         {
             var id = PregnancyState.Text(character, LewdKeys.LustbrandRebrandId);
             var tier = TraitInt(character, LewdKeys.LustbrandPendingRebrand);
-            character.SystemStats.Traits.Remove(LewdKeys.LustbrandPendingRebrand);
-            character.SystemStats.Traits.Remove(LewdKeys.LustbrandRebrandId);
+            PregnancyState.Remove(character, LewdKeys.LustbrandPendingRebrand);
+            PregnancyState.Remove(character, LewdKeys.LustbrandRebrandId);
             if (id is not null && BrandCatalog.TryGet(id, out _))
             {
                 Apply(target, character, id, tier, "lewd_rebrand", null, concubi: true, context);
@@ -227,8 +272,8 @@ internal static class BrandState
     {
         if (amount <= 0 || !Has(character, BrandCatalog.Echoes))
             return;
-        var arousal = LewdPoolHelper.EnsurePool(character, LewdKeys.PoolArousal, 10, RecoveryType.Never);
-        var numbing = LewdPoolHelper.EnsurePool(character, LewdKeys.PoolNumbing, 0, RecoveryType.Never);
+        var arousal = LewdPoolHelper.Arousal(character);
+        var numbing = LewdPoolHelper.Numbing(character);
         var result = StimulationMath.Apply(arousal.Current, Math.Max(1, arousal.Max), numbing.Current, amount, false);
         numbing.Current = result.NumbingAfter;
         arousal.Current = result.ArousalAfter;
@@ -250,7 +295,7 @@ internal static class BrandState
                 $"{character.Id} Brand of Abundance: endowment {endowment} (−{endowment} AC and Dex saves). Narrate the swell.");
         }
 
-        character.SystemStats.Traits.Remove(FlagKey(BrandCatalog.Abundance, "climaxed"));
+        PregnancyState.Remove(character, FlagKey(BrandCatalog.Abundance, "climaxed"));
 
         if (Has(character, BrandCatalog.Bestial))
         {
@@ -272,19 +317,19 @@ internal static class BrandState
         Mirror(participant, character);
     }
 
+    public static string AltruismBaseMaxKey => FlagKey(BrandCatalog.Altruism, "base_max");
+    public static string AltruismSuppressedKey => FlagKey(BrandCatalog.Altruism, "suppressed");
+
     public static void OnHeal(Character character, ModeParticipantState? participant, int amount, IChangeContext? context)
     {
         if (amount <= 0 || !Has(character, BrandCatalog.Altruism))
             return;
-        var pool = LewdPoolHelper.EnsurePool(character, LewdKeys.PoolArousal, 10, RecoveryType.Never);
-        if (!character.SystemStats.Traits.ContainsKey(FlagKey(BrandCatalog.Altruism, "base_max")))
-            PregnancyState.Set(character, FlagKey(BrandCatalog.Altruism, "base_max"), pool.Max.ToString());
-        var suppressed = TraitInt(character, FlagKey(BrandCatalog.Altruism, "suppressed")) + amount;
-        PregnancyState.Set(character, FlagKey(BrandCatalog.Altruism, "suppressed"), suppressed.ToString());
-        var baseMax = TraitInt(character, FlagKey(BrandCatalog.Altruism, "base_max"));
-        pool.Max = Math.Max(1, baseMax - suppressed);
-        if (pool.Current > pool.Max)
-            pool.Current = pool.Max;
+        var pool = LewdPoolHelper.Arousal(character);
+        if (!character.SystemStats.Traits.ContainsKey(AltruismBaseMaxKey))
+            PregnancyState.Set(character, AltruismBaseMaxKey, (ArousalMath.DerivedMax(character) ?? pool.Max).ToString());
+        var suppressed = TraitInt(character, AltruismSuppressedKey) + amount;
+        PregnancyState.Set(character, AltruismSuppressedKey, suppressed.ToString());
+        LewdPoolHelper.SyncArousalMax(character, pool);
         if (participant is not null)
             LewdPoolHelper.MirrorArousal(participant, pool);
         context?.RecordMessage(
@@ -322,7 +367,7 @@ internal static class BrandState
     {
         if (!Has(character, BrandCatalog.Denial) || !PregnancyState.Flag(character, InactiveKey(BrandCatalog.Denial)))
             return;
-        character.SystemStats.Traits.Remove(InactiveKey(BrandCatalog.Denial));
+        PregnancyState.Remove(character, InactiveKey(BrandCatalog.Denial));
         StampOwned(character, LewdKeys.ConditionDenied, LewdKeys.ConditionDenied,
             "Brand of Denial. Cannot be removed while the brand is active.", OwnsKey(BrandCatalog.Denial, LewdKeys.ConditionDenied));
         context?.RecordMessage($"{character.Id} Brand of Denial relocked.");
@@ -337,6 +382,19 @@ internal static class BrandState
         context?.RecordMessage(
             $"{character.Id} Brand of Denial inactive until the next rest, heal, advance, or climax commit.");
     }
+
+    private const string LastStimUnprotectedKey = LewdKeys.ModeTraitPrefix + "last_stim_unprotected";
+
+    /// <summary>Remembers whether the latest physical stimulation was unprotected sex, for a later climax save.</summary>
+    public static void RecordStimulation(Character? character, IEnumerable<string>? tags)
+    {
+        if (character is not null)
+            PregnancyState.Set(character, LastStimUnprotectedKey, Unprotected(tags) ? "true" : "false");
+    }
+
+    /// <summary>Whether this climax comes from unprotected sex: the advance's own tags, else the latest recorded stimulation.</summary>
+    public static bool ClimaxUnprotected(Character? character, IEnumerable<string>? tags) =>
+        tags is not null && tags.Any() ? Unprotected(tags) : PregnancyState.Flag(character, LastStimUnprotectedKey);
 
     public static bool Unprotected(IEnumerable<string>? tags)
     {
@@ -450,7 +508,7 @@ internal static class BrandState
         switch (id)
         {
             case BrandCatalog.Denial:
-                character.SystemStats.Traits.Remove(InactiveKey(id));
+                PregnancyState.Remove(character, InactiveKey(id));
                 ClearOwned(character, LewdKeys.ConditionDenied, OwnsKey(id, LewdKeys.ConditionDenied));
                 break;
             case BrandCatalog.Fertility:
@@ -468,49 +526,71 @@ internal static class BrandState
         }
     }
 
+    /// <summary>
+    /// Handbook: instead of climaxing, spend one recovery die as if it had: arousal drops by the roll + tier and the bearer
+    /// takes that much psychic damage. With no dice left: 1d12 psychic and +1 overstimulation. Damage that would drop the
+    /// bearer to 0 leaves them at 1 and raises the tier. HP is applied here, since the roll is the engine's.
+    /// </summary>
     private static string ApplyRuin(
         ModeParticipantState target,
         Character character,
         ResourcePool arousal,
-        IChangeContext? context)
+        IChangeContext? context,
+        RuinDice? ruin)
     {
         var tier = Math.Max(1, Tier(character, BrandCatalog.Ruin));
+        var sides = ArousalMath.RecoveryDieSides(character) ?? 8;
+        string outcome;
+        int damage;
         if (character.SystemStats.ResourcePools.TryGetValue(LewdKeys.PoolRecoveryDice, out var dice) &&
             dice is not null && dice.Current > 0)
         {
+            var face = ruin?.RecoveryFace ?? LewdDice.Average(sides);
+            damage = face + tier;
             dice.Current -= 1;
-            arousal.Current = Math.Max(0, arousal.Current - tier);
+            arousal.Current = Math.Max(0, arousal.Current - damage);
             LewdPoolHelper.MirrorArousal(target, arousal);
             LewdPoolHelper.SetEdging(target, character, false);
-            context?.RecordMessage(
-                $"{character.Id} Brand of Ruin: no climax. Spent 1 recovery die. Arousal reduced by tier {tier}. Also subtract the recovery die and apply that total as psychic damage.");
-            Mirror(target, character);
-            return $" Brand of Ruin: spent 1 recovery die, arousal −{tier}, no climax.";
+            outcome = $" Brand of Ruin: no climax; spent 1 recovery die (d{sides}={face}) + tier {tier}: arousal −{damage}, {damage} psychic.";
+        }
+        else
+        {
+            damage = ruin?.PsychicFace ?? LewdDice.Average(12);
+            var level = ConsentGate.GetInt(target, LewdKeys.Overstimulation) + 1;
+            LewdPoolHelper.SetOverstimulation(target, character, level, BrandCatalog.ConditionName(BrandCatalog.Ruin), context);
+            LewdPoolHelper.SetEdging(target, character, false);
+            outcome = $" Brand of Ruin: no recovery dice; {damage} psychic (1d12), overstimulation {level}.";
         }
 
-        var level = ConsentGate.GetInt(target, LewdKeys.Overstimulation) + 1;
-        LewdPoolHelper.SetOverstimulation(target, character, level, BrandCatalog.ConditionName(BrandCatalog.Ruin), context);
-        LewdPoolHelper.SetEdging(target, character, false);
-        context?.RecordMessage(
-            $"{character.Id} Brand of Ruin: no recovery dice. Narrate 1d12 psychic. If that would drop HP to 0, set HP to 1 and emit lewd_apply_brand to raise ruin tier. Overstimulation {level}.");
+        if (character.MaxHp > 0 && character.CurrentHp > 0)
+        {
+            if (character.CurrentHp - damage <= 0)
+            {
+                character.CurrentHp = 1;
+                SetTier(character, BrandCatalog.Ruin, tier + 1);
+                outcome += $" Would have dropped to 0 HP: left at 1 HP, Ruin tier {tier + 1}.";
+            }
+            else
+            {
+                character.CurrentHp -= damage;
+            }
+        }
+
+        context?.RecordMessage($"{character.Id}{outcome}");
         Mirror(target, character);
-        return $" Brand of Ruin: no dice, overstimulation {level}, no climax.";
+        return outcome;
     }
 
     private static void RestoreArousalMax(Character character)
     {
-        var key = FlagKey(BrandCatalog.Altruism, "base_max");
+        var baseMax = TraitInt(character, AltruismBaseMaxKey);
+        character.SystemStats.Traits.Remove(AltruismBaseMaxKey);
+        character.SystemStats.Traits.Remove(AltruismSuppressedKey);
         if (!character.SystemStats.ResourcePools.TryGetValue(LewdKeys.PoolArousal, out var pool) || pool is null)
-        {
-            character.SystemStats.Traits.Remove(key);
-            character.SystemStats.Traits.Remove(FlagKey(BrandCatalog.Altruism, "suppressed"));
             return;
-        }
-
-        if (int.TryParse(PregnancyState.Text(character, key), out var baseMax))
+        if (ArousalMath.DerivedMax(character) is null)
             pool.Max = Math.Max(pool.Max, baseMax);
-        character.SystemStats.Traits.Remove(key);
-        character.SystemStats.Traits.Remove(FlagKey(BrandCatalog.Altruism, "suppressed"));
+        LewdPoolHelper.SyncArousalMax(character, pool);
     }
 
     private static void RemoveEffect(Character character, string id)
@@ -557,16 +637,16 @@ internal static class BrandState
             string.Equals(e.AppliedBy, BrandCatalog.AppliedBy, StringComparison.Ordinal) &&
             (string.Equals(e.ConditionName, condition, StringComparison.OrdinalIgnoreCase) ||
              string.Equals(e.Name, condition, StringComparison.OrdinalIgnoreCase)));
-        character.SystemStats.Traits.Remove(ownsKey);
+        PregnancyState.Remove(character, ownsKey);
     }
 
     private static int TraitInt(Character character, string key) => PregnancyState.Int(character, key);
 
-    private static string PayloadKey(string id, string field) => $"lustbrand.{id}.{field}";
+    private static string PayloadKey(string id, string field) => LewdKeys.LustbrandTraitPrefix + $"{id}.{field}";
 
-    private static string FlagKey(string id, string field) => $"lustbrand.{id}.{field}";
+    private static string FlagKey(string id, string field) => LewdKeys.LustbrandTraitPrefix + $"{id}.{field}";
 
-    private static string InactiveKey(string id) => $"lustbrand.{id}.inactive";
+    private static string InactiveKey(string id) => LewdKeys.LustbrandTraitPrefix + $"{id}.inactive";
 
-    private static string OwnsKey(string id, string condition) => $"lustbrand.{id}.owns_{condition}";
+    private static string OwnsKey(string id, string condition) => LewdKeys.LustbrandTraitPrefix + $"{id}.owns_{condition}";
 }

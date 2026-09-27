@@ -27,18 +27,23 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
         var participant = FindParticipant(context, req.TargetId);
         var action = (req.Action ?? "impregnate").Trim().ToLowerInvariant();
 
-        if (action is "advance" or "terminate" or "termination_save")
-            return ApplyOngoing(req, context, targetChar, participant, action);
+        var now = await ViceState.HoursNowAsync(context, ct).ConfigureAwait(false);
+        if (action is "advance" or "terminate" or "termination_save" or "birth")
+            return ApplyOngoing(req, context, targetChar, participant, action, now);
         if (action == "rest")
-            return await ApplyRestAsync(req, context, targetChar, ct).ConfigureAwait(false);
+            return await ApplyRestAsync(req, context, targetChar, now, ct).ConfigureAwait(false);
+        if (action != "impregnate")
+            return ChangeHandlerResult.Failure("action must be impregnate, advance, rest, birth, terminate, or termination_save.");
 
-        return await ImpregnateAsync(req, context, targetChar, participant, ct).ConfigureAwait(false);
+        return await ImpregnateAsync(req, context, targetChar, participant, now, ct).ConfigureAwait(false);
     }
 
+    /// <summary>Fallback when the host could not roll the rest save itself (no Rolls): same save, same once-per-rest guard.</summary>
     private static async Task<ChangeHandlerResult> ApplyRestAsync(
         LewdPregnancyChange req,
         IChangeContext context,
         Character targetChar,
+        float now,
         CancellationToken ct)
     {
         if (!PregnancyState.Flag(targetChar, LewdKeys.Pregnant))
@@ -46,21 +51,9 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
         if (req.D20 is < 1 or > 20)
             return ChangeHandlerResult.Failure("d20 must be between 1 and 20 for a pregnancy rest save.");
 
-        var day = await ImprintState.DayAsync(context, ct).ConfigureAwait(false);
-        if (PregnancyState.Int(targetChar, LewdKeys.PregnancyRestPoisonDay) == day && day != 0)
-        {
-            context.RecordMessage($"Lewd pregnancy rest {req.TargetId}: already resolved this day.");
-            return ChangeHandlerResult.Ok;
-        }
-
-        var conMod = AbilityScores.Resolve(targetChar, "con", req.TargetConModifier);
-        var total = req.D20 + conMod;
-        var saved = PregnancyMath.CheckSucceeds(req.D20, conMod, PregnancyMath.RestPoisonDc);
-        if (!saved)
-            PregnancyState.StampPoisoned(targetChar);
-        PregnancyState.Set(targetChar, LewdKeys.PregnancyRestPoisonDay, day.ToString());
-        context.RecordMessage(
-            $"Lewd pregnancy rest {req.TargetId}: {req.D20}+{conMod}={total} vs DC {PregnancyMath.RestPoisonDc} → {(saved ? "saved" : "poisoned 1d4 hours")}.");
+        PregnancyState.Sync(targetChar, now, context);
+        var note = await PregnancyRest.SaveAsync(context, targetChar, now, req.D20, req.TargetConModifier, ct).ConfigureAwait(false);
+        context.RecordMessage(note ?? $"Lewd pregnancy rest {req.TargetId}: not showing yet (progress < {PregnancyMath.VisibleProgress}); no save.");
         return ChangeHandlerResult.Ok;
     }
 
@@ -69,30 +62,50 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
         IChangeContext context,
         Character targetChar,
         ModeParticipantState? participant,
-        string action)
+        string action,
+        float now)
     {
-        if (action == "terminate")
+        if (!PregnancyState.Flag(targetChar, LewdKeys.Pregnant))
+            return ChangeHandlerResult.Failure($"{req.TargetId} is not pregnant.");
+        PregnancyState.Sync(targetChar, now, context);
+
+        if (action is "terminate" or "birth")
         {
+            var progress = PregnancyState.Int(targetChar, LewdKeys.PregnancyProgress);
+            var offspring = Math.Max(1, PregnancyState.Int(targetChar, LewdKeys.PregnancyOffspring));
+            var source = PregnancyState.Text(targetChar, LewdKeys.PregnancySource);
+            var premature = action == "birth" && progress < PregnancyMath.ProgressMax;
             PregnancyState.ClearPregnant(targetChar);
             PregnancyState.Mirror(participant, targetChar);
-            context.RecordMessage($"Lewd pregnancy {req.TargetId}: terminated.");
+            Publish(context, req.TargetId, action == "birth" ? "birth" : "terminated", source, offspring, progress);
+            if (action == "birth" && BrandState.Has(targetChar, BrandCatalog.Fertility))
+            {
+                // Handbook: each birth raises Brand of Fertility a tier, up to 5th.
+                var tier = BrandState.Tier(targetChar, BrandCatalog.Fertility);
+                if (tier < BrandCatalog.MaxTier)
+                {
+                    BrandState.SetTier(targetChar, BrandCatalog.Fertility, tier + 1);
+                    context.RecordMessage($"{req.TargetId} Brand of Fertility rises to tier {tier + 1}.");
+                }
+            }
+            context.RecordMessage(action == "birth"
+                ? $"Lewd pregnancy {req.TargetId}: birth ({offspring} offspring{(premature ? $", premature at {progress}" : "")}). Create any offspring who matter with character_create."
+                : $"Lewd pregnancy {req.TargetId}: terminated at progress {progress}.");
             return ChangeHandlerResult.Ok;
         }
 
-        if (!PregnancyState.Flag(targetChar, LewdKeys.Pregnant))
-            return ChangeHandlerResult.Failure($"{req.TargetId} is not pregnant.");
-
         if (action == "advance")
         {
-            var nontrad = IsNontraditional(PregnancyState.Text(targetChar, LewdKeys.PregnancyType));
+            var nontrad = PregnancyState.IsNontraditional(targetChar);
             var delta = req.ProgressDelta ?? PregnancyMath.DefaultRestDelta(nontrad);
             var before = PregnancyState.Int(targetChar, LewdKeys.PregnancyProgress);
             var after = PregnancyMath.ClampProgress(before + delta);
+            // Magic that speeds (or slows) a pregnancy moves the clock with it, so time keeps counting from here.
             PregnancyState.Set(targetChar, LewdKeys.PregnancyProgress, after.ToString());
+            PregnancyState.StartClock(targetChar, now, after, PregnancyState.Attr(targetChar, PregnancyState.TermHoursKey, PregnancyMath.DefaultTermHours(nontrad)));
+            PregnancyState.Sync(targetChar, now, context);
             PregnancyState.Mirror(participant, targetChar);
             context.RecordMessage($"Lewd pregnancy {req.TargetId}: progress {before}→{after}.");
-            if (after >= PregnancyMath.ProgressMax)
-                context.RecordPhysicalStateNudge($"{req.TargetId} pregnancy term is complete. Narrate birth; do not leave them pregnant.");
             return ChangeHandlerResult.Ok;
         }
 
@@ -105,8 +118,11 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
         var held = PregnancyMath.CheckSucceeds(req.D20, termCon, req.Dc.Value);
         if (!held)
         {
+            var lostAt = PregnancyState.Int(targetChar, LewdKeys.PregnancyProgress);
+            var source = PregnancyState.Text(targetChar, LewdKeys.PregnancySource);
             PregnancyState.ClearPregnant(targetChar);
             PregnancyState.Mirror(participant, targetChar);
+            Publish(context, req.TargetId, "terminated", source, 0, lostAt);
         }
 
         context.RecordMessage(
@@ -119,9 +135,10 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
         IChangeContext context,
         Character targetChar,
         ModeParticipantState? participant,
+        float now,
         CancellationToken ct)
     {
-        var gate = await GateAsync(req, context, participant, ct).ConfigureAwait(false);
+        var gate = await GateAsync(req, context, targetChar, participant, ct).ConfigureAwait(false);
         if (gate is not null)
             return gate.Value;
 
@@ -139,7 +156,7 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
                 return ChangeHandlerResult.Ok;
             }
 
-            Begin(targetChar, participant, req, nontrad, req.ProgressOnSuccess ?? PregnancyMath.ForcedHalfway);
+            Begin(targetChar, participant, req, nontrad, req.ProgressOnSuccess ?? PregnancyMath.ForcedHalfway, now, context);
             NoteCapture(req, context, targetChar, participant);
             context.RecordMessage($"Lewd pregnancy {req.TargetId}: forced ({KindLabel(nontrad)}), progress {PregnancyState.Int(targetChar, LewdKeys.PregnancyProgress)}.");
             return ChangeHandlerResult.Ok;
@@ -166,7 +183,9 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
                 die = req.D20;
             else if (req.SecondD20 is null)
                 context.RecordMessage("Lewd pregnancy: disadvantage declared but secondD20 omitted; using the single die.");
-            var inhib = Unwanted(req, participant) ? req.InhibitionBonus : 0;
+            var inhib = !Unwanted(req, participant, targetChar)
+                ? 0
+                : req.InhibitionBonus != 0 ? req.InhibitionBonus : LewdProfile.Inhibition(participant, targetChar);
             var targetCon = AbilityScores.Resolve(targetChar, "con", req.TargetConModifier);
             var total = die + targetCon + inhib;
             var saved = PregnancyMath.CheckSucceeds(die, targetCon + inhib, req.Dc.Value);
@@ -210,7 +229,7 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
             return ChangeHandlerResult.Ok;
         }
 
-        Begin(targetChar, participant, req, nontrad, req.ProgressOnSuccess ?? 0);
+        Begin(targetChar, participant, req, nontrad, req.ProgressOnSuccess ?? 0, now, context);
         NoteCapture(req, context, targetChar, participant);
         context.RecordMessage(
             $"Lewd pregnancy {req.TargetId}: impregnated ({KindLabel(nontrad)}) by {req.ActorId ?? "unknown"}, progress {PregnancyState.Int(targetChar, LewdKeys.PregnancyProgress)}.");
@@ -220,24 +239,24 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
     private static async Task<ChangeHandlerResult?> GateAsync(
         LewdPregnancyChange req,
         IChangeContext context,
+        Character targetChar,
         ModeParticipantState? participant,
         CancellationToken ct)
     {
-        if (participant is not null)
-        {
-            var limits = ConsentGate.GetStringList(participant, LewdKeys.HardLimits);
-            if (limits.Any(t => HardLimitTags.Any(h => string.Equals(t, h, StringComparison.OrdinalIgnoreCase))))
-                return ChangeHandlerResult.Failure("hard limit blocks pregnancy.");
-            if (string.Equals(ConsentGate.GetString(participant, LewdKeys.Consent), LewdKeys.ConsentRevoked, StringComparison.OrdinalIgnoreCase))
-                return ChangeHandlerResult.Failure("consent revoked.");
-        }
+        if (!AgeGate.TryPassAll(context, out var ageError, req.TargetId, req.ActorId))
+            return ChangeHandlerResult.Failure(ageError!);
+        if (LewdProfile.IsRevoked(participant, targetChar))
+            return ChangeHandlerResult.Failure("consent revoked.");
 
-        if (!Unwanted(req, participant))
-            return null;
+        var settings = await LewdSettings.ResolveAsync(context, ct).ConfigureAwait(false);
+        var limits = LewdProfile.HardLimits(participant, targetChar).Concat(settings.HardLimits);
+        if (limits.Any(t => HardLimitTags.Any(h => string.Equals(t, h, StringComparison.OrdinalIgnoreCase))))
+            return ChangeHandlerResult.Failure("hard limit blocks pregnancy.");
 
-        var tone = await IntimacyTone.ResolveAsync(context, ct).ConfigureAwait(false);
-        if (tone != IntimacyToneKind.Grimdark)
-            return ChangeHandlerResult.Failure("unwilling impregnation requires intimacyTone grimdark.");
+        if (Unwanted(req, participant, targetChar) && !settings.AllowsUnwanted(targetChar, req.TargetId, out var policyError))
+            return ChangeHandlerResult.Failure($"Unwilling impregnation: {policyError}");
+
+        settings.Narrate(context);
         return null;
     }
 
@@ -260,7 +279,7 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
             return true;
         }
 
-        if (!nontrad && (req.Infertile ||
+        if (!nontrad && (req.Infertile || IsContraceptive(req, "infertility") ||
                          PregnancyState.Flag(targetChar, LewdKeys.TraitInfertile) ||
                          PregnancyState.HasCondition(targetChar, LewdKeys.ConditionInfertile) ||
                          ActorInfertile(req, context) ||
@@ -279,16 +298,26 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
         ModeParticipantState? participant,
         LewdPregnancyChange req,
         bool nontrad,
-        int progress)
+        int progress,
+        float now,
+        IChangeContext context)
     {
         PregnancyState.Set(targetChar, LewdKeys.Pregnant, "true");
         PregnancyState.Set(targetChar, LewdKeys.PregnancyProgress, PregnancyMath.ClampProgress(progress).ToString());
         PregnancyState.Set(targetChar, LewdKeys.PregnancyType, nontrad ? "nontraditional" : "traditional");
         PregnancyState.Set(targetChar, LewdKeys.PregnancySource, req.ActorId ?? "");
         PregnancyState.Set(targetChar, LewdKeys.PregnancyOffspring, "1");
-        PregnancyState.StampPregnant(targetChar, req.ActorId);
+        var termHours = req.TermDays is > 0 ? req.TermDays.Value * 24f : PregnancyMath.DefaultTermHours(nontrad);
+        PregnancyState.StartClock(targetChar, now, progress, termHours);
+        PregnancyState.Sync(targetChar, now, context);
         PregnancyState.Mirror(participant, targetChar);
+        Publish(context, targetChar.Id, "conceived", req.ActorId, 1, PregnancyState.Int(targetChar, LewdKeys.PregnancyProgress));
     }
+
+    private static void Publish(IChangeContext context, string characterId, string state, string? sourceId, int offspring, int progress) =>
+        context.Publish(
+            Events.LewdEvents.Pregnancy,
+            new { characterId, state, sourceId = string.IsNullOrWhiteSpace(sourceId) ? null : sourceId, offspring, progress });
 
     private static void NoteCapture(
         LewdPregnancyChange req,
@@ -301,19 +330,30 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
         BadEndState.Apply(participant, targetChar, BadEndMath.CaptureImpreg, req.ActorId, context: context);
     }
 
-    private static bool Unwanted(LewdPregnancyChange req, ModeParticipantState? participant)
+    private static bool Unwanted(LewdPregnancyChange req, ModeParticipantState? participant, Character targetChar)
     {
-        if (participant is not null && !string.IsNullOrWhiteSpace(req.ActorId))
-            return !ConsentGate.IsAdvanceWanted(participant, req.ActorId);
-        return req.Unwilling;
+        if (req.Unwilling)
+            return true;
+        return !string.IsNullOrWhiteSpace(req.ActorId) && !LewdProfile.Wants(participant, targetChar, req.ActorId);
     }
 
     private static bool IsNontraditional(string? kind) =>
         string.Equals(kind, "nontraditional", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(kind, "non-traditional", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>Accepts the short form (<c>oil</c>) or the catalog item name (<c>oil_of_impotence</c>).</summary>
     private static bool IsContraceptive(LewdPregnancyChange req, string name) =>
-        string.Equals(req.Contraceptive, name, StringComparison.OrdinalIgnoreCase);
+        ContraceptiveKind(req.Contraceptive) == name;
+
+    private static string? ContraceptiveKind(string? raw) =>
+        (raw ?? "").Trim().ToLowerInvariant().Replace(' ', '_').Replace('-', '_') switch
+        {
+            "condom" or "condoms" => "condom",
+            "oil" or "oil_of_impotence" => "oil",
+            "beads" or "beads_of_prevention" => "beads",
+            "potion_of_infertility" or "infertility" => "infertility",
+            _ => null,
+        };
 
     private static bool ActorHyperfertile(LewdPregnancyChange req, IChangeContext context) =>
         ActorFlag(req, context, LewdKeys.TraitHyperfertile, LewdKeys.ConditionHyperfertile);
@@ -335,9 +375,8 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
 
     private static ModeParticipantState? FindParticipant(IChangeContext context, string id)
     {
-        var mode = context.ActiveMode;
-        if (mode is null || !mode.IsActive ||
-            !string.Equals(mode.ModeId, LewdEncounterMode.ModeIdValue, StringComparison.OrdinalIgnoreCase))
+        var mode = LewdModeAccess.TryGetActive(context);
+        if (mode is null)
             return null;
         return mode.Participants.FirstOrDefault(p =>
             string.Equals(p.CharacterId, id, StringComparison.OrdinalIgnoreCase));

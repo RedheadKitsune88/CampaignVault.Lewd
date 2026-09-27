@@ -9,9 +9,8 @@ public sealed class LewdBadEndObserver : IWorldChangeObserver
 {
     public bool IsInterestedIn(WorldChange committed, IChangeContext context)
     {
-        var mode = context.ActiveMode;
-        if (mode is null || !mode.IsActive ||
-            !string.Equals(mode.ModeId, LewdEncounterMode.ModeIdValue, StringComparison.OrdinalIgnoreCase))
+        var mode = LewdModeAccess.TryGetActive(context);
+        if (mode is null)
             return false;
 
         return committed is HpChange or CharacterUpdate or StatusRemove
@@ -24,7 +23,7 @@ public sealed class LewdBadEndObserver : IWorldChangeObserver
         if (string.IsNullOrWhiteSpace(id) || !context.Characters.TryGetValue(id, out var character))
             return Task.CompletedTask;
 
-        var participant = context.ActiveMode?.Participants.FirstOrDefault(p =>
+        var participant = LewdModeAccess.TryGetActive(context)?.Participants.FirstOrDefault(p =>
             string.Equals(p.CharacterId, id, StringComparison.OrdinalIgnoreCase));
         var flagged = BadEndState.IsMarked(participant, character);
         if (flagged && (participant is null || ConsentGate.GetBool(participant, LewdKeys.BadEnded) || PregnancyState.Flag(character, LewdKeys.BadEnded)))

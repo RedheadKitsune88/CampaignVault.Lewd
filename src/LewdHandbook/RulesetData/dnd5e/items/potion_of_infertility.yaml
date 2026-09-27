@@ -3,7 +3,7 @@ system: dnd5e
 category: Consumable
 tags: [lewd, contraceptive]
 description: >
-  Drinking it imposes the infertile condition for 7 days. Stamp infertile (StatusEffect or trait),
+  Drinking it imposes the infertile condition for 7 days. Stamp infertile (StatusEffect or Trait `lewd_encounter.infertile`),
   then traditional lewd_pregnancy checks fail until it ends. Does not auto-succeed nontraditional saves.
 properties:
   lewdCategory: contraceptive

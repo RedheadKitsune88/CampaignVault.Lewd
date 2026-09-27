@@ -1,5 +1,5 @@
 # Lewd Handbook — Recovery Dice (sexual history hit-dice analogue).
-# Spent on climax / short rest to reduce arousal; regain all on long rest.
+# Spent with lewd_recover after a climax or short rest (up to proficiency bonus; die + Con each). Core refills on long rest.
 name: recovery_dice
 description: Recovery Dice remaining for post-climax / short-rest arousal reduction.
 applicableSystems: [dnd5e]

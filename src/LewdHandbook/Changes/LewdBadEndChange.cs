@@ -3,7 +3,7 @@ using CampaignVault.Plugins;
 
 namespace LewdHandbook.Changes;
 
-[PluginWorldChange("lewd_bad_end")]
+[PluginWorldChange("lewd_bad_end", ModeId = LewdEncounterMode.ModeIdValue)]
 public sealed class LewdBadEndChange : WorldChange
 {
     public string TargetId { get; set; } = null!;

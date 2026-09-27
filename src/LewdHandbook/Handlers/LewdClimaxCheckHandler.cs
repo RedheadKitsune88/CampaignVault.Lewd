@@ -1,4 +1,3 @@
-using CampaignVault.Data;
 using CampaignVault.Data.ChangeHandlers;
 using CampaignVault.Models;
 using LewdHandbook.Changes;
@@ -18,99 +17,76 @@ public sealed class LewdClimaxCheckHandler : IWorldChangeHandler
         var check = (LewdClimaxCheckChange)change;
         if (string.IsNullOrWhiteSpace(check.TargetId))
             return ChangeHandlerResult.Failure("targetId is required.");
+        if (!AgeGate.TryPassAll(context, out var ageError, check.TargetId))
+            return ChangeHandlerResult.Failure(ageError!);
+        var targetChar = context.Characters[check.TargetId];
 
-        var mode = context.ActiveMode;
-        if (mode is null || !mode.IsActive ||
-            !string.Equals(mode.ModeId, LewdEncounterMode.ModeIdValue, StringComparison.OrdinalIgnoreCase))
-        {
-            return ChangeHandlerResult.Failure(
-                "lewd_climax_check requires an active lewd_encounter mode.");
-        }
+        // Outside an encounter (spells/items) the counters live on an ephemeral scratch participant.
+        var target = LewdModeAccess.TryGetParticipant(context, check.TargetId)
+                     ?? new ModeParticipantState { CharacterId = check.TargetId };
+        if (LewdProfile.IsRevoked(target, targetChar))
+            return ChangeHandlerResult.Failure($"Target '{check.TargetId}' has revoked consent.");
 
-        var target = mode.Participants.FirstOrDefault(p =>
-            string.Equals(p.CharacterId, check.TargetId, StringComparison.OrdinalIgnoreCase));
-        if (target is null)
-            return ChangeHandlerResult.Failure($"Target '{check.TargetId}' is not in the lewd encounter.");
+        var arousal = LewdPoolHelper.Arousal(targetChar);
+        var settings = await LewdSettings.ResolveAsync(context, ct).ConfigureAwait(false);
+        BrandState.Mirror(target, targetChar);
+        var wasIncap = ConsentGate.GetBool(target, LewdKeys.ClimaxIncapacitated);
 
-        context.Characters.TryGetValue(check.TargetId, out var targetChar);
-        var arousal = targetChar is not null
-            ? LewdPoolHelper.EnsurePool(targetChar, LewdKeys.PoolArousal, defaultMax: 10, RecoveryType.Never)
-            : new ResourcePool
-            {
-                Current = ConsentGate.GetInt(target, LewdKeys.ArousalCurrentMirror),
-                Max = Math.Max(1, ConsentGate.GetInt(target, LewdKeys.ArousalMaxMirror)),
-                Recovery = RecoveryType.Never,
-            };
-        if (arousal.Max <= 0)
-            arousal.Max = 10;
-
+        string summary;
+        ClimaxSaveResult result;
         if (check.ForceClimax)
         {
-            var forced = new ClimaxSaveResult(
-                ClimaxOutcomeKind.InstantClimax,
-                0,
-                0,
-                arousal.Current,
-                EdgingAfter: false,
-                Summary: "Forced climax.");
-            var note = LewdAdvanceHandler.ApplyClimaxResult(target, targetChar, arousal, forced, sourceId: null, context);
-            context.RecordMessage($"Lewd climax check {check.TargetId}: forced climax.{note}");
-            return ChangeHandlerResult.Ok;
+            result = new ClimaxSaveResult(
+                ClimaxOutcomeKind.InstantClimax, 0, 0, arousal.Current, EdgingAfter: false, Summary: "Forced climax.");
+            summary = "forced climax.";
         }
-
-        var d20 = check.D20;
-        if (d20 is < 1 or > 20)
+        else
         {
-            if (context.Rolls is not null && d20 == 0)
+            var atEdge = ConsentGate.GetBool(target, LewdKeys.Edging) ||
+                         (arousal.Max > 0 && arousal.Current >= arousal.Max);
+            if (!atEdge)
             {
-                var roll = await context.Rolls.RollAsync(
-                    new RollRequest { Tag = "lewd_climax_save", Expression = "1d20" },
-                    ct).ConfigureAwait(false);
-                d20 = roll.IndividualDice.FirstOrDefault() is > 0 and <= 20
-                    ? roll.IndividualDice[0]
-                    : Math.Clamp(roll.Result, 1, 20);
-                // Prefer natural die face when bonus was 0
-                if (roll.IndividualDice.Count > 0)
-                    d20 = roll.IndividualDice[0];
-                context.RecordMessage($"Lewd climax d20 roll: {roll.Summary}.");
+                return ChangeHandlerResult.Failure(
+                    $"{check.TargetId} is not edging (arousal {arousal.Current}/{arousal.Max}). Climax saves happen at maximum arousal; use forceClimax for effects that force one.");
             }
-            else
+
+            LewdPoolHelper.SetEdging(target, targetChar, true);
+            var d20 = check.D20;
+            if (d20 is < 1 or > 20)
             {
-                return ChangeHandlerResult.Failure("d20 must be between 1 and 20 (or 0 with Rolls to auto-roll).");
+                var die = await SaveDice.RollAsync(context, "lewd_climax_save", d20, abilityMod: 0, disadvantage: false, ct)
+                    .ConfigureAwait(false);
+                if (die.Error is not null)
+                    return ChangeHandlerResult.Failure(die.Error);
+                d20 = die.Face;
             }
+
+            var inhib = check.InhibitionBonus ?? ConsentGate.ClimaxInhibition(target, targetChar);
+            result = ClimaxMath.ResolveSave(
+                d20,
+                inhib,
+                ConsentGate.GetInt(target, LewdKeys.ClimaxSuccesses),
+                ConsentGate.GetInt(target, LewdKeys.ClimaxFailures),
+                arousal.Current,
+                arousal.Max);
+            summary = result.Summary;
         }
 
-        if (arousal.Current >= arousal.Max)
-            LewdPoolHelper.SetEdging(target, targetChar, true);
+        var ruin = await BrandState.PreRollRuinAsync(context, targetChar, ct).ConfigureAwait(false);
+        var aftermath = LewdAdvanceHandler.ApplyClimaxResult(
+            target, targetChar, arousal, result, sourceId: null, context, forced: check.ForceClimax, ruin: ruin);
+        context.RecordMessage($"Lewd climax check {check.TargetId}: {summary}{aftermath}");
+        settings.Narrate(context);
 
-        if (targetChar is not null)
-            BrandState.Mirror(target, targetChar);
-        var inhib = check.InhibitionBonus
-            ?? ConsentGate.GetInt(target, LewdKeys.Inhibition) - ConsentGate.GetInt(target, LewdKeys.LustbrandInhib);
-        var wasIncap = ConsentGate.GetBool(target, LewdKeys.ClimaxIncapacitated);
-        var successes = ConsentGate.GetInt(target, LewdKeys.ClimaxSuccesses);
-        var failures = ConsentGate.GetInt(target, LewdKeys.ClimaxFailures);
-
-        var result = ClimaxMath.ResolveSave(
-            d20,
-            inhib,
-            successes,
-            failures,
-            arousal.Current,
-            arousal.Max);
-
-        var aftermath = LewdAdvanceHandler.ApplyClimaxResult(target, targetChar, arousal, result, context: context);
-        context.RecordMessage($"Lewd climax check {check.TargetId}: {result.Summary}{aftermath}");
-        if (targetChar is not null &&
-            result.Kind is ClimaxOutcomeKind.Climaxed or ClimaxOutcomeKind.InstantClimax &&
-            (wasIncap || check.ForceClimax))
+        var climaxed = result.Kind is ClimaxOutcomeKind.Climaxed or ClimaxOutcomeKind.InstantClimax;
+        if (climaxed && (wasIncap || check.ForceClimax))
         {
             await ImprintState.AutoAsync(
                 context,
                 target,
                 targetChar,
                 ["ordeal", "incapacitated"],
-                ConsentGate.IsAdvanceWanted(target, check.TargetId),
+                LewdProfile.Wants(target, targetChar, null),
                 bitchsuit: false,
                 ct).ConfigureAwait(false);
         }

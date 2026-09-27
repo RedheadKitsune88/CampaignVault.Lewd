@@ -66,7 +66,7 @@ public class LewdAdvanceHandlerTests
         var ctx = new FakeChangeContext(mode, BuildCharacter("bob", 0, 10, 0));
         ctx.GetSystemOptionsAsync = () => Task.FromResult(new Dictionary<string, string>
         {
-            [LewdKeys.IntimacyToneOption] = LewdKeys.ToneGrimdark,
+            [LewdKeys.NonConsentOption] = LewdKeys.NonConsentOn,
         });
 
         var result = await new LewdAdvanceHandler().ApplyAsync(
@@ -102,35 +102,176 @@ public class LewdAdvanceHandlerTests
             ctx);
 
         Assert.False(result.Success);
-        Assert.Contains("intimacyTone=consensual", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("lewdNonConsent=off", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task Fade_tone_applies_no_stim_and_nudges()
+    public async Task Fade_narration_still_applies_full_stim_and_nudges_fade()
     {
-        var (mode, bob) = BuildMode();
-        bob.State[LewdKeys.Consent] = LewdKeys.ConsentUnwilling;
+        var (mode, _) = BuildMode();
         var character = BuildCharacter("bob", 2, 20, 0);
         var ctx = new FakeChangeContext(mode, character);
         ctx.GetSystemOptionsAsync = () => Task.FromResult(new Dictionary<string, string>
         {
-            [LewdKeys.IntimacyToneOption] = LewdKeys.ToneFade,
+            [LewdKeys.NarrationOption] = LewdKeys.NarrationFade,
         });
 
         var result = await new LewdAdvanceHandler().ApplyAsync(
-            new LewdAdvanceChange
-            {
-                ActorId = "alice",
-                TargetId = "bob",
-                Kind = "martial",
-                Hit = true,
-                StimulationAmount = 8,
-            },
+            new LewdAdvanceChange { ActorId = "alice", TargetId = "bob", Kind = "martial", Hit = true, StimulationAmount = 8 },
             ctx);
 
         Assert.True(result.Success);
-        Assert.Equal(2, character.SystemStats.ResourcePools[LewdKeys.PoolArousal].Current);
-        Assert.Contains(ctx.Nudges, n => n.Contains("fades", StringComparison.OrdinalIgnoreCase) || n.Contains("refuses", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(10, character.SystemStats.ResourcePools[LewdKeys.PoolArousal].Current);
+        Assert.Contains(ctx.Nudges, n => n.Contains("fade to black", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Not_against_pc_refuses_unwanted_only_when_target_is_pc(bool targetIsPc, bool expectSuccess)
+    {
+        var (mode, bob) = BuildMode();
+        bob.State[LewdKeys.Consent] = LewdKeys.ConsentUnwilling;
+        var character = BuildCharacter("bob", 0, 20, 0);
+        character.IsPc = targetIsPc;
+        var ctx = new FakeChangeContext(mode, character);
+        ctx.GetSystemOptionsAsync = () => Task.FromResult(new Dictionary<string, string>
+        {
+            [LewdKeys.NonConsentOption] = LewdKeys.NonConsentNotAgainstPc,
+        });
+
+        var result = await new LewdAdvanceHandler().ApplyAsync(
+            new LewdAdvanceChange { ActorId = "alice", TargetId = "bob", Kind = "martial", Hit = true, StimulationAmount = 3 },
+            ctx);
+
+        Assert.Equal(expectSuccess, result.Success);
+        Assert.Equal(expectSuccess ? 3 : 0, character.SystemStats.ResourcePools[LewdKeys.PoolArousal].Current);
+    }
+
+    [Fact]
+    public async Task Character_stance_trait_counts_without_scene_override()
+    {
+        var (mode, _) = BuildMode();
+        var character = BuildCharacter("bob", 0, 20, 0);
+        character.SystemStats.Traits[LewdKeys.TraitStance] = LewdKeys.ConsentUnwilling;
+        var ctx = new FakeChangeContext(mode, character);
+
+        var result = await new LewdAdvanceHandler().ApplyAsync(
+            new LewdAdvanceChange { ActorId = "alice", TargetId = "bob", Kind = "martial", Hit = true, StimulationAmount = 3 },
+            ctx);
+
+        Assert.False(result.Success);
+        Assert.Contains("lewdNonConsent=off", result.Message);
+    }
+
+    [Fact]
+    public async Task Campaign_hard_limit_refuses_even_willing_advance()
+    {
+        var (mode, _) = BuildMode();
+        var character = BuildCharacter("bob", 0, 20, 0);
+        var ctx = new FakeChangeContext(mode, character);
+        ctx.GetSystemOptionsAsync = () => Task.FromResult(new Dictionary<string, string>
+        {
+            [LewdKeys.HardLimitsOption] = "tentacles, vore",
+        });
+
+        var result = await new LewdAdvanceHandler().ApplyAsync(
+            new LewdAdvanceChange { ActorId = "alice", TargetId = "bob", Kind = "martial", Hit = true, StimulationAmount = 3, Tags = ["tentacles"] },
+            ctx);
+
+        Assert.False(result.Success);
+        Assert.Contains("Campaign hard limit 'tentacles'", result.Message);
+    }
+
+    [Theory]
+    [InlineData(LifeStage.Unspecified, "no lifeStage")]
+    [InlineData(LifeStage.Adolescent, "never involve minors")]
+    public async Task Advance_refuses_non_adult_target(LifeStage stage, string expected)
+    {
+        var (mode, _) = BuildMode();
+        var character = BuildCharacter("bob", 0, 20, 0);
+        character.LifeStage = stage;
+        var ctx = new FakeChangeContext(mode, character);
+
+        var result = await new LewdAdvanceHandler().ApplyAsync(
+            new LewdAdvanceChange { ActorId = "alice", TargetId = "bob", Kind = "martial", Hit = true, StimulationAmount = 3 },
+            ctx);
+
+        Assert.False(result.Success);
+        Assert.Contains(expected, result.Message);
+        Assert.Equal(0, character.SystemStats.ResourcePools[LewdKeys.PoolArousal].Current);
+    }
+
+    [Fact]
+    public async Task Held_weapon_is_not_used_when_commit_names_dice()
+    {
+        var (mode, _) = BuildMode();
+        var bob = BuildCharacter("bob", 0, 20, 0);
+        var ctx = new FakeChangeContext(mode, bob, items: new Dictionary<string, Item>
+        {
+            ["items/sword"] = new()
+            {
+                Id = "items/sword", Name = "sword", HolderId = "alice", IsEquipped = true,
+                Properties = new Dictionary<string, object> { ["damageDice"] = "1d8", ["damageType"] = "slashing" },
+            },
+        });
+        ctx.Rolls = new FakeRollService(outcomes: new() { ["lewd_stimulation"] = 3 });
+
+        var result = await new LewdAdvanceHandler().ApplyAsync(
+            new LewdAdvanceChange { ActorId = "alice", TargetId = "bob", Kind = "martial", StimulationDice = "1d4" },
+            ctx);
+
+        Assert.True(result.Success);
+        Assert.Contains(ctx.Messages, m => m.Contains("via explicit"));
+        Assert.DoesNotContain(ctx.Messages, m => m.Contains("items/sword"));
+    }
+
+    [Fact]
+    public async Task Negative_rolled_stim_clamps_to_zero_instead_of_failing()
+    {
+        var (mode, _) = BuildMode();
+        var bob = BuildCharacter("bob", 1, 20, 0);
+        var ctx = new FakeChangeContext(mode, bob);
+        ctx.Rolls = new FakeRollService(outcomes: new() { ["lewd_stimulation"] = 1 });
+
+        var result = await new LewdAdvanceHandler().ApplyAsync(
+            new LewdAdvanceChange { ActorId = "alice", TargetId = "bob", Kind = "martial", StimulationDice = "1d4", AbilityBonus = -3 },
+            ctx);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, bob.SystemStats.ResourcePools[LewdKeys.PoolArousal].Current);
+    }
+
+    [Fact]
+    public async Task Arousal_max_zero_is_bad_end_not_refilled()
+    {
+        var (mode, bob) = BuildMode();
+        var character = BuildCharacter("bob", 0, 0, 0);
+        var ctx = new FakeChangeContext(mode, character);
+
+        var result = await new LewdAdvanceHandler().ApplyAsync(
+            new LewdAdvanceChange { ActorId = "alice", TargetId = "bob", Kind = "martial", Hit = true, StimulationAmount = 3 },
+            ctx);
+
+        Assert.True(result.Success);
+        Assert.Equal(0, character.SystemStats.ResourcePools[LewdKeys.PoolArousal].Max);
+        Assert.True(ConsentGate.GetBool(bob, LewdKeys.BadEnded));
+        Assert.Contains(ctx.Published, p => p.Topic == LewdHandbook.Events.LewdEvents.BadEnd);
+    }
+
+    [Fact]
+    public async Task Instant_climax_from_advance_publishes_climax_event()
+    {
+        var (mode, _) = BuildMode();
+        var character = BuildCharacter("bob", 0, 10, 0);
+        var ctx = new FakeChangeContext(mode, character);
+
+        var result = await new LewdAdvanceHandler().ApplyAsync(
+            new LewdAdvanceChange { ActorId = "alice", TargetId = "bob", Kind = "martial", Hit = true, StimulationAmount = 12 },
+            ctx);
+
+        Assert.True(result.Success);
+        Assert.Contains(ctx.Published, p => p.Topic == LewdHandbook.Events.LewdEvents.Climax);
     }
 
     [Fact]
@@ -139,14 +280,14 @@ public class LewdAdvanceHandlerTests
         var (mode, _) = BuildMode();
         var bob = BuildCharacter("bob", 0, 20, 0);
         var alice = new Character
-        {
+        { LifeStage = LifeStage.Adult,
             Id = "alice",
             Name = "alice",
             SystemStats = new SystemExtension
             {
                 Traits =
                 {
-                    ["anatomy.cock"] = "die=1d8;tags=phallic,natural;size=medium",
+                    ["lewd_encounter.anatomy.cock"] = "die=1d8;tags=phallic,natural;size=medium",
                 }
             }
         };
@@ -230,7 +371,7 @@ public class LewdAdvanceHandlerTests
     public async Task Verbal_advance_caps_virgin_and_does_not_dirty()
     {
         var (mode, bob) = BuildMode();
-        bob.State[LewdKeys.TraitSexualHistory] = "virgin";
+        bob.State[LewdKeys.LegacyTraitSexualHistory] = "virgin";
         var character = BuildCharacter("bob", 0, 20, 0);
         var ctx = new FakeChangeContext(mode, character);
 
@@ -250,6 +391,23 @@ public class LewdAdvanceHandlerTests
         Assert.Equal(2, character.SystemStats.ResourcePools[LewdKeys.PoolArousal].Current);
         Assert.False(ConsentGate.GetBool(bob, LewdKeys.HadPhysical));
         Assert.False(bob.State.ContainsKey("filth"));
+    }
+
+    [Fact]
+    public async Task Forced_climax_outside_encounter_mutates_character_and_publishes()
+    {
+        var character = BuildCharacter("bob", arousal: 8, max: 10, numbing: 0);
+        var ctx = new FakeChangeContext(mode: null, character);
+
+        var result = await new LewdClimaxCheckHandler().ApplyAsync(
+            new LewdClimaxCheckChange { TargetId = "bob", ForceClimax = true },
+            ctx);
+
+        Assert.True(result.Success);
+        Assert.Contains(ctx.Published, p => p.Topic == LewdHandbook.Events.LewdEvents.Climax);
+        Assert.Contains(ctx.Messages, m => m.Contains("forced climax", StringComparison.OrdinalIgnoreCase));
+        // Durable character pool still present (ephemeral participant scratch is not required).
+        Assert.Equal(8, character.SystemStats.ResourcePools[LewdKeys.PoolArousal].Current);
     }
 
     [Fact]
@@ -281,6 +439,7 @@ public class LewdAdvanceHandlerTests
     private static Character BuildCharacter(string id, int arousal, int max, int numbing) =>
         new()
         {
+            LifeStage = LifeStage.Adult,
             Id = id,
             Name = id,
             SystemStats = new SystemExtension
@@ -300,24 +459,32 @@ public class LewdAdvanceHandlerTests
         private readonly Dictionary<string, Character> _characters;
         private readonly List<string> _nudges = [];
 
-        public FakeChangeContext(ModeEncounter mode, Character character)
+        public FakeChangeContext(ModeEncounter? mode, Character character, Dictionary<string, Item>? items = null)
         {
             ActiveMode = mode;
+            Items = items ?? new Dictionary<string, Item>();
             _characters = new Dictionary<string, Character> { [character.Id] = character };
+            if (!_characters.ContainsKey("alice"))
+                _characters["alice"] = new Character { Id = "alice", Name = "alice", LifeStage = LifeStage.Adult };
             Characters = _characters;
         }
 
         public void AddCharacter(Character c) => _characters[c.Id] = c;
+        public IReadOnlyList<string> Messages => _messages;
         public IReadOnlyList<string> Nudges => _nudges;
 
         public IReadOnlyDictionary<string, Character> Characters { get; }
-        public IReadOnlyDictionary<string, Item> Items { get; } = new Dictionary<string, Item>();
+        public IReadOnlyDictionary<string, Item> Items { get; }
         public IReadOnlyDictionary<string, Location> Locations { get; } = new Dictionary<string, Location>();
         public IReadOnlyDictionary<string, Faction> Factions { get; } = new Dictionary<string, Faction>();
         public IReadOnlyDictionary<string, Quest> Quests { get; } = new Dictionary<string, Quest>();
         public Microsoft.Extensions.Logging.ILogger Logger { get; } = NullLogger.Instance;
         public CombatEncounter? ActiveCombat => null;
         public ModeEncounter? ActiveMode { get; }
+        public IReadOnlyDictionary<string, ModeEncounter> ActiveModes =>
+            ActiveMode is { } m
+                ? new Dictionary<string, ModeEncounter>(StringComparer.OrdinalIgnoreCase) { [m.ModeId] = m }
+                : new Dictionary<string, ModeEncounter>(StringComparer.OrdinalIgnoreCase);
         public CampaignConfig? Config => null;
         public CampaignVault.Data.IRollService? Rolls { get; set; }
         public string? CampaignName => "test";
@@ -332,6 +499,9 @@ public class LewdAdvanceHandlerTests
         public void RegisterNewItem(Item i) { }
         public void RegisterNewFaction(Faction f) { }
         public void RegisterNewQuest(Quest q) { }
+        public void Publish(string topic, object? data = null) =>
+            Published.Add((topic, data));
+        public List<(string Topic, object? Data)> Published { get; } = [];
         public void RecordMessage(string message) => _messages.Add(message);
         public void RecordPhysicalStateNudge(string message) { if (!string.IsNullOrWhiteSpace(message)) _nudges.Add(message); }
         public void RecordFailure() { }

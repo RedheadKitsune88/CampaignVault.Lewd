@@ -47,8 +47,10 @@ public class PregnancyTests
         Assert.Equal("true", bob.SystemStats.Traits[LewdKeys.Pregnant]);
         Assert.Equal("0", bob.SystemStats.Traits[LewdKeys.PregnancyProgress]);
         Assert.Equal("traditional", bob.SystemStats.Traits[LewdKeys.PregnancyType]);
-        Assert.Contains(bob.SystemStats.StatusEffects, e => e.ConditionName == LewdKeys.ConditionPregnant);
+        // Not showing yet: the Pregnant condition (and rest saves) start at progress 25.
+        Assert.DoesNotContain(bob.SystemStats.StatusEffects, e => e.ConditionName == LewdKeys.ConditionPregnant);
         Assert.True(ConsentGate.GetBool(bobState, LewdKeys.Pregnant));
+        Assert.Contains(ctx.Published, p => p.Topic == LewdHandbook.Events.LewdEvents.Pregnancy);
     }
 
     [Fact]
@@ -87,7 +89,7 @@ public class PregnancyTests
 
         ctx.GetSystemOptionsAsync = () => Task.FromResult(new Dictionary<string, string>
         {
-            [LewdKeys.IntimacyToneOption] = LewdKeys.ToneGrimdark,
+            [LewdKeys.NonConsentOption] = LewdKeys.NonConsentOn,
         });
         var allowed = await new LewdPregnancyHandler().ApplyAsync(
             new LewdPregnancyChange
@@ -113,6 +115,7 @@ public class PregnancyTests
         var (mode, _) = BuildMode();
         var bob = Character("bob");
         bob.SystemStats.Traits[LewdKeys.Pregnant] = "true";
+        bob.SystemStats.Traits[LewdKeys.PregnancyType] = "nontraditional";
         var ctx = new FakeChangeContext(mode, bob);
 
         var result = await new LewdPregnancyHandler().ApplyAsync(
@@ -134,28 +137,27 @@ public class PregnancyTests
     {
         var (mode, _) = BuildMode();
         var bob = new Character
-        {
+        { LifeStage = LifeStage.Adult,
             Id = "bob",
             Name = "bob",
             SystemStats = new Dnd5eExtension { Constitution = 8 },
         };
         bob.SystemStats.Traits[LewdKeys.Pregnant] = "true";
+        bob.SystemStats.Traits[LewdKeys.PregnancyProgress] = "40";
         var ctx = new FakeChangeContext(mode, bob)
         {
             Rolls = new FixedFace(4),
         };
 
-        await new LewdPregnancyObserver().OnCommittedAsync(new RestChange
-        {
-            CharacterId = "bob",
-            LocationId = "loc",
-            RestType = RestType.ShortRest,
-            IntendedHours = 1,
-        }, ctx);
+        await new LewdRestHandler().ApplyAsync(new LewdRestChange { CharacterId = "bob", RestType = "short" }, ctx);
 
-        // Face 4 + Con -1 = 3 < DC 15.
+        // Face 4 + Con -1 = 3 < DC 15; a second message for the same rest does not roll again.
         Assert.Contains(bob.SystemStats.StatusEffects, e => e.ConditionName == "poisoned");
-        Assert.Equal("0", bob.SystemStats.Traits[LewdKeys.PregnancyRestPoisonDay]);
+        Assert.Equal(ViceState.HoursNow(new CampaignTime()), bob.SystemStats.Attributes[PregnancyState.RestCheckHoursKey]);
+        var effects = bob.SystemStats.StatusEffects.Count;
+        await new LewdRestHandler().ApplyAsync(new LewdRestChange { CharacterId = "bob", RestType = "short" }, ctx);
+        Assert.Contains(ctx.Messages, m => m.Contains("already resolved"));
+        Assert.Equal(effects, bob.SystemStats.StatusEffects.Count);
     }
 
     private static (ModeEncounter mode, ModeParticipantState bob) BuildMode()
@@ -164,8 +166,29 @@ public class PregnancyTests
         return (mode, mode.Participants[1]);
     }
 
-    private static Character Character(string id) => new()
+    [Theory]
+    [InlineData("oil_of_impotence")]
+    [InlineData("beads_of_prevention")]
+    [InlineData("potion_of_infertility")]
+    public async Task Catalog_contraceptive_names_block_like_their_short_forms(string contraceptive)
     {
+        var (mode, _) = BuildMode();
+        var bob = Character("bob");
+        var ctx = new FakeChangeContext(mode, bob);
+
+        var result = await new LewdPregnancyHandler().ApplyAsync(
+            new LewdPregnancyChange
+            {
+                ActorId = "alice", TargetId = "bob", D20 = 20, ActorConModifier = 5, Contraceptive = contraceptive,
+            },
+            ctx);
+
+        Assert.True(result.Success);
+        Assert.False(bob.SystemStats.Traits.ContainsKey(LewdKeys.Pregnant));
+    }
+
+    private static Character Character(string id) => new()
+    { LifeStage = LifeStage.Adult,
         Id = id,
         Name = id,
         SystemStats = new SystemExtension(),
@@ -203,6 +226,7 @@ private sealed class FixedFace : IRollService
         {
             ActiveMode = mode;
             _characters = new Dictionary<string, Character> { [character.Id] = character };
+            _characters.TryAdd("alice", new Character { Id = "alice", Name = "alice", LifeStage = LifeStage.Adult });
             Characters = _characters;
         }
 
@@ -214,6 +238,10 @@ private sealed class FixedFace : IRollService
         public Microsoft.Extensions.Logging.ILogger Logger { get; } = NullLogger.Instance;
         public CombatEncounter? ActiveCombat => null;
         public ModeEncounter? ActiveMode { get; }
+        public IReadOnlyDictionary<string, ModeEncounter> ActiveModes =>
+            ActiveMode is { } m
+                ? new Dictionary<string, ModeEncounter>(StringComparer.OrdinalIgnoreCase) { [m.ModeId] = m }
+                : new Dictionary<string, ModeEncounter>(StringComparer.OrdinalIgnoreCase);
         public CampaignConfig? Config => null;
         public IRollService? Rolls { get; set; }
         public string? CampaignName => "test";
@@ -229,7 +257,11 @@ private sealed class FixedFace : IRollService
         public void RegisterNewItem(Item i) { }
         public void RegisterNewFaction(Faction f) { }
         public void RegisterNewQuest(Quest q) { }
-        public void RecordMessage(string message) { }
+        public void Publish(string topic, object? data = null) =>
+            Published.Add((topic, data));
+        public List<(string Topic, object? Data)> Published { get; } = [];
+        public List<string> Messages { get; } = [];
+        public void RecordMessage(string message) => Messages.Add(message);
         public void RecordPhysicalStateNudge(string message) { }
         public void RecordFailure() { }
         public void RecordEntityCollision(string entityId, string message) { }

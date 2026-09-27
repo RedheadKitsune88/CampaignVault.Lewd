@@ -19,9 +19,8 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         if (string.IsNullOrWhiteSpace(advance.ActorId) || string.IsNullOrWhiteSpace(advance.TargetId))
             return ChangeHandlerResult.Failure("actorId and targetId are required.");
 
-        var mode = context.ActiveMode;
-        if (mode is null || !mode.IsActive ||
-            !string.Equals(mode.ModeId, LewdEncounterMode.ModeIdValue, StringComparison.OrdinalIgnoreCase))
+        var mode = LewdModeAccess.TryGetActive(context);
+        if (mode is null)
         {
             return ChangeHandlerResult.Failure(
                 "lewd_advance requires an active lewd_encounter mode. Enter via mode_transition first.");
@@ -37,27 +36,37 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         if (target is null)
             return ChangeHandlerResult.Failure($"Target '{advance.TargetId}' is not in the lewd encounter.");
 
-        if (BindingGraph.BlocksRequiredSites(actor, advance.RequiresFreeSites, out var bindError))
+        if (!AgeGate.TryPassAll(context, out var ageError, advance.ActorId, advance.TargetId))
+            return ChangeHandlerResult.Failure(ageError!);
+        var actorChar = context.Characters[advance.ActorId];
+        var targetChar = context.Characters[advance.TargetId];
+
+        if (BindingGraph.BlocksRequiredSites(actor, actorChar, advance.RequiresFreeSites, out var bindError))
             return ChangeHandlerResult.Failure(bindError!);
 
-        var tone = await IntimacyTone.ResolveAsync(context, ct).ConfigureAwait(false);
-        var auth = ConsentGate.AuthorizeAdvance(
-            target, advance.ActorId, advance.StimulationType, advance.Tags, tone, out var gateError);
+        var settings = await LewdSettings.ResolveAsync(context, ct).ConfigureAwait(false);
+        var kind = string.IsNullOrWhiteSpace(advance.Kind) ? "martial" : advance.Kind.Trim().ToLowerInvariant();
+        var stimType = advance.StimulationType;
 
-        if (auth == ConsentAuthorizeResult.Fail)
+        // Resolve the implement before the consent check so its tags count against hard limits too.
+        var stim = advance.StimulationAmount;
+        var implement = ImplementResolver.Resolve(
+            actorChar,
+            context.Items,
+            advance.ImplementId,
+            advance.AnatomyKey,
+            advance.StimulationDice,
+            advance.StimulationType,
+            allowGuess: stim <= 0);
+        var tags = advance.Tags ?? [];
+        if (implement is not null)
+            tags = tags.Concat(implement.Tags).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        stimType ??= implement?.DamageType;
+
+        if (!ConsentGate.AuthorizeAdvance(target, targetChar, advance.ActorId, stimType, tags, settings, out var gateError))
             return ChangeHandlerResult.Failure(gateError!);
 
-        if (auth == ConsentAuthorizeResult.FadeNoStim)
-        {
-            context.RecordPhysicalStateNudge(
-                $"{advance.TargetId} refuses / scene fades the sexual advance from {advance.ActorId}; no stimulation applied.");
-            context.RecordMessage(
-                $"Lewd advance faded (intimacyTone=fade): {advance.ActorId} → {advance.TargetId}.");
-            return ChangeHandlerResult.Ok;
-        }
-
-        var kind = string.IsNullOrWhiteSpace(advance.Kind) ? "martial" : advance.Kind.Trim().ToLowerInvariant();
-        var wanted = ConsentGate.IsAdvanceWanted(target, advance.ActorId);
+        var wanted = ConsentGate.IsAdvanceWanted(target, advance.ActorId, targetChar);
 
         // Resolve hit for martial
         var hit = advance.Hit;
@@ -95,21 +104,16 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
             return ChangeHandlerResult.Ok;
         }
 
-        context.Characters.TryGetValue(advance.ActorId, out var actorChar);
-        context.Characters.TryGetValue(advance.TargetId, out var targetChar);
-
-        var stim = advance.StimulationAmount;
-        var stimType = advance.StimulationType;
-        var implement = ImplementResolver.Resolve(
-            actorChar,
-            context.Items,
-            advance.ImplementId,
-            advance.AnatomyKey,
-            advance.StimulationDice,
-            advance.StimulationType);
+        var arousal = LewdPoolHelper.Arousal(targetChar);
+        if (arousal.Max <= 0)
+        {
+            // Handbook: an arousal maximum of 0 or less is a bad end, not a pool to quietly refill.
+            BadEndState.Apply(target, targetChar, BadEndMath.ArousalMax, advance.ActorId, context: context);
+            context.RecordMessage($"{advance.TargetId} arousal maximum is {arousal.Max}; no stimulation applies.");
+            return ChangeHandlerResult.Ok;
+        }
 
         var maximize = advance.MaximizeStimulation || ConsentGate.GetBool(target, LewdKeys.Edging);
-
         if (stim <= 0)
         {
             if (implement is null)
@@ -118,7 +122,6 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
                     "stimulationAmount is required when no implement/anatomy/stimulationDice can be resolved.");
             }
 
-            stimType ??= implement.DamageType;
             if (maximize)
             {
                 stim = ImplementResolver.MaximizeDice(implement.DiceExpression) + advance.AbilityBonus;
@@ -149,14 +152,10 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
                 stim = maxed;
         }
 
-        if (stim < 0)
-            return ChangeHandlerResult.Failure("stimulationAmount cannot be negative.");
+        // A low roll with a negative ability modifier is a weak advance, not an invalid commit.
+        stim = Math.Max(0, stim);
 
-        var tags = advance.Tags ?? [];
-        if (implement is not null)
-            tags = tags.Concat(implement.Tags).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-
-        stim = ConsentGate.AdjustStimulationForTags(target, stim, stimType, tags);
+        stim = ConsentGate.AdjustStimulationForTags(target, targetChar, stim, stimType, tags);
         var flirtBeats = ConsentGate.GetInt(target, LewdKeys.FlirtBeats);
         var verbal = ConsentGate.IsVerbalOrNonContact(kind, tags);
         if (verbal)
@@ -168,28 +167,17 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         {
             target.State[LewdKeys.HadPhysical] = true;
             target.State[LewdKeys.FlirtBeats] = 0;
+            BrandState.RecordStimulation(targetChar, tags);
+            ConsentGate.RecordStimulatedBy(targetChar, advance.ActorId);
         }
 
         var beforeCap = stim;
         stim = ConsentGate.CapVerbalStimulation(target, targetChar, kind, tags, stim, flirtBeats);
+        var capNote = stim < beforeCap ? $" Verbal cap {beforeCap}→{stim}." : "";
         if (!verbal)
             stim += ImprintState.SufferingBonus(actorChar, tags, ConsentGate.GetInt(target, LewdKeys.Overstimulation));
 
-        var arousal = targetChar is not null
-            ? LewdPoolHelper.EnsurePool(targetChar, LewdKeys.PoolArousal, defaultMax: 10, RecoveryType.Never)
-            : new ResourcePool
-            {
-                Current = ConsentGate.GetInt(target, LewdKeys.ArousalCurrentMirror),
-                Max = Math.Max(1, ConsentGate.GetInt(target, LewdKeys.ArousalMaxMirror)),
-                Recovery = RecoveryType.Never,
-            };
-        var numbing = targetChar is not null
-            ? LewdPoolHelper.EnsurePool(targetChar, LewdKeys.PoolNumbing, defaultMax: 0, RecoveryType.Never)
-            : new ResourcePool { Current = 0, Max = 0, Recovery = RecoveryType.Never };
-
-        if (arousal.Max <= 0)
-            arousal.Max = 10;
-
+        var numbing = LewdPoolHelper.Numbing(targetChar);
         var result = StimulationMath.Apply(
             arousal.Current,
             arousal.Max,
@@ -224,7 +212,7 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
                     arousal.Max,
                     result.InstantClimax && !blockVerbal);
                 var selfEcho = string.Equals(advance.ActorId, advance.TargetId, StringComparison.OrdinalIgnoreCase) &&
-                               targetChar is not null && BrandState.Has(targetChar, BrandCatalog.Echoes);
+                               BrandState.Has(targetChar, BrandCatalog.Echoes);
                 if (selfEcho)
                 {
                     if (arousal.Current >= arousal.Max)
@@ -233,7 +221,9 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
                 }
                 else
                 {
-                    climaxNote = " " + climax.Summary + ApplyClimaxResult(target, targetChar, arousal, climax, advance.ActorId, context, tags);
+                    var ruin = await BrandState.PreRollRuinAsync(context, targetChar, ct).ConfigureAwait(false);
+                    climaxNote = " " + climax.Summary + ApplyClimaxResult(
+                        target, targetChar, arousal, climax, advance.ActorId, context, tags, forced: false, ruin: ruin);
                 }
             }
         }
@@ -244,36 +234,36 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
 
         var typeLabel = string.IsNullOrWhiteSpace(stimType) ? "untyped" : stimType;
         var implLabel = implement is null ? "" : $" via {implement.Source}";
-        var capNote = stim < beforeCap ? $" Verbal cap {beforeCap}→{stim}." : "";
         context.RecordMessage(
             $"Lewd {kind} advance {advance.ActorId} → {advance.TargetId}{implLabel}: +{stim} {typeLabel} stim " +
             $"(numbing {result.NumbingBefore}→{result.NumbingAfter}, arousal {result.ArousalBefore}→{result.ArousalAfter}/{arousal.Max})." +
             capNote + climaxNote);
+        settings.Narrate(context);
         if (!string.Equals(advance.ActorId, advance.TargetId, StringComparison.OrdinalIgnoreCase) &&
-            actorChar is not null &&
             BrandState.Has(actorChar, BrandCatalog.Echoes) &&
             stim > 0)
         {
             BrandState.EchoStim(actor, actorChar, stim, context);
         }
 
-        if (!verbal && targetChar is not null)
+        if (!verbal)
         {
             var tickTags = tags.ToList();
             if (wasIncap)
                 tickTags.Add("incapacitated");
-            await ImprintState.AutoAsync(context, target, targetChar, tickTags, wanted, bitchsuit: false, ct)
+            await ImprintState.AutoAsync(context, target, targetChar, tickTags, wanted, bitchsuit: false, ct, anchorId: advance.ActorId)
                 .ConfigureAwait(false);
         }
 
-        if (!verbal && actorChar is not null && tags.Any(ImprintMath.IsCruelty))
+        if (!verbal && tags.Any(ImprintMath.IsCruelty))
         {
+            // The actor chose the cruelty, so their own imprint is willing.
             await ImprintState.AutoAsync(
                 context,
                 actor,
                 actorChar,
                 tags.Where(ImprintMath.IsCruelty),
-                ConsentGate.IsAdvanceWanted(actor, advance.ActorId),
+                wanted: true,
                 bitchsuit: false,
                 ct).ConfigureAwait(false);
         }
@@ -281,6 +271,11 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         return ChangeHandlerResult.Ok;
     }
 
+    /// <summary>
+    /// Applies a resolved climax save (or instant/forced climax) and publishes <c>climax.v1</c> with what actually
+    /// happened: <c>climax</c>, <c>denied</c> / <c>ruined</c> (a brand intercepted it), <c>held</c> (three successes
+    /// or a natural 20: edging cleared) or <c>edging</c> (still pending).
+    /// </summary>
     internal static string ApplyClimaxResult(
         ModeParticipantState target,
         Character? character,
@@ -288,7 +283,9 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         ClimaxSaveResult climax,
         string? sourceId = null,
         IChangeContext? context = null,
-        IEnumerable<string>? tags = null)
+        IEnumerable<string>? tags = null,
+        bool forced = false,
+        BrandState.RuinDice? ruin = null)
     {
         var climaxed = climax.Kind is ClimaxOutcomeKind.Climaxed or ClimaxOutcomeKind.InstantClimax;
         var overstim = ConsentGate.GetInt(target, LewdKeys.Overstimulation);
@@ -298,8 +295,12 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
                           recovery is not null;
         var recoveryCurrent = recovery?.Current ?? 0;
 
-        if (climaxed && BrandState.InterceptClimax(target, character, arousal, context, out var intercepted))
+        if (climaxed && BrandState.InterceptClimax(target, character, arousal, context, out var intercepted, ruin, tags, forced))
+        {
+            var blockedBy = BrandState.BlocksClimax(character!) || intercepted.Contains("Fertility") ? "denied" : "ruined";
+            PublishClimax(context, target, blockedBy, forced);
             return intercepted;
+        }
 
         arousal.Current = climax.ArousalAfter;
         LewdPoolHelper.MirrorArousal(target, arousal);
@@ -308,6 +309,7 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         if (!climaxed)
         {
             LewdPoolHelper.SetEdging(target, character, climax.EdgingAfter);
+            PublishClimax(context, target, climax.Kind == ClimaxOutcomeKind.HeldEdge ? "held" : "edging", forced);
             return "";
         }
 
@@ -316,6 +318,8 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         var tick = OverstimMath.OnClimax(streak, wasIncap, overstim);
         target.State[LewdKeys.ClimaxStreak] = tick.ClimaxStreak;
         target.State[LewdKeys.ClimaxIncapacitated] = true;
+        // Until the end of this participant's next turn; each climax while still incapacitated adds a turn.
+        target.State[LewdKeys.ClimaxIncapTurns] = wasIncap ? ConsentGate.GetInt(target, LewdKeys.ClimaxIncapTurns) + 1 : 1;
 
         var level = tick.OverstimulationAfter;
         if (tick.OverstimIncreased)
@@ -339,44 +343,35 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
 
         var keepEdging = climax.EdgingAfter || level >= 5;
         LewdPoolHelper.SetEdging(target, character, keepEdging);
-        StampOverstimCascade(character, level, tick.IncapacitationCondition, sourceId);
+        if (character is not null)
+        {
+            LewdPoolHelper.SyncOverstimCascade(character, level, sourceId);
+            if (tick.IncapacitationCondition is { } incapacitation)
+                LewdPoolHelper.EnsureNamedCondition(character, incapacitation, incapacitation,
+                    "Repeated climax while still incapacitated. Ends with the climax incapacitation.");
+        }
 
+        PublishClimax(context, target, "climax", forced);
+        if (character is not null && hasRecovery && recoveryCurrent > 0 && arousal.Max > 0)
+            RecoveryWindow.Open(character, RecoveryWindow.Climax, 0);
         var extra = tick.IncapacitationCondition is null ? "" : $" {tick.IncapacitationCondition}.";
         var osNote = tick.OverstimIncreased ? $" Overstimulation {level}." : "";
         var bad = markedReason is null ? "" : $" Bad-Ended ({markedReason}).";
         var missing = decision.MissingRecoveryPool ? " recovery_dice pool missing; do not assume zero." : "";
         var brandNote = character is null ? "" : BrandState.OnClimax(target, character, tags, context);
-        return $" Climax streak {tick.ClimaxStreak}.{extra}{osNote}{bad}{missing}{brandNote}";
+        var spend = character is not null && RecoveryWindow.Kind(character) == RecoveryWindow.Climax
+            ? $" May spend up to {ArousalMath.ProficiencyBonus(character)} recovery dice now (lewd_recover), before the next turn."
+            : "";
+        return $" Climax streak {tick.ClimaxStreak}.{extra}{osNote}{bad}{missing}{brandNote}{spend}";
     }
 
-    private static void StampOverstimCascade(
-        Character? character,
-        int level,
-        string? incapacitation,
-        string? sourceId)
+    private static void PublishClimax(IChangeContext? context, ModeParticipantState target, string outcome, bool forced)
     {
-        if (character is null || level <= 0 && incapacitation is null)
+        if (context is null)
             return;
-
-        if (level >= 1)
-            LewdPoolHelper.EnsureNamedCondition(character, LewdKeys.ConditionIntoxicated, LewdKeys.ConditionIntoxicated,
-                "Overstimulation 1+: Intoxicated.");
-        if (level >= 2)
-            LewdPoolHelper.EnsureNamedCondition(character, LewdKeys.ConditionHyperaroused, LewdKeys.ConditionHyperaroused,
-                "Overstimulation 2+: Hyperaroused.");
-        if (level >= 4)
-            LewdPoolHelper.EnsureNamedCondition(character, LewdKeys.ConditionInfatuated, LewdKeys.ConditionInfatuated,
-                "Overstimulation 4+: Infatuated by the source of overstimulation.");
-        if (incapacitation is not null)
-            LewdPoolHelper.EnsureNamedCondition(character, incapacitation, incapacitation,
-                "Repeated climax while still incapacitated.");
-
-        if (!string.IsNullOrWhiteSpace(sourceId))
-        {
-            var inf = character.SystemStats.StatusEffects.FirstOrDefault(e =>
-                string.Equals(e.Name, LewdKeys.ConditionInfatuated, StringComparison.OrdinalIgnoreCase));
-            if (inf is not null && level >= 4)
-                inf.AppliedBy = sourceId;
-        }
+        var inEncounter = LewdModeAccess.TryGetParticipant(context, target.CharacterId) is not null;
+        context.Publish(
+            Events.LewdEvents.Climax,
+            new { characterId = target.CharacterId, outcome, forced, inEncounter });
     }
 }

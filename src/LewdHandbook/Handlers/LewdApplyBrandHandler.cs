@@ -18,16 +18,16 @@ public sealed class LewdApplyBrandHandler : IWorldChangeHandler
         var req = (LewdApplyBrandChange)change;
         if (string.IsNullOrWhiteSpace(req.TargetId))
             return ChangeHandlerResult.Failure("targetId is required.");
-        if (!context.Characters.TryGetValue(req.TargetId, out var character))
-            return ChangeHandlerResult.Failure($"Target '{req.TargetId}' is not in the commit context.");
+        if (!AgeGate.TryPassAll(context, out var ageError, req.TargetId))
+            return ChangeHandlerResult.Failure(ageError!);
+        var character = context.Characters[req.TargetId];
 
-        var participant = context.ActiveMode?.Participants.FirstOrDefault(p =>
-            string.Equals(p.CharacterId, req.TargetId, StringComparison.OrdinalIgnoreCase));
-        if (participant is not null &&
-            string.Equals(ConsentGate.GetString(participant, LewdKeys.Consent), LewdKeys.ConsentRevoked, StringComparison.OrdinalIgnoreCase))
+        var participant = LewdModeAccess.TryGetParticipant(context, req.TargetId);
+        var action = (req.Action ?? "apply").Trim().ToLowerInvariant();
+        // Taking a brand off is never blocked by the bearer's stance or limits.
+        if (action != "remove" && LewdProfile.IsRevoked(participant, character))
             return ChangeHandlerResult.Failure("consent revoked.");
 
-        var action = (req.Action ?? "apply").Trim().ToLowerInvariant();
         var id = req.BrandId?.Trim().ToLowerInvariant();
 
         if (action is "apply" or "remove")
@@ -43,7 +43,7 @@ public sealed class LewdApplyBrandHandler : IWorldChangeHandler
                     return ChangeHandlerResult.Failure("vow requires brandId=oaths.");
                 if (string.IsNullOrWhiteSpace(req.Payload))
                     return ChangeHandlerResult.Failure("vow requires payload.");
-                character.SystemStats.Traits[$"lustbrand.{id}.payload"] = req.Payload.Trim();
+                PregnancyState.Set(character, LewdKeys.LustbrandTraitPrefix + $"{id}.payload", req.Payload.Trim());
                 context.RecordMessage(
                     $"{req.TargetId} Brand of Oaths stores the vow. A breach compels public sexual humiliation, or nymphomanic and −1 arousal max per day. The engine does not judge the breach.");
                 return ChangeHandlerResult.Ok;
@@ -59,12 +59,22 @@ public sealed class LewdApplyBrandHandler : IWorldChangeHandler
                 var next = Math.Min(BrandCatalog.MaxTier, BrandState.Tier(character, id) + 1);
                 BrandState.Apply(participant, character, id, next, req.SourceId, req.Payload, req.Concubi, context);
                 return ChangeHandlerResult.Ok;
+            case "heal":
+                if (id != BrandCatalog.Altruism)
+                    return ChangeHandlerResult.Failure("heal requires brandId=altruism (the bearer healed someone else).");
+                if (req.Amount is not > 0)
+                    return ChangeHandlerResult.Failure("heal requires amount > 0 (hit points restored).");
+                BrandState.OnHeal(character, participant, req.Amount.Value, context);
+                return ChangeHandlerResult.Ok;
             case "trigger":
                 if (id != BrandCatalog.Transformation)
                     return ChangeHandlerResult.Failure("trigger requires brandId=transformation.");
-                if (req.D20 is < 1 or > 20)
-                    return ChangeHandlerResult.Failure("d20 must be between 1 and 20 for a transformation save.");
-                var total = req.D20 + req.ConModifier;
+                var conMod = req.ConModifier ?? AbilityScores.Mod(character, "con");
+                var save = await SaveDice.RollAsync(context, "lewd_transformation_save", req.D20, conMod, disadvantage: false, ct)
+                    .ConfigureAwait(false);
+                if (save.Error is not null)
+                    return ChangeHandlerResult.Failure(save.Error);
+                var total = save.Total;
                 var saved = total >= BrandState.TransformationDc;
                 if (!saved)
                 {
@@ -73,10 +83,10 @@ public sealed class LewdApplyBrandHandler : IWorldChangeHandler
                 }
 
                 context.RecordMessage(
-                    $"{req.TargetId} Brand of Transformation: {req.D20}+{req.ConModifier}={total} vs DC {BrandState.TransformationDc} → {(saved ? "resisted" : "hybrid form 1 hour, nymphomanic, advantage on sexual advances, disadvantage vs charm or domination")}.");
+                    $"{req.TargetId} Brand of Transformation: {save.Summary} vs DC {BrandState.TransformationDc} → {(saved ? "resisted" : "hybrid form 1 hour, nymphomanic, advantage on sexual advances, disadvantage vs charm or domination")}.");
                 return ChangeHandlerResult.Ok;
             default:
-                return ChangeHandlerResult.Failure("action must be apply, remove, vow, trigger, release, or stabilize.");
+                return ChangeHandlerResult.Failure("action must be apply, remove, vow, trigger, release, stabilize, or heal.");
         }
     }
 
@@ -92,9 +102,6 @@ public sealed class LewdApplyBrandHandler : IWorldChangeHandler
         if (!BrandCatalog.TryGet(id, out var def))
             return ChangeHandlerResult.Failure($"Unknown lustbrand '{req.BrandId}'.");
 
-        if (participant is not null && HitsHardLimit(participant, id!))
-            return ChangeHandlerResult.Failure($"Target '{req.TargetId}' hard limit blocks lustbrand '{id}'.");
-
         if (action == "remove")
         {
             var method = req.Method?.Trim().ToLowerInvariant();
@@ -102,31 +109,29 @@ public sealed class LewdApplyBrandHandler : IWorldChangeHandler
                 return ChangeHandlerResult.Failure("Lustbrands are not removed by remove curse. method must be wish or feature.");
             if (!BrandState.Remove(participant, character, id!, req.Concubi, context))
                 return ChangeHandlerResult.Failure($"Target does not bear lustbrand '{id}'.");
+            context.Publish(
+                Events.LewdEvents.BrandChanged,
+                new { characterId = req.TargetId, brandId = id, action = "remove", tier = 0 });
             return ChangeHandlerResult.Ok;
         }
 
-        var tone = await IntimacyTone.ResolveAsync(context, ct).ConfigureAwait(false);
-        if (!req.Willing && tone == IntimacyToneKind.Consensual)
-            return ChangeHandlerResult.Failure("Unwilling lewd_apply_brand requires intimacyTone fade or grimdark, or willing=true.");
-        if (!req.Willing && tone == IntimacyToneKind.Fade)
-        {
-            context.RecordPhysicalStateNudge(
-                $"{req.TargetId} lustbrand applied under intimacyTone=fade; narrate the curse without a graphic branding.");
-        }
+        var settings = await LewdSettings.ResolveAsync(context, ct).ConfigureAwait(false);
+        var probe = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { id!, "lustbrand", "brand" };
+        if (settings.HitsHardLimit(probe, out var campaignHit))
+            return ChangeHandlerResult.Failure($"Campaign hard limit '{campaignHit}' blocks lustbrand '{id}'.");
+        if (LewdProfile.HardLimits(participant, character).FirstOrDefault(probe.Contains) is { } personal)
+            return ChangeHandlerResult.Failure($"Target '{req.TargetId}' hard limit '{personal}' blocks lustbrand '{id}'.");
+        if (!req.Willing && !settings.AllowsUnwanted(character, req.TargetId, out var policyError))
+            return ChangeHandlerResult.Failure($"Unwilling lewd_apply_brand: {policyError} Or set willing=true if they accept it.");
+        settings.Narrate(context);
 
         var tier = req.Tier ?? def.Tier;
         if (tier is < 1 or > BrandCatalog.MaxTier)
             return ChangeHandlerResult.Failure("tier must be 1–5.");
         BrandState.Apply(participant, character, id!, tier, req.SourceId, req.Payload, req.Concubi, context);
+        context.Publish(
+            Events.LewdEvents.BrandChanged,
+            new { characterId = req.TargetId, brandId = id, action = "apply", tier });
         return ChangeHandlerResult.Ok;
-    }
-
-    private static bool HitsHardLimit(ModeParticipantState participant, string id)
-    {
-        var hard = ConsentGate.GetStringList(participant, LewdKeys.HardLimits);
-        return hard.Any(h =>
-            string.Equals(h, id, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(h, "lustbrand", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(h, "brand", StringComparison.OrdinalIgnoreCase));
     }
 }

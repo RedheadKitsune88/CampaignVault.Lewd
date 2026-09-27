@@ -8,6 +8,15 @@ internal static class PregnancyMath
     public const int NontraditionalLongRestDelta = 25;
     public const int ForcedHalfway = 50;
 
+    /// <summary>Progress at which a traditional pregnancy shows and its side effects start. Nontraditional: at once.</summary>
+    public const int VisibleProgress = 25;
+
+    public const int TraditionalTermDays = 270;
+    public const int NontraditionalTermDays = 3;
+
+    public static float DefaultTermHours(bool nontraditional) =>
+        24f * (nontraditional ? NontraditionalTermDays : TraditionalTermDays);
+
     public static int TraditionalDc(int targetConMod, int targetProficiency, bool condom) =>
         condom ? 25 : 10 + targetConMod + targetProficiency;
 

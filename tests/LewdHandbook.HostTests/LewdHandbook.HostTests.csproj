@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Host-level tests: the plugin running inside the real CampaignVault dispatcher (action budgets, mode events,
+    event-driven follow-ups). Needs the core repo checked out next to this one (../CampaignVault), so it is not in
+    CampaignVault.Lewd.slnx; run it with scripts/test-host.sh.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>LewdHandbook.HostTests</RootNamespace>
+    <CoreRepo>$(MSBuildThisFileDirectory)..\..\..\CampaignVault\</CoreRepo>
+    <!-- The plugin builds against the PluginSdk package, core against its own project: same assembly, two sources. -->
+    <NoWarn>$(NoWarn);MSB3277;NU1608</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="NSubstitute" Version="5.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\LewdHandbook\LewdHandbook.csproj" />
+    <ProjectReference Include="$(CoreRepo)src\CampaignVault\CampaignVault.csproj" />
+  </ItemGroup>
+
+</Project>

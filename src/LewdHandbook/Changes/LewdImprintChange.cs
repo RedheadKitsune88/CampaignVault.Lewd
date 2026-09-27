@@ -33,4 +33,13 @@ public sealed class LewdImprintChange : WorldChange
     public int DcMod { get; set; }
 
     public List<string>? Tags { get; set; }
+
+    /// <summary>
+    /// Backstory seeding: set the track straight to level 1–3 (origin from <see cref="Willing"/>) with no save —
+    /// e.g. a rescued captive who arrives already conditioned. Not for in-scene pressure; that ticks.
+    /// </summary>
+    public int? SetLevel { get; set; }
+
+    /// <summary>Who the conditioning is tied to (a captor, a trusted partner). It then weighs only against them.</summary>
+    public string? AnchorId { get; set; }
 }

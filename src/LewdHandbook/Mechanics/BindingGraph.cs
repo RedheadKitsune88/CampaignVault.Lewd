@@ -4,7 +4,7 @@ using CampaignVault.Models;
 namespace LewdHandbook.Mechanics;
 
 /// <summary>
-/// Structured bondage state on ModeParticipantState — source of truth (no prose keyword scan).
+/// One binding on a character (cuffs, shackles, rope, gag, suit…). Lives on the Character as JSON, in or out of a scene.
 /// </summary>
 internal sealed class BindingEntry
 {
@@ -22,67 +22,108 @@ internal sealed class BindingEntry
     public int BreakDc { get; set; } = 20;
     public int Hp { get; set; } = 15;
     public string? ItemId { get; set; }
+
+    /// <summary>What this binding ties the character to: another character, an item or fixture, or a named anchor.</summary>
+    public string? AnchorId { get; set; }
+
+    /// <summary>Locked bindings can't be slipped off by unbinding without the key; pick the lock (DC <see cref="LockDc"/>) or break it.</summary>
+    public bool Locked { get; set; }
+
+    public int LockDc { get; set; } = 15;
+
+    /// <summary>The key item that opens it, when there is one.</summary>
+    public string? KeyItemId { get; set; }
+
+    /// <summary>Who applied it.</summary>
+    public string? AppliedById { get; set; }
+
+    /// <summary>Part of a sex scene (lewd consent rules) rather than plain restraint (capture, prisoners).</summary>
+    public bool Erotic { get; set; }
 }
 
 internal static class BindingGraph
 {
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+
+    /// <summary>
+    /// Bindings are stored as JSON on the Character (<see cref="LewdKeys.TraitBindings"/>) so restraints outlast the
+    /// scene; the participant holds a JSON mirror for the model. Falls back to the participant when no character.
+    /// </summary>
+    public static List<BindingEntry> GetBindings(ModeParticipantState? participant, Character? character)
+    {
+        var stored = PregnancyState.Text(character, LewdKeys.TraitBindings);
+        if (!string.IsNullOrWhiteSpace(stored))
+            return Parse(stored);
+        return participant is null ? [] : GetBindings(participant);
+    }
+
     public static List<BindingEntry> GetBindings(ModeParticipantState participant)
     {
         if (!participant.State.TryGetValue(LewdKeys.Bindings, out var raw) || raw is null)
             return [];
 
+        return raw switch
+        {
+            List<BindingEntry> typed => typed,
+            string s => Parse(s),
+            JsonElement je => Parse(je.GetRawText()),
+            _ => Parse(raw.ToString()),
+        };
+    }
+
+    /// <summary>Writes the list to the character (source of truth) and refreshes every participant mirror.</summary>
+    public static void SetBindings(ModeParticipantState? participant, Character? character, List<BindingEntry> bindings)
+    {
+        var json = JsonSerializer.Serialize(bindings, Json);
+        if (character is not null)
+        {
+            var traits = character.SystemStats.Traits;
+            traits.Remove(LewdKeys.LegacyModeTraitBindings);
+            if (bindings.Count == 0)
+                traits.Remove(LewdKeys.TraitBindings);
+            else
+                traits[LewdKeys.TraitBindings] = json;
+        }
+
+        if (participant is null)
+            return;
+        participant.State[LewdKeys.Bindings] = json;
+        participant.State["binding_implies"] = CollectImplied(bindings).OrderBy(x => x).ToList();
+        participant.State["binding_effects"] = CollectEffects(bindings).OrderBy(x => x).ToList();
+        RefreshLimbPositions(participant, bindings);
+    }
+
+    private static List<BindingEntry> Parse(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return [];
         try
         {
-            if (raw is List<BindingEntry> typed)
-                return typed;
-            if (raw is JsonElement je)
-                return JsonSerializer.Deserialize<List<BindingEntry>>(je.GetRawText()) ?? [];
-            if (raw is string s)
-                return JsonSerializer.Deserialize<List<BindingEntry>>(s) ?? [];
-
-            // object graphs from deserializer (List<object> / Dictionary)
-            var json = JsonSerializer.Serialize(raw);
-            return JsonSerializer.Deserialize<List<BindingEntry>>(json) ?? [];
+            return JsonSerializer.Deserialize<List<BindingEntry>>(json, Json) ?? [];
         }
-        catch
+        catch (JsonException)
         {
             return [];
         }
     }
 
-    public static void SetBindings(ModeParticipantState participant, List<BindingEntry> bindings) =>
-        participant.State[LewdKeys.Bindings] = bindings;
+    public static HashSet<string> CollectImplied(IEnumerable<BindingEntry> bindings) =>
+        Collect(bindings.SelectMany(b => b.Implies));
 
-    public static HashSet<string> CollectImplied(ModeParticipantState participant)
+    public static HashSet<string> CollectEffects(IEnumerable<BindingEntry> bindings) =>
+        Collect(bindings.SelectMany(b => b.Effects));
+
+    private static HashSet<string> Collect(IEnumerable<string> values)
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var b in GetBindings(participant))
+        foreach (var v in values)
         {
-            foreach (var i in b.Implies)
-            {
-                if (!string.IsNullOrWhiteSpace(i))
-                    set.Add(i.Trim());
-            }
+            if (!string.IsNullOrWhiteSpace(v))
+                set.Add(v.Trim());
         }
 
         return set;
     }
-
-    public static HashSet<string> CollectEffects(ModeParticipantState participant)
-    {
-        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var b in GetBindings(participant))
-        {
-            foreach (var e in b.Effects)
-            {
-                if (!string.IsNullOrWhiteSpace(e))
-                    set.Add(e.Trim());
-            }
-        }
-
-        return set;
-    }
-
 
     private static readonly HashSet<string> ArmSites = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -126,11 +167,11 @@ internal static class BindingGraph
     /// <summary>
     /// Recompute participant arm_position / leg_position from structured bindings (last matching bind wins).
     /// </summary>
-    public static void RefreshLimbPositions(ModeParticipantState participant)
+    public static void RefreshLimbPositions(ModeParticipantState participant, IReadOnlyList<BindingEntry> bindings)
     {
         string? arms = null;
         string? legs = null;
-        foreach (var b in GetBindings(participant))
+        foreach (var b in bindings)
         {
             if (string.IsNullOrWhiteSpace(b.Orientation))
                 continue;
@@ -144,7 +185,7 @@ internal static class BindingGraph
         // Suit / encasement without explicit orientation still implies folded limbs.
         if (arms is null || legs is null)
         {
-            foreach (var b in GetBindings(participant))
+            foreach (var b in bindings)
             {
                 var implies = b.Implies.Select(i => i.ToLowerInvariant()).ToHashSet();
                 var effects = b.Effects.Select(i => i.ToLowerInvariant()).ToHashSet();
@@ -161,26 +202,20 @@ internal static class BindingGraph
         participant.State[LewdKeys.LegPosition] = legs ?? "free";
     }
 
-    public static HashSet<string> CollectBoundSites(ModeParticipantState participant)
-    {
-        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var b in GetBindings(participant))
-        {
-            foreach (var s in b.Sites)
-            {
-                if (!string.IsNullOrWhiteSpace(s))
-                    set.Add(s.Trim());
-            }
-        }
+    /// <summary>True when either character is chained or tethered to the other.</summary>
+    public static bool AreLinked(Character a, Character b) =>
+        GetBindings(null, a).Any(x => string.Equals(x.AnchorId, b.Id, StringComparison.OrdinalIgnoreCase)) ||
+        GetBindings(null, b).Any(x => string.Equals(x.AnchorId, a.Id, StringComparison.OrdinalIgnoreCase));
 
-        return set;
-    }
+    public static HashSet<string> CollectBoundSites(IEnumerable<BindingEntry> bindings) =>
+        Collect(bindings.SelectMany(b => b.Sites));
 
     /// <summary>
     /// Returns true when structured bindings block the required free sites for an advance.
     /// </summary>
     public static bool BlocksRequiredSites(
         ModeParticipantState actor,
+        Character? actorChar,
         IEnumerable<string>? requiresFreeSites,
         out string? reason)
     {
@@ -195,8 +230,9 @@ internal static class BindingGraph
         if (required.Count == 0)
             return false;
 
-        var bound = CollectBoundSites(actor);
-        var implied = CollectImplied(actor);
+        var bindings = GetBindings(actor, actorChar);
+        var bound = CollectBoundSites(bindings);
+        var implied = CollectImplied(bindings);
 
         // Limb-disabling implies block hand/arm/leg advances even if site list is coarse.
         var limbDisabled = implied.Contains("limb_bound") ||
@@ -250,6 +286,9 @@ internal static class BindingGraph
         }
         entry.Effects = GetList(props, "effects");
         entry.Links = GetList(props, "links");
+        entry.Locked = GetBool(props, "locked") || GetBool(props, "lockable");
+        entry.LockDc = GetInt(props, "lockDc", 15);
+        entry.KeyItemId = GetString(props, "keyItemId");
 
         if (entry.Implies.Count == 0)
             entry.Implies = GetList(props, "seedsConditions");
@@ -288,6 +327,28 @@ internal static class BindingGraph
                 entry.Implies = ["cuffed", "limb_bound"];
                 entry.Links = ["arm-to-arm"];
                 entry.Effects = ["arms_rear_bound", "no_hand_use", "no_somatic_spellcasting"];
+            }
+            else if (kind.Contains("manacle"))
+            {
+                entry.Sites = ["wrists"];
+                entry.Implies = ["cuffed"];
+                entry.Locked = true;
+            }
+            else if (kind.Contains("shackle") || kind.Contains("fetter") || kind.Contains("leg_iron") || kind.Contains("leg iron"))
+            {
+                entry.Sites = ["ankles"];
+                entry.Implies = ["hobbled"];
+                entry.Locked = true;
+            }
+            else if (kind.Contains("collar"))
+            {
+                entry.Sites = ["neck"];
+                entry.Locked = kind.Contains("lock");
+            }
+            else if (kind.Contains("leash") || kind.Contains("tether") || kind.Contains("chain"))
+            {
+                entry.Sites = ["neck"];
+                entry.Implies = ["leashed"];
             }
             else if (kind.Contains("cuff") || kind.Contains("rope"))
             {

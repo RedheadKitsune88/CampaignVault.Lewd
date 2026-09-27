@@ -9,7 +9,7 @@ public class MechanicsExtrasTests
     [Fact]
     public void Anatomy_traits_parse_die_and_tags()
     {
-        var impl = AnatomyTraits.Parse("anatomy.cock", "die=1d8;tags=phallic,natural;size=medium;finesse=true");
+        var impl = AnatomyTraits.Parse("lewd_encounter.anatomy.cock", "die=1d8;tags=phallic,natural;size=medium;finesse=true");
         Assert.Equal("1d8", impl.DieExpression);
         Assert.Contains("phallic", impl.Tags);
         Assert.True(impl.IsFinesse);
@@ -36,11 +36,11 @@ public class MechanicsExtrasTests
                 [LewdKeys.HardLimits] = new List<string> { "piercing" },
             }
         };
-        var allow = ConsentGate.AuthorizeAdvance(t, "alice", "bludgeoning", null, IntimacyToneKind.Grimdark, out _);
-        Assert.Equal(ConsentAuthorizeResult.Allow, allow);
+        var nonConsentOn = LewdSettings.Default with { NonConsent = LewdNonConsent.On };
+        Assert.True(ConsentGate.AuthorizeAdvance(t, null, "alice", "bludgeoning", null, nonConsentOn, out _));
 
-        var hard = ConsentGate.AuthorizeAdvance(t, "alice", "piercing", null, IntimacyToneKind.Grimdark, out var err);
-        Assert.Equal(ConsentAuthorizeResult.Fail, hard);
+        var hard = ConsentGate.AuthorizeAdvance(t, null, "alice", "piercing", null, nonConsentOn, out var err);
+        Assert.False(hard);
         Assert.Contains("hard limit", err, StringComparison.OrdinalIgnoreCase);
     }
 

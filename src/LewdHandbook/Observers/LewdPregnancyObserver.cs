@@ -5,49 +5,35 @@ using LewdHandbook.Mechanics;
 namespace LewdHandbook.Observers;
 
 /// <summary>
-/// Host <see cref="RestChange"/> is the pregnancy rest-poison clock. The explicit
-/// <c>lewd_pregnancy action=rest</c> verb remains as a Rolls-null fallback.
+/// Pregnancy follows campaign time: travel, activities and anything that passes minutes move its progress, show it,
+/// flag the term and lift an expired rest poison. Rests go through <c>lewd_rest</c>, which also rolls the rest save.
 /// </summary>
 public sealed class LewdPregnancyObserver : IWorldChangeObserver
 {
     public bool IsInterestedIn(WorldChange committed, IChangeContext context) =>
-        committed is RestChange;
+        CharacterIdOf(committed) is not null && (committed is TravelChange || committed.MinutesElapsed is > 0);
 
     public async Task OnCommittedAsync(WorldChange committed, IChangeContext context, CancellationToken ct = default)
     {
-        if (committed is not RestChange rest)
+        var id = CharacterIdOf(committed);
+        if (string.IsNullOrWhiteSpace(id) || !context.Characters.TryGetValue(id, out var character))
             return;
-        if (string.IsNullOrWhiteSpace(rest.CharacterId) ||
-            !context.Characters.TryGetValue(rest.CharacterId, out var character))
-            return;
-        if (!PregnancyState.Flag(character, LewdKeys.Pregnant))
-            return;
-
-        var day = await ImprintState.DayAsync(context, ct).ConfigureAwait(false);
-        if (PregnancyState.Int(character, LewdKeys.PregnancyRestPoisonDay) == day && day != 0)
+        if (!PregnancyState.Flag(character, LewdKeys.Pregnant) &&
+            PregnancyState.Attr(character, PregnancyState.PoisonedUntilKey) < 0)
             return;
 
-        if (context.Rolls is null)
-        {
-            context.RecordMessage(
-                $"{rest.CharacterId} pregnant rest poison pending. Emit lewd_pregnancy action=rest with d20 and targetConModifier (Rolls unavailable).");
-            return;
-        }
-
-        var mod = AbilityScores.Mod(character, "con");
-        var roll = await SaveDice.RollAsync(
-            context, "lewd_pregnancy_rest", faceOrZero: 0, mod, disadvantage: false, ct).ConfigureAwait(false);
-        if (roll.Error is not null)
-        {
-            context.RecordMessage($"{rest.CharacterId} pregnancy rest: {roll.Error}");
-            return;
-        }
-
-        PregnancyState.Set(character, LewdKeys.PregnancyRestPoisonDay, day.ToString());
-        if (roll.Total < PregnancyMath.RestPoisonDc)
-            PregnancyState.StampPoisoned(character);
-
-        context.RecordMessage(
-            $"Lewd pregnancy rest {rest.CharacterId}: {roll.Summary} vs DC {PregnancyMath.RestPoisonDc} → {(roll.Total < PregnancyMath.RestPoisonDc ? "poisoned 1d4 hours" : "saved")}.");
+        var now = await ViceState.HoursNowAsync(context, ct).ConfigureAwait(false);
+        var note = PregnancyState.Sync(character, now, context);
+        if (note is not null)
+            context.RecordMessage(note);
     }
+
+    private static string? CharacterIdOf(WorldChange committed) => committed switch
+    {
+        TravelChange travel => travel.CharacterId,
+        ActivityChange activity => activity.CharacterId,
+        NeedChange need => need.CharacterId,
+        ScheduleChange schedule => schedule.CharacterId,
+        _ => null,
+    };
 }

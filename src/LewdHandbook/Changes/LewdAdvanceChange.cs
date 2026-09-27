@@ -3,7 +3,7 @@ using CampaignVault.Plugins;
 
 namespace LewdHandbook.Changes;
 
-[PluginWorldChange("lewd_advance")]
+[PluginWorldChange("lewd_advance", ModeId = LewdEncounterMode.ModeIdValue)]
 public sealed class LewdAdvanceChange : WorldChange
 {
     public string ActorId { get; set; } = null!;
@@ -29,7 +29,7 @@ public sealed class LewdAdvanceChange : WorldChange
     /// <summary>Item id / template name for artificial implement.</summary>
     public string? ImplementId { get; set; }
 
-    /// <summary>Natural anatomy Traits key or suffix (e.g. cock or anatomy.cock).</summary>
+    /// <summary>Natural anatomy Traits key or suffix (e.g. cock or lewd_encounter.anatomy.cock).</summary>
     public string? AnatomyKey { get; set; }
 
     /// <summary>Ability bonus added to rolled stim (Str, or Dex if finesse).</summary>

@@ -1,11 +1,12 @@
+using CampaignVault.Data.ChangeHandlers;
 using CampaignVault.Models;
 using CampaignVault.Rulesets.Modes;
 
 namespace LewdHandbook;
 
 /// <summary>
-/// Opt-in sexual-encounter interaction mode for ActiveSystem=dnd5e.
-/// Phase 0 stub: enter/exit/turn machine shaped like CraftingMode; consent scratch fields only.
+/// Opt-in sexual-encounter interaction mode for ActiveSystem=dnd5e. The state machine only rotates turns;
+/// turn-start rules run in <c>lewd_turn_start</c> (via core.mode_turn_started.v1) where character sheets are visible.
 /// </summary>
 public sealed class LewdEncounterMode : IInteractionMode
 {
@@ -15,6 +16,22 @@ public sealed class LewdEncounterMode : IInteractionMode
     public string DisplayName => "Lewd Encounter";
     public IReadOnlyList<string> CompatibleSystems => ["dnd5e"];
     public IModeStateMachine StateMachine { get; } = new LewdEncounterStateMachine();
+
+    /// <summary>Every participant must be a loaded, recorded adult — see <see cref="Mechanics.AgeGate"/>.</summary>
+    public string? ValidateEntry(
+        IReadOnlyList<string> participantIds,
+        IReadOnlyDictionary<string, Character> loaded,
+        IChangeContext context)
+    {
+        foreach (var id in participantIds.Where(i => !string.IsNullOrWhiteSpace(i)))
+        {
+            loaded.TryGetValue(id, out var character);
+            if (!Mechanics.AgeGate.TryPass(character, id, out var error))
+                return error;
+        }
+
+        return null;
+    }
 }
 
 file sealed class LewdEncounterStateMachine : IModeStateMachine
@@ -26,17 +43,13 @@ file sealed class LewdEncounterStateMachine : IModeStateMachine
             ModeId = LewdEncounterMode.ModeIdValue,
             IsActive = true,
             Round = 1,
-            Participants = participantIds.Select(id => new ModeParticipantState
+            Participants = participantIds.Select((id, i) => new ModeParticipantState
             {
                 CharacterId = id,
-                ActionBudget = new Dictionary<string, int> { ["action"] = 1 },
+                // Only whoever's turn it is can act; mode_transition action=turn hands the action on.
+                ActionBudget = new Dictionary<string, int> { [Mechanics.LewdActionBudget.Action] = i == 0 ? 1 : 0 },
                 State = new Dictionary<string, object>
                 {
-                    [Mechanics.LewdKeys.Consent] = Mechanics.LewdKeys.ConsentWilling,
-                    [Mechanics.LewdKeys.HardLimits] = new List<string>(),
-                    [Mechanics.LewdKeys.SoftLimits] = new List<string>(),
-                    [Mechanics.LewdKeys.Kinks] = new List<string>(),
-                    [Mechanics.LewdKeys.Inhibition] = 0,
                     [Mechanics.LewdKeys.ClimaxSuccesses] = 0,
                     [Mechanics.LewdKeys.ClimaxFailures] = 0,
                     [Mechanics.LewdKeys.Edging] = false,
@@ -55,7 +68,8 @@ file sealed class LewdEncounterStateMachine : IModeStateMachine
                     [Mechanics.LewdKeys.ImprintInhib] = 0,
                     [Mechanics.LewdKeys.ArousalCurrentMirror] = 0,
                     [Mechanics.LewdKeys.ArousalMaxMirror] = 10,
-                    [Mechanics.LewdKeys.Bindings] = new List<object>(),
+                    [Mechanics.LewdKeys.ClimaxIncapTurns] = 0,
+                    [Mechanics.LewdKeys.Bindings] = "[]",
                     [Mechanics.LewdKeys.Posture] = "standing",
                     [Mechanics.LewdKeys.ArmPosition] = "free",
                     [Mechanics.LewdKeys.LegPosition] = "free",
@@ -67,17 +81,11 @@ file sealed class LewdEncounterStateMachine : IModeStateMachine
     public IReadOnlyDictionary<string, int> GetTurnActionBudget(Character participant) =>
         new Dictionary<string, int> { ["action"] = 1 };
 
+    /// <summary>Core calls this for mode-scoped verbs; only an advance costs the actor's action (binds charge themselves).</summary>
     public bool TryConsumeActionSlot(ModeParticipantState state, WorldChange action, out string? errorReason)
     {
         errorReason = null;
-        if (!state.ActionBudget.TryGetValue("action", out var remaining) || remaining <= 0)
-        {
-            errorReason = "No lewd encounter action remaining this turn.";
-            return false;
-        }
-
-        state.ActionBudget["action"] = remaining - 1;
-        return true;
+        return action is not Changes.LewdAdvanceChange || Mechanics.LewdActionBudget.TrySpend(state, out errorReason);
     }
 
     public bool AdvanceTurn(ModeEncounter encounter)
@@ -85,55 +93,23 @@ file sealed class LewdEncounterStateMachine : IModeStateMachine
         if (!encounter.IsActive || encounter.Participants.Count == 0)
             return false;
 
-        var idx = encounter.Participants.FindIndex(p => p.CharacterId == encounter.ActiveTurnId);
-        idx = idx < 0 ? 0 : (idx + 1) % encounter.Participants.Count;
-        if (idx == 0)
+        var current = encounter.Participants.FindIndex(p =>
+            string.Equals(p.CharacterId, encounter.ActiveTurnId, StringComparison.OrdinalIgnoreCase));
+        var idx = current < 0 ? 0 : (current + 1) % encounter.Participants.Count;
+        if (current >= 0 && idx == 0)
             encounter.Round++;
 
-        foreach (var p in encounter.Participants)
-            p.ActionBudget["action"] = 1;
-
         encounter.ActiveTurnId = encounter.Participants[idx].CharacterId;
-
-        // Handbook: start turn at max arousal → gain edging (climax save via lewd_climax_check).
-        var active = encounter.Participants[idx];
-        var cur = Mechanics.ConsentGate.GetInt(active, Mechanics.LewdKeys.ArousalCurrentMirror);
-        var max = Mechanics.ConsentGate.GetInt(active, Mechanics.LewdKeys.ArousalMaxMirror);
-        if (max > 0 && cur >= max)
-            active.State[Mechanics.LewdKeys.Edging] = true;
-
-        if (Mechanics.ConsentGate.GetBool(active, Mechanics.LewdKeys.Edging))
-        {
-            var beats = Mechanics.ConsentGate.GetInt(active, Mechanics.LewdKeys.EdgingBeats) + 1;
-            active.State[Mechanics.LewdKeys.EdgingBeats] = beats;
-            var inhib = Mechanics.ConsentGate.GetInt(active, Mechanics.LewdKeys.Inhibition);
-            var os = Mechanics.ConsentGate.GetInt(active, Mechanics.LewdKeys.Overstimulation);
-            var next = Mechanics.OverstimMath.ExtendedEdgingOverstim(beats, inhib, os);
-            if (next is int level)
-            {
-                active.State[Mechanics.LewdKeys.Overstimulation] = level;
-                if (level >= 3)
-                    active.State[Mechanics.LewdKeys.Inhibition] = 0;
-                if (level >= Mechanics.OverstimMath.MaxLevel)
-                    active.State[Mechanics.LewdKeys.BadEnded] = true;
-            }
-        }
-        else
-        {
-            active.State[Mechanics.LewdKeys.EdgingBeats] = 0;
-        }
-
+        foreach (var p in encounter.Participants)
+            p.ActionBudget[Mechanics.LewdActionBudget.Action] =
+                string.Equals(p.CharacterId, encounter.ActiveTurnId, StringComparison.OrdinalIgnoreCase) ? 1 : 0;
         return true;
     }
 
+    /// <summary>A lewd encounter ends by an explicit mode_transition exit, never on its own.</summary>
     public bool IsComplete(ModeEncounter encounter, out string? outcomeNarrative)
     {
         outcomeNarrative = null;
-        var done = encounter.Participants.Any(p =>
-            p.State.TryGetValue(Mechanics.LewdKeys.SceneEnd, out var flag) &&
-            string.Equals(flag?.ToString(), "true", StringComparison.OrdinalIgnoreCase));
-        if (done)
-            outcomeNarrative = "Lewd encounter ended.";
-        return done;
+        return false;
     }
 }

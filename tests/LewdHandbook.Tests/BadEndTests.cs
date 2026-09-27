@@ -126,7 +126,7 @@ public class BadEndTests
         }, ctx);
         Assert.False(consensual.Success);
 
-        ctx.Tone = LewdKeys.ToneGrimdark;
+        ctx.Tone = LewdKeys.NonConsentOn;
         var noEscape = await handler.ApplyAsync(new LewdBadEndChange
         {
             TargetId = "bob",
@@ -167,9 +167,9 @@ public class BadEndTests
             ImprintJump = 3,
         }, ctx);
         Assert.True(imprint.Success);
-        Assert.Equal("ordeal", character.SystemStats.Traits[LewdKeys.BadEndImprintTrack]);
-        Assert.Equal("3", character.SystemStats.Traits[LewdKeys.BadEndImprintJump]);
-        Assert.False(character.SystemStats.Traits.ContainsKey("imprints"));
+        Assert.Equal("ordeal", character.SystemStats.Traits[LewdKeys.TraitBadEndImprintTrack]);
+        Assert.Equal("3", character.SystemStats.Traits[LewdKeys.TraitBadEndImprintJump]);
+        Assert.False(character.SystemStats.Traits.ContainsKey(LewdKeys.TraitImprints));
         _ = bob;
     }
 
@@ -195,7 +195,7 @@ public class BadEndTests
     }
 
     private static Character Character(string id) => new()
-    {
+    { LifeStage = LifeStage.Adult,
         Id = id,
         Name = id,
         SystemStats = new SystemExtension(),
@@ -206,11 +206,11 @@ public class BadEndTests
         public Recorder(ModeEncounter mode, Character character)
         {
             ActiveMode = mode;
-            Characters = new Dictionary<string, Character> { [character.Id] = character };
+            Characters = WithActor(new Dictionary<string, Character> { [character.Id] = character });
         }
 
         public List<string> Messages { get; } = [];
-        public string Tone { get; set; } = LewdKeys.ToneConsensual;
+        public string Tone { get; set; } = LewdKeys.NonConsentOff;
         public IReadOnlyDictionary<string, Character> Characters { get; }
         public IReadOnlyDictionary<string, Item> Items { get; } = new Dictionary<string, Item>();
         public IReadOnlyDictionary<string, Location> Locations { get; } = new Dictionary<string, Location>();
@@ -219,6 +219,10 @@ public class BadEndTests
         public Microsoft.Extensions.Logging.ILogger Logger { get; } = NullLogger.Instance;
         public CombatEncounter? ActiveCombat => null;
         public ModeEncounter? ActiveMode { get; }
+        public IReadOnlyDictionary<string, ModeEncounter> ActiveModes =>
+            ActiveMode is { } m
+                ? new Dictionary<string, ModeEncounter>(StringComparer.OrdinalIgnoreCase) { [m.ModeId] = m }
+                : new Dictionary<string, ModeEncounter>(StringComparer.OrdinalIgnoreCase);
         public CampaignConfig? Config => null;
         public IRollService? Rolls { get; set; }
         public string? CampaignName => "test";
@@ -227,13 +231,16 @@ public class BadEndTests
         public int BatchIndex => 0;
         public Func<Task<CampaignTime>> GetCurrentTimeAsync { get; } = () => Task.FromResult(new CampaignTime());
         public Func<Task<Dictionary<string, string>>> GetSystemOptionsAsync =>
-            () => Task.FromResult(new Dictionary<string, string> { [LewdKeys.IntimacyToneOption] = Tone });
+            () => Task.FromResult(new Dictionary<string, string> { [LewdKeys.NonConsentOption] = Tone });
         public Func<Event, Task> LogEventAsync { get; } = _ => Task.CompletedTask;
         public void RegisterNewLocation(Location loc) { }
         public void RegisterNewCharacter(Character c) { }
         public void RegisterNewItem(Item i) { }
         public void RegisterNewFaction(Faction f) { }
         public void RegisterNewQuest(Quest q) { }
+        public void Publish(string topic, object? data = null) =>
+            Published.Add((topic, data));
+        public List<(string Topic, object? Data)> Published { get; } = [];
         public void RecordMessage(string message) => Messages.Add(message);
         public void RecordPhysicalStateNudge(string message) => Messages.Add(message);
         public void RecordFailure() { }
@@ -244,5 +251,11 @@ public class BadEndTests
         public Task<string?> SuggestItemMatchAsync(string? nameQuery) => Task.FromResult<string?>(null);
         public Task<string?> SuggestFactionMatchAsync(string? nameQuery) => Task.FromResult<string?>(null);
         public Task<string?> SuggestQuestMatchAsync(string? nameQuery) => Task.FromResult<string?>(null);
+    }
+
+    private static Dictionary<string, Character> WithActor(Dictionary<string, Character> characters)
+    {
+        characters.TryAdd("alice", new Character { Id = "alice", Name = "alice", LifeStage = LifeStage.Adult });
+        return characters;
     }
 }

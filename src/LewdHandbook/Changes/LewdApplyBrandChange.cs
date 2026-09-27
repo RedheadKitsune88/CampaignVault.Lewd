@@ -11,7 +11,7 @@ public sealed class LewdApplyBrandChange : WorldChange
     /// <summary>Catalog id: abundance, addiction, altruism, bestial, betrayal, denial, echoes, emptiness, false_dominance, fertility, infatuation, oaths, ruin, obedience, forsaken, hungry_gaze, transformation.</summary>
     public string? BrandId { get; set; }
 
-    /// <summary>apply | remove | vow | trigger | release | stabilize</summary>
+    /// <summary>apply | remove | vow | trigger | release | stabilize | heal</summary>
     public string Action { get; set; } = "apply";
 
     public int? Tier { get; set; }
@@ -29,7 +29,12 @@ public sealed class LewdApplyBrandChange : WorldChange
     /// <summary>Concubi whose last brand is removed rebrand at tier+1 on the next climax.</summary>
     public bool Concubi { get; set; }
 
+    /// <summary>Transformation save die; 0 rolls it when Rolls is available.</summary>
     public int D20 { get; set; }
 
-    public int ConModifier { get; set; }
+    /// <summary>Omit to read Constitution from the sheet.</summary>
+    public int? ConModifier { get; set; }
+
+    /// <summary>For action=heal (Brand of Altruism): hit points the bearer restored to someone else.</summary>
+    public int? Amount { get; set; }
 }

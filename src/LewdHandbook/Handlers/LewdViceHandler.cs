@@ -23,17 +23,21 @@ public sealed class LewdViceHandler : IWorldChangeHandler
         ViceState.ApplyPendingBadEnd(character, context);
 
         var action = ViceCatalog.Normalize(req.Action);
-        if (action is not ("consume" or "resist" or "note_presence" or "rest"))
-            return ChangeHandlerResult.Failure("action must be consume, resist, note_presence, or rest.");
+        if (action is not ("consume" or "resist" or "note_presence" or "rest" or "treat"))
+            return ChangeHandlerResult.Failure("action must be consume, note_presence, resist, rest, or treat.");
 
         if (string.IsNullOrWhiteSpace(req.ViceId) || !ViceCatalog.TryGet(req.ViceId, out var def))
             return ChangeHandlerResult.Failure("viceId must be sex, sexual_fluids, alcohol, or succubus_venom.");
 
-        var ability = ViceCatalog.AbilityFor(def, req.Ability);
-        if (def.Kind == "complex" && string.IsNullOrWhiteSpace(req.Ability))
-            return ChangeHandlerResult.Failure("complex vices require ability (con, wis, or cha).");
+        if (def.Id != ViceCatalog.Alcohol && !AgeGate.TryPass(character, req.CharacterId, out var ageError))
+            return ChangeHandlerResult.Failure(ageError!);
 
-        var participant = context.ActiveMode?.Participants.FirstOrDefault(p =>
+        var ability = ViceCatalog.AbilityFor(def, req.Ability ?? PregnancyState.Text(character, ViceState.AbilityKey(def.Id)));
+        if (def.Kind == "complex" && action == "consume" && string.IsNullOrWhiteSpace(req.Ability) &&
+            !ViceState.IsAddicted(character, def.Id))
+            return ChangeHandlerResult.Failure("complex vices require ability (con, wis, or cha) for the first addiction save.");
+
+        var participant = LewdModeAccess.TryGetActive(context)?.Participants.FirstOrDefault(p =>
             string.Equals(p.CharacterId, req.CharacterId, StringComparison.OrdinalIgnoreCase));
         var now = await ViceState.HoursNowAsync(context, ct).ConfigureAwait(false);
 
@@ -43,9 +47,10 @@ public sealed class LewdViceHandler : IWorldChangeHandler
                 .ConfigureAwait(false),
             "resist" => await ResistAsync(req, character, participant, def, ability, now, context, ct)
                 .ConfigureAwait(false),
-            "note_presence" => NotePresence(character, def, now, req.InPresence, context),
+            "note_presence" => await NotePresenceAsync(req, character, def, ability, now, context, ct).ConfigureAwait(false),
             "rest" => await RestAsync(req, character, participant, def, ability, now, context, ct)
                 .ConfigureAwait(false),
+            "treat" => Treat(req, character, def),
             _ => ChangeHandlerResult.Failure("unknown action."),
         };
     }
@@ -92,9 +97,12 @@ public sealed class LewdViceHandler : IWorldChangeHandler
         }
 
         ViceState.Consume(character, participant, def, now, ability, became, context, req.ItemId);
+        if (became)
+            ViceState.PublishState(context, character, def, "addicted");
         return ChangeHandlerResult.Ok;
     }
 
+    /// <summary>An explicit temptation save (in withdrawal, or with the vice right there).</summary>
     private static async Task<ChangeHandlerResult> ResistAsync(
         LewdViceChange req,
         Character character,
@@ -111,43 +119,57 @@ public sealed class LewdViceHandler : IWorldChangeHandler
         if (!ViceState.IsWithdrawal(character, def.Id) && !req.InPresence)
             return ChangeHandlerResult.Failure("resist requires withdrawal or inPresence=true.");
 
-        var mod = AbilityScores.Resolve(character, ability, req.AbilityMod);
-        var die = await SaveDice.RollAsync(
-            context, "lewd_vice_resist", req.D20, mod, disadvantage: true, ct).ConfigureAwait(false);
-        if (die.Error is not null)
-            return ChangeHandlerResult.Failure(die.Error);
-        var dc = ViceState.CurrentDc(character, def);
-        if (die.Total < dc)
-        {
-            context.RecordMessage(
-                $"{req.CharacterId} vice {def.Id} resist {ability} save {die.Summary} < DC {dc} (disadv). Narrate giving in and emit lewd_vice action=consume.");
-            return ChangeHandlerResult.Ok;
-        }
-
-        context.RecordMessage(
-            $"{req.CharacterId} vice {def.Id} resist {ability} save {die.Summary} ≥ DC {dc} (disadv). Withdrawal remains until a partake.");
+        var (resisted, message) = await ViceTrack.PresenceSaveAsync(context, character, def, ability, req.D20, req.AbilityMod, ct)
+            .ConfigureAwait(false);
+        if (resisted is null)
+            return ChangeHandlerResult.Failure(message);
+        context.RecordMessage(message);
         _ = participant;
         return ChangeHandlerResult.Ok;
     }
 
-    private static ChangeHandlerResult NotePresence(
+    /// <summary>
+    /// The vice is at hand. In withdrawal the handbook requires a save (rolled here when the host can, or with d20);
+    /// merely addicted, it's the disadvantage reminder.
+    /// </summary>
+    private static async Task<ChangeHandlerResult> NotePresenceAsync(
+        LewdViceChange req,
         Character character,
         ViceDef def,
+        string ability,
         float now,
-        bool inPresence,
-        IChangeContext context)
+        IChangeContext context,
+        CancellationToken ct)
     {
         ViceState.SyncWithdrawal(character, def, now, context);
-        if (ViceState.IsAddicted(character, def.Id) && (ViceState.IsWithdrawal(character, def.Id) || inPresence))
+        if (!ViceState.IsAddicted(character, def.Id))
+            return ChangeHandlerResult.Ok;
+
+        if (!ViceState.IsWithdrawal(character, def.Id))
         {
-            ViceState.AppendThought(character, def.Id);
             context.RecordMessage(
-                $"{character.Id} vice {def.Id} presence temptation. Narrate the intrusive thought, then emit lewd_vice action=resist or consume.");
+                $"{character.Id} is near {def.Id}: disadvantage on checks and saves involving it while it is present. " +
+                "Not in withdrawal, so no compulsion save.");
+            return ChangeHandlerResult.Ok;
         }
 
+        ViceState.AppendThought(character, def.Id);
+        if (req.D20 == 0 && context.Rolls is null && ViceTrack.Aid(character, def.Id) != ViceTrack.Auto)
+        {
+            context.RecordMessage(
+                $"{character.Id} in withdrawal meets {def.Id}: addiction save required. Emit lewd_vice action=resist with d20.");
+            return ChangeHandlerResult.Ok;
+        }
+
+        var (resisted, message) = await ViceTrack.PresenceSaveAsync(context, character, def, ability, req.D20, req.AbilityMod, ct)
+            .ConfigureAwait(false);
+        if (resisted is null)
+            return ChangeHandlerResult.Failure(message);
+        context.RecordMessage(message);
         return ChangeHandlerResult.Ok;
     }
 
+    /// <summary>Fallback for the long-rest withdrawal save when the host could not roll it (no Rolls).</summary>
     private static async Task<ChangeHandlerResult> RestAsync(
         LewdViceChange req,
         Character character,
@@ -165,21 +187,17 @@ public sealed class LewdViceHandler : IWorldChangeHandler
             return ChangeHandlerResult.Ok;
         }
 
-        var mod = AbilityScores.Resolve(character, ability, req.AbilityMod);
-        var die = await SaveDice.RollAsync(
-            context, "lewd_vice_rest", req.D20, mod, disadvantage: true, ct).ConfigureAwait(false);
-        if (die.Error is not null)
-            return ChangeHandlerResult.Failure(die.Error);
-        var dc = ViceState.CurrentDc(character, def);
-        if (die.Total < dc)
-        {
-            ViceState.FailWithdrawal(character, participant, def, die.Face, context);
-            return ChangeHandlerResult.Ok;
-        }
-
-        context.RecordMessage(
-            $"{req.CharacterId} vice {def.Id} withdrawal save {die.Summary} ≥ DC {dc} (disadv).");
-        ViceState.TryCleanOnRestSuccess(character, def, context);
+        var note = await ViceTrack.RestSaveAsync(context, character, participant, def, ability, req.D20, req.AbilityMod, ct)
+            .ConfigureAwait(false);
+        context.RecordMessage(note);
         return ChangeHandlerResult.Ok;
+    }
+
+    private static ChangeHandlerResult Treat(LewdViceChange req, Character character, ViceDef def)
+    {
+        if (!ViceState.IsAddicted(character, def.Id))
+            return ChangeHandlerResult.Failure($"Not addicted to '{def.Id}'.");
+        var error = ViceTrack.Treat(character, def, req.Method ?? "", req.SlotLevel, out var message);
+        return error is null ? new ChangeHandlerResult(true, message) : ChangeHandlerResult.Failure(error);
     }
 }

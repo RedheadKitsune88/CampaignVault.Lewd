@@ -95,7 +95,7 @@ public class ViceTests
 
         Assert.True(result.Success);
         Assert.Equal("true", character.SystemStats.Traits[ViceState.WithdrawalKey("sex")]);
-        Assert.Contains("vice:sex", character.SystemStats.Traits[LewdKeys.IntrusiveThoughts]);
+        Assert.Contains("vice:sex", character.SystemStats.Traits[LewdKeys.TraitIntrusiveThoughts]);
         Assert.Contains(ctx.Messages, m => m.Contains("temptation"));
     }
 
@@ -159,26 +159,11 @@ public class ViceTests
     public async Task Observer_applies_pending_bad_end_vice_on_rest_without_mode()
     {
         var character = Character("bob");
-        character.SystemStats.Traits[LewdKeys.BadEndViceId] = "alcohol";
+        character.SystemStats.Traits[LewdKeys.TraitBadEndViceId] = "alcohol";
         var ctx = new Recorder(character) { ActiveMode = null };
-        var observer = new LewdViceObserver();
-        Assert.True(observer.IsInterestedIn(new RestChange
-        {
-            CharacterId = "bob",
-            LocationId = "loc",
-            RestType = RestType.LongRest,
-            IntendedHours = 8,
-        }, ctx));
+        await new LewdRestHandler().ApplyAsync(new LewdRestChange { CharacterId = "bob", RestType = "long" }, ctx);
 
-        await observer.OnCommittedAsync(new RestChange
-        {
-            CharacterId = "bob",
-            LocationId = "loc",
-            RestType = RestType.LongRest,
-            IntendedHours = 8,
-        }, ctx);
-
-        Assert.False(character.SystemStats.Traits.ContainsKey(LewdKeys.BadEndViceId));
+        Assert.False(character.SystemStats.Traits.ContainsKey(LewdKeys.TraitBadEndViceId));
         Assert.Equal("true", character.SystemStats.Traits[ViceState.AddictedKey("alcohol")]);
         Assert.Equal(10, character.SystemStats.Attributes[ViceState.DcKey("alcohol")]);
         Assert.Contains(character.SystemStats.StatusEffects, e => e.ConditionName == "vice_alcohol");
@@ -188,7 +173,7 @@ public class ViceTests
     public async Task Bad_end_pending_is_consumed_on_first_lewd_vice()
     {
         var character = Character("bob");
-        character.SystemStats.Traits[LewdKeys.BadEndViceId] = "sex";
+        character.SystemStats.Traits[LewdKeys.TraitBadEndViceId] = "sex";
         var ctx = new Recorder(character);
         var result = await new LewdViceHandler().ApplyAsync(new LewdViceChange
         {
@@ -197,7 +182,7 @@ public class ViceTests
             ViceId = "sex",
         }, ctx);
         Assert.True(result.Success);
-        Assert.False(character.SystemStats.Traits.ContainsKey(LewdKeys.BadEndViceId));
+        Assert.False(character.SystemStats.Traits.ContainsKey(LewdKeys.TraitBadEndViceId));
         Assert.Equal("true", character.SystemStats.Traits[ViceState.AddictedKey("sex")]);
     }
 
@@ -229,10 +214,10 @@ public class ViceTests
     }
 
     [Fact]
-    public async Task Rest_observer_uses_sheet_ability_mod_and_disadvantage()
+    public async Task Long_rest_withdrawal_save_is_a_normal_roll_with_the_sheet_modifier()
     {
         var character = new Character
-        {
+        { LifeStage = LifeStage.Adult,
             Id = "bob",
             Name = "bob",
             SystemStats = new Dnd5eExtension { Charisma = 16 },
@@ -249,22 +234,16 @@ public class ViceTests
             Rolls = new FixedRolls(face: 6),
         };
         var rolls = (FixedRolls)ctx.Rolls!;
-        await new LewdViceObserver().OnCommittedAsync(new RestChange
-        {
-            CharacterId = "bob",
-            LocationId = "loc",
-            RestType = RestType.LongRest,
-            IntendedHours = 8,
-        }, ctx);
+        await new LewdRestHandler().ApplyAsync(new LewdRestChange { CharacterId = "bob", RestType = "long" }, ctx);
 
-        // Face 6 + Cha +3 = 9 ≥ DC 8; at base DC a success clears addicted unless locked.
-        Assert.Contains(rolls.Seen, r => r.Mechanic == DiceMechanic.Disadvantage && r.Bonus == 3);
-        Assert.Contains(ctx.Messages, m => m.Contains("withdrawal save") && m.Contains("DC 8"));
+        // Handbook: the long-rest save is a normal roll. Face 6 + Cha +3 = 9 ≥ DC 8; at base DC a success clears it.
+        Assert.Contains(rolls.Seen, r => r.Mechanic == DiceMechanic.Standard && r.Bonus == 3);
+        Assert.Contains(ctx.Messages, m => m.Contains("long-rest save") && m.Contains("DC 8"));
         Assert.NotEqual("true", character.SystemStats.Traits.GetValueOrDefault(ViceState.AddictedKey("sex")));
     }
 
     private static Character Character(string id) => new()
-    {
+    { LifeStage = LifeStage.Adult,
         Id = id,
         Name = id,
         SystemStats = new SystemExtension(),
@@ -308,6 +287,10 @@ private sealed class FixedRolls : IRollService
         public List<string> Messages { get; } = [];
         public CampaignTime Time { get; set; } = new();
         public ModeEncounter? ActiveMode { get; set; }
+        public IReadOnlyDictionary<string, ModeEncounter> ActiveModes =>
+            ActiveMode is { } m
+                ? new Dictionary<string, ModeEncounter>(StringComparer.OrdinalIgnoreCase) { [m.ModeId] = m }
+                : new Dictionary<string, ModeEncounter>(StringComparer.OrdinalIgnoreCase);
         public IReadOnlyDictionary<string, Character> Characters { get; }
         public IReadOnlyDictionary<string, Item> Items { get; } = new Dictionary<string, Item>();
         public IReadOnlyDictionary<string, Location> Locations { get; } = new Dictionary<string, Location>();
@@ -330,6 +313,9 @@ private sealed class FixedRolls : IRollService
         public void RegisterNewItem(Item i) { }
         public void RegisterNewFaction(Faction f) { }
         public void RegisterNewQuest(Quest q) { }
+        public void Publish(string topic, object? data = null) =>
+            Published.Add((topic, data));
+        public List<(string Topic, object? Data)> Published { get; } = [];
         public void RecordMessage(string message) => Messages.Add(message);
         public void RecordPhysicalStateNudge(string message) => Messages.Add(message);
         public void RecordFailure() { }

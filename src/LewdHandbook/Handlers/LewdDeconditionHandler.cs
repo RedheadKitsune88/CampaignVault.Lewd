@@ -28,7 +28,7 @@ public sealed class LewdDeconditionHandler : IWorldChangeHandler
         if (!context.Characters.TryGetValue(req.TargetId, out var character))
             return ChangeHandlerResult.Failure($"Target '{req.TargetId}' is not in the commit context.");
 
-        var participant = context.ActiveMode?.Participants.FirstOrDefault(p =>
+        var participant = LewdModeAccess.TryGetActive(context)?.Participants.FirstOrDefault(p =>
             string.Equals(p.CharacterId, req.TargetId, StringComparison.OrdinalIgnoreCase));
         var wisMod = AbilityScores.Resolve(character, "wis", req.WisMod);
         var die = await SaveDice.RollAsync(
@@ -58,6 +58,18 @@ public sealed class LewdDeconditionHandler : IWorldChangeHandler
 
         var day = await ImprintState.DayAsync(context, ct).ConfigureAwait(false);
         var note = ImprintState.Decondition(participant, character, category, method, face, wisMod, day, out var error);
+        if (note is not null)
+        {
+            context.Publish(
+                Events.LewdEvents.ImprintChanged,
+                new
+                {
+                    characterId = req.TargetId,
+                    category,
+                    level = ImprintState.Level(character, category),
+                    action = "decondition",
+                });
+        }
         if (note is null)
             return ChangeHandlerResult.Failure(error);
         context.RecordMessage(note);
@@ -66,7 +78,7 @@ public sealed class LewdDeconditionHandler : IWorldChangeHandler
 
     private static bool HasDevoted(Character character)
     {
-        var history = PregnancyState.Text(character, LewdKeys.TraitSexualHistory);
+        var history = AnatomyTraits.GetSexualHistory(character);
         if (history is not null && history.Contains("devoted", StringComparison.OrdinalIgnoreCase))
             return true;
         return character.SystemStats.Traits.Keys.Any(k =>

@@ -1,7 +1,9 @@
 # Lewd Handbook — numbing points (stimulation buffer; like temporary HP).
-# Does not stack; choose existing or new. Clears on long rest / depletion.
+# Does not stack; choose existing or new. Cleared on long rest (lewd_rest). ownerManaged keeps it at max 0.
 name: numbing
 description: Numbing points absorb stimulation before arousal increases.
 applicableSystems: [dnd5e]
 recovery: Never
 defaultMax: 0
+ownerManaged: true
+startsAt: zero

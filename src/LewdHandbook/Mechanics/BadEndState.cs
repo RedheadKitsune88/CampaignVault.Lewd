@@ -20,7 +20,8 @@ internal static class BadEndState
         string reason,
         string? sourceId = null,
         string? consequence = null,
-        IChangeContext? context = null)
+        IChangeContext? context = null,
+        bool publish = true)
     {
         var already = IsMarked(participant, character);
         if (participant is not null)
@@ -48,6 +49,19 @@ internal static class BadEndState
             return;
 
         var who = character?.Id ?? participant?.CharacterId ?? "target";
+        if (publish && !already)
+        {
+            context.Publish(Events.LewdEvents.BadEnd, new
+            {
+                characterId = who,
+                reason,
+                consequence,
+                viceId = (string?)null,
+                imprintTrack = (string?)null,
+                imprintJump = (int?)null,
+            });
+        }
+
         var stored = consequence is null ? "" : $" Consequence '{consequence}' stored, not applied.";
         context.RecordMessage(
             $"{who} bad_ended ({reason}).{stored} Follow-up take_turn chooses level_drain, imprint, slave, seedbed, curse, lustbrand, class_change, vice, or narrated. This commit did not drain a level.");
@@ -60,9 +74,9 @@ internal static class BadEndState
         int jump,
         string origin)
     {
-        character.SystemStats.Traits[LewdKeys.BadEndImprintTrack] = track;
-        character.SystemStats.Traits[LewdKeys.BadEndImprintJump] = jump.ToString();
-        character.SystemStats.Traits[LewdKeys.BadEndImprintOrigin] = origin;
+        PregnancyState.Set(character, LewdKeys.TraitBadEndImprintTrack, track);
+        PregnancyState.Set(character, LewdKeys.TraitBadEndImprintJump, jump.ToString());
+        PregnancyState.Set(character, LewdKeys.TraitBadEndImprintOrigin, origin);
         if (participant is null)
             return;
         participant.State[LewdKeys.BadEndImprintTrack] = track;
@@ -72,7 +86,7 @@ internal static class BadEndState
 
     public static void StoreVice(ModeParticipantState? participant, Character character, string viceId)
     {
-        character.SystemStats.Traits[LewdKeys.BadEndViceId] = viceId;
+        PregnancyState.Set(character, LewdKeys.TraitBadEndViceId, viceId);
         if (participant is not null)
             participant.State[LewdKeys.BadEndViceId] = viceId;
     }

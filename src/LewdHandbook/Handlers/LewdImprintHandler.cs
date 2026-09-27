@@ -22,36 +22,34 @@ public sealed class LewdImprintHandler : IWorldChangeHandler
         if (!ImprintMath.IsTrack(category))
             return ChangeHandlerResult.Failure("category must be wanton, training, breeding, ordeal, or cruelty.");
         var source = ImprintMath.Normalize(req.Source);
-        if (!ImprintMath.IsSource(source))
+        if (req.SetLevel is null && !ImprintMath.IsSource(source))
             return ChangeHandlerResult.Failure("source must be training, wanton, bad_end, cruelty, or exposure.");
-        if (!context.Characters.TryGetValue(req.TargetId, out var character))
-            return ChangeHandlerResult.Failure($"Target '{req.TargetId}' is not in the commit context.");
+        if (!AgeGate.TryPassAll(context, out var ageError, req.TargetId))
+            return ChangeHandlerResult.Failure(ageError!);
+        var character = context.Characters[req.TargetId];
 
-        var participant = context.ActiveMode?.Participants.FirstOrDefault(p =>
-            string.Equals(p.CharacterId, req.TargetId, StringComparison.OrdinalIgnoreCase));
-        if (participant is not null &&
-            string.Equals(ConsentGate.GetString(participant, LewdKeys.Consent), LewdKeys.ConsentRevoked, StringComparison.OrdinalIgnoreCase))
+        var participant = LewdModeAccess.TryGetParticipant(context, req.TargetId);
+        if (LewdProfile.IsRevoked(participant, character))
             return ChangeHandlerResult.Failure("consent revoked.");
-        if (ImprintState.HardBlocked(participant, category, req.Tags))
+        var settings = await LewdSettings.ResolveAsync(context, ct).ConfigureAwait(false);
+        if (ImprintState.HardBlocked(participant, character, settings, category, req.Tags))
             return ChangeHandlerResult.Failure($"Hard limit blocks imprint '{category}'.");
 
-        var tone = await IntimacyTone.ResolveAsync(context, ct).ConfigureAwait(false);
-        if (!req.Willing && !req.Accept && tone == IntimacyToneKind.Consensual)
-            return ChangeHandlerResult.Failure("Unwilling lewd_imprint requires intimacyTone fade or grimdark, or willing=true.");
-        if (!req.Willing && tone == IntimacyToneKind.Fade)
+        if (req.SetLevel is { } setLevel)
         {
-            context.RecordPhysicalStateNudge(
-                $"{req.TargetId} imprint under intimacyTone=fade; narrate the lean, not a graphic conditioning scene.");
+            if (setLevel is < 1 or > 3)
+                return ChangeHandlerResult.Failure("setLevel must be 1–3.");
+            var seedDay = await ImprintState.DayAsync(context, ct).ConfigureAwait(false);
+            ImprintState.Seed(participant, character, category, setLevel, req.Willing, seedDay, context, req.AnchorId);
+            PublishChanged(context, req.TargetId, character, category, "set");
+            return ChangeHandlerResult.Ok;
         }
 
-        if (req.Accept)
-        {
-            var consent = participant is null
-                ? LewdKeys.ConsentWilling
-                : ConsentGate.GetString(participant, LewdKeys.Consent) ?? LewdKeys.ConsentWilling;
-            if (string.Equals(consent, LewdKeys.ConsentUnwilling, StringComparison.OrdinalIgnoreCase))
-                return ChangeHandlerResult.Failure("accept requires consent willing or selective.");
-        }
+        if (!req.Willing && !req.Accept && !settings.AllowsUnwanted(character, req.TargetId, out var policyError))
+            return ChangeHandlerResult.Failure($"Unwilling lewd_imprint: {policyError} Or set willing=true.");
+
+        if (req.Accept && LewdProfile.Stance(participant, character) == LewdKeys.ConsentUnwilling)
+            return ChangeHandlerResult.Failure("accept requires stance willing or selective.");
 
         var ability = ImprintMath.Normalize(req.Ability);
         if (ability is not ("wis" or "int"))
@@ -63,7 +61,7 @@ public sealed class LewdImprintHandler : IWorldChangeHandler
         if (delta is < 0 or > 3)
             return ChangeHandlerResult.Failure("delta must be 0–3.");
 
-        var pending = PregnancyState.Text(character, LewdKeys.BadEndImprintTrack);
+        var pending = PregnancyState.Text(character, LewdKeys.TraitBadEndImprintTrack);
         var existing = ImprintState.Find(character, category);
         if (req.Accept && existing is null && delta == 0 &&
             !string.Equals(pending, category, StringComparison.OrdinalIgnoreCase))
@@ -93,27 +91,13 @@ public sealed class LewdImprintHandler : IWorldChangeHandler
         if (req.Accept && !ImprintState.Accept(participant, character, category, day, context) && delta == 0)
             return ChangeHandlerResult.Failure($"No imprint track '{category}' to accept.");
         if (delta > 0)
-            ImprintState.Tick(participant, character, category, req.Willing || req.Accept, delta, day, req.Accept, context);
+            ImprintState.Tick(participant, character, category, req.Willing || req.Accept, delta, day, req.Accept, context, req.AnchorId);
+        PublishChanged(context, req.TargetId, character, category, req.Accept ? "accept" : "tick");
         return ChangeHandlerResult.Ok;
     }
 
-    internal static async Task<(int Value, string? Error)> DieAsync(
-        int d20,
-        IChangeContext context,
-        string tag,
-        CancellationToken ct)
-    {
-        if (d20 is >= 1 and <= 20)
-            return (d20, null);
-        if (context.Rolls is not null && d20 == 0)
-        {
-            var roll = await context.Rolls.RollAsync(new RollRequest { Tag = tag, Expression = "1d20" }, ct).ConfigureAwait(false);
-            var face = roll.IndividualDice.FirstOrDefault();
-            var die = face is >= 1 and <= 20 ? face : Math.Clamp(roll.Result, 1, 20);
-            context.RecordMessage($"Lewd imprint d20 ({tag}): {roll.Summary}.");
-            return (die, null);
-        }
-
-        return (0, "d20 must be between 1 and 20 (or 0 with Rolls to auto-roll).");
-    }
+    private static void PublishChanged(IChangeContext context, string targetId, Character character, string category, string action) =>
+        context.Publish(
+            Events.LewdEvents.ImprintChanged,
+            new { characterId = targetId, category, level = ImprintState.Level(character, category), action });
 }

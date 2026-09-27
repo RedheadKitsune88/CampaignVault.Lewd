@@ -1,159 +1,67 @@
 ---
 name: lewd-catalog
-description: How to use RulesetData spells/conditions/items; prefer StatusEffects; key shipped spell ids.
+description: RulesetData spells/conditions/items; sexual_history; anatomy/implements for lewd_advance.
 metadata:
   type: skill
   plugin: com.campaignvault.lewd-handbook
 ---
 
-# Lewd RulesetData Catalog
+# Catalog
 
-Curated YAML under plugin `RulesetData/dnd5e/`. Host merges last-wins. Prefer these summaries over inventing handbook text.
+Plugin `RulesetData/dnd5e/` merges last-wins. Prefer StatusEffects over free-text adjectives. Prefer YAML ids over invented spells.
 
-## When to use
+## Histories
 
-- Casting or referencing a shipped lewd spell.
-- Applying sexual / bondage conditions.
-- Looking up pool templates or implement stubs.
-- Choosing StatusEffects vs inventing string flags.
+`Traits["lewd_encounter.sexual_history"]` + `Traits["lewd_encounter.recovery_die"]` (+ optional `lewd_encounter.implement_proficiencies`). Mode-prefixed so NPC cards only show them in an active `lewd_encounter`.
 
-## Layout
+| Id | Die | Notes |
+|----|-----|-------|
+| `virgin` | d6 | No natural pleasure proficiency; 1 artificial; verbal cap |
+| `willingly_celibate` | d6 | No artificial; verbal cap |
+| `strictly_vanilla` | d6 | Repro natural only; ≤2 artificial; verbal cap |
+| `modest_lover` | d8 | ≤4 artificial; verbal cap |
+| `devoted_partner` | d8 | ≤4 artificial; modest vs strangers |
+| `promiscuous` | d8 | ≤6 artificial; full verbal |
+| `experienced_kinkster` | d10 | ≤8 artificial; full verbal |
+| `erotic_professional` | d12 | ≤8 artificial; full verbal |
 
-```text
-RulesetData/dnd5e/
-  pools/        arousal, numbing, recovery_dice
-  conditions/   sexual + overstimulation
-  feats/        sexual-history stubs
-  spells/       priority lewd spells
-  items/        finesse_implement (stub)
-  classes/      (optional / sparse)
-  backgrounds/  (optional / sparse)
-```
+Verbal/non-contact stim: modest-tier max +1–2 / no climax until `had_physical`. Engine enforces cap. Recovery dice spend on climax/short rest; long rest regain + arousal −½ max.
 
-Read `mechanicalSummary` / description fields from YAML when resolving a beat. Full prose stays in the operator-local handbook — do not paste OCR into commits.
+## Anatomy / implements
 
-## Prefer engine StatusEffects
+Natural body parts are Traits `lewd_encounter.anatomy.<slot>` (shown on an NPC card only inside a scene). Value: `die=1d8;tags=phallic,natural;size=medium;finesse=false;role=implement|receptive|both`, every part optional. `role` defaults to the slot's role; an unknown slot is an implement. `none` declares the part absent.
 
-For bound and sexual conditions, commit structured `status` / StatusEffects (name, modifiers, duration, recovery hint) rather than only narrating adjectives.
+| Slot | Role | Declared by |
+|------|------|-------------|
+| `hands` | implement, finesse, 1d4 | derived — every humanoid |
+| `mouth` | both, 1d4 | derived — every humanoid |
+| `ass` | receptive | derived — every humanoid |
+| `cock` | implement, 1d8 | **you declare** (aliases: dick, penis) |
+| `pussy` | receptive | **you declare** (aliases: vagina) |
+| `breasts` | receptive | **you declare** (aliases: tits, chest) |
+| `tail` | implement, 1d4 | you declare, when they have one |
 
-| Prefer StatusEffect / condition id | Instead of |
-|------------------------------------|------------|
-| `edging`, `overstimulation`, `denied`, `flustered`, `hyperaroused`, `infatuated`, `intoxicated`, `nymphomanic` | Free-text “they’re really turned on” with no State |
-| Bind implies → `cuffed`, `hobbled`, `encased`, `gagged`, … | Prose-only “tied up” (see `lewd-bindings`) |
+- The plugin derives `hands`, `mouth` and `ass` for anyone with no entry, and writes them (marked `source=default`) onto characters that already have a lewd profile (anatomy, history, stance, limits, kinks). Overwrite one to customise it, or set `none` when they lack it.
+- Bodies differ, so **you** declare `cock`, `pussy` and `breasts` (`none` when absent) plus anything unusual (`tail`, tentacles, a second cock). On entering `lewd_encounter` the engine lists every adult participant that has not answered; declare before narrating anatomy-dependent acts.
+- Non-humanoid or shapeless body (slime, construct, beast): set `lewd_encounter.anatomy.plan=custom` and declare every part yourself; nothing is derived.
+- The engine never *guesses* a receptive part (`pussy`, `breasts`, `ass`) as the dice source. Name it with `anatomyKey` when it does the work in the act.
 
-`lewd_bind` should keep `bindings[]` and StatusEffects aligned. Overstimulation is a **stacking** 1–6 condition (level 6 = Bad-Ended). When the engine stamps it, the effect **name** is `Overstimulation N` (space + level) and `conditionName` is `overstimulation`, so a long rest decrements one level. Do not also narrate a full clear.
+Artificial implements: Item Properties `damageDice`/`damageType`/`implementTags`/`finesse`.
 
-Example:
+`lewd_advance` resolve order: `implementId` → `anatomyKey` → explicit amount/dice → a held item marked as an implement → the character's declared implement parts (pure implements before the mouth; catalogue order) → derived `hands`. Finesse → Dex.
 
-```json
-{
-  "$type": "status",
-  "characterId": "chars/bob",
-  "action": "apply",
-  "effect": {
-    "name": "edging",
-    "conditionName": "edging",
-    "notes": "at max arousal start of turn"
-  }
-}
-```
+## Conditions / pools
 
-## Pools (shipped)
+Pools: `arousal`, `numbing`, `recovery_dice`. Overstim name `Overstimulation N`, `conditionName` `overstimulation` (long rest −1). Also: `edging`, `denied`, `flustered`, `hyperaroused`, `infatuated`, `intoxicated`, `nymphomanic`, `pregnant`, lustbrand/imprint/vice stamps (see `lewd-tracks`).
 
-| Id | Use |
-|----|-----|
-| `arousal` | Current / max; Never recovery |
-| `numbing` | Absorb stim; Never; replace don’t stack |
-| `recovery_dice` | LongRest; faces from `Traits.recovery_die` |
+## Items (definitionName)
 
-## Conditions (shipped)
+Implements: `finesse_implement`, `wooden_dildo`, `glass_wand`, `vibrating_wand`, `flogger`, `paddle`. Bondage: `leather_cuffs`, `armbinder`, `spreader_bar`, `ball_gag`, `blindfold`, `hood`, `bitchsuit`, `tar_bandages`, `rope_coil`. Jewelry: `nipple_clamps`. Contraceptives: `condom`, `oil_of_impotence`, `potion_of_infertility`, `beads_of_prevention`. Spawn via `world_build` + `definitionName`.
 
-| Id | Role |
-|----|------|
-| `edging` | At max; climax saves; max stim on hits; half move or prone |
-| `overstimulation` | Stacking exhaustion-like 1–6 |
-| `bad_ended` | Permanent sexual defeat. Engine does not drain levels. See `lewd-bad-ending` |
-| `denied` | Cannot climax; auto-succeed climax saves |
-| `flustered` | Social stun-like |
-| `hyperaroused` | Disadv resist indirect; martial adv vs them |
-| `infatuated` | Charmed-like; willing to source; Inhibition benefit suppressed |
-| `intoxicated` | Disadv Int/Wis/Cha saves |
-| `nymphomanic` | Hyperaroused + intoxicated; willing; Inhibition ≤ 0; must pursue sex |
-| `pregnant` | Str/Dex disadv, crit 18–20, rest poison, termination save. Verb: `lewd_pregnancy` |
-| `lustbrand:<id>` | Per-brand curse. Name `Lustbrand: <Title>`. Verb: `lewd_apply_brand`. See `lewd-brands` |
-| `imprint:<id>` | Level-3 fetish track. Name `Imprint: <Title>`. Verb: `lewd_imprint`. See `lewd-imprints-conditioning` |
-| `hyperfertile` / `hypervirile` / `infertile` | Fertility modifiers. See `lewd-pregnancy` |
+## Spells (priority ids)
 
-## Feats (sexual-history stubs shipped)
-
-`virgin`, `willingly_celibate`, `modest_lover`, `experienced_kinkster`, `erotic_professional` — see `lewd-sexual-histories` for the full eight (including `devoted_partner`, `promiscuous`, `strictly_vanilla`).
-
-## Items
-
-Create live instances with `world_build` `items[]` + `definitionName` (copies category/tags/properties/equipZones/equipLayer once). Categories/zones are open strings (`Implement`, `Bondage`, `Jewelry`, custom `nipples`, …).
-
-Contraceptive stubs: `condom`, `oil_of_impotence`, `potion_of_infertility`, `beads_of_prevention`. Pass the matching `contraceptive` on `lewd_pregnancy`; the engine does not consume charges.
-
-| definitionName | category | zones / layer | Role |
-|----------------|----------|---------------|------|
-| `finesse_implement` | Implement | MainHand / Held | Artificial implement; finesse → Dex for stim bonus |
-| `wooden_dildo` | Implement | MainHand / Held | Phallic 1d6 piercing |
-| `glass_wand` | Implement | MainHand / Held | Finesse wand 1d4 piercing |
-| `vibrating_wand` | Implement | MainHand / Held | Thunder 1d6 vibration |
-| `flogger` | Implement | MainHand / Held | Impact 1d4 slashing |
-| `paddle` | Implement | MainHand / Held | Impact 1d6 bludgeoning |
-| `nipple_clamps` | Jewelry | nipples / Base | Worn clamps; 1d4 piercing on tug |
-| `leather_cuffs` | Bondage | Wrists / Base | Cuffs; orientation required |
-| `armbinder` | Bondage | Wrists+Hands / Base | Arms rear-bound |
-| `spreader_bar` | Bondage | Legs / Base | Ankles apart; hobbled |
-| `ball_gag` | Bondage | Face / Base | Gagged |
-| `blindfold` | Bondage | Face / Outer | Blinded |
-| `hood` | Clothing | Head / Outer | Blinded + gagged |
-| `bitchsuit` | Bondage | Torso+Legs+Hands+Head / Base | Encased crawl-suit |
-| `tar_bandages` | Bondage | Torso / Base | Hardenable wrap |
-| `rope_coil` | Tool | MainHand / Held | Versatile tie |
-| `*_pack` | Container | — | Starting kits (not equippable) |
-
-Extend with campaign Items using Properties from `lewd-implements-anatomy`.
-
-## Priority spells (shipped ids)
-
-Use these ids when the ruleset_action / spell commit expects a definition name:
-
-| Id | Snapshot |
-|----|----------|
-| `handjob` | Skilled/martial touch stim cantrip-tier |
-| `lubricate` | Orifice/size safety for penetration |
-| `vibration` | Natural implement magical; spellcasting ability; +thunder stim |
-| `tentacle` | Conjure tentacle advance source |
-| `numbing_sensation` | Apply numbing points |
-| `heatwave` | Area/heat stim / hyperarousal pressure |
-| `magecock` | Spectral implement; bonus-action move + advance |
-| `instant_recovery` | Recovery / arousal relief |
-| `word_of_safety` | Safeword; free from nonmagical bindings; end restrained/grappled |
-| `incite_lust` | Drive lust / hyperarousal |
-| `suppress_inhibition` | Crush Inhibition benefit |
-| `stunning_orgasm` | Climax-adjacent control |
-| `power_word_cum` | Forced climax → `lewd_climax_check` with `forceClimax: true` |
-
-Example pairing:
-
-```json
-{
-  "$type": "lewd_climax_check",
-  "targetId": "chars/bob",
-  "d20": 1,
-  "forceClimax": true,
-  "notes": "power_word_cum"
-}
-```
-
-For `word_of_safety` triggers, follow with `lewd_unbind` on non-`hardened` entries and clear restrained/grappled StatusEffects.
+`handjob`, `lubricate`, `vibration`, `tentacle`, `numbing_sensation`, `heatwave`, `magecock`, `instant_recovery`, `word_of_safety` (+`lewd_unbind` non-hardened), `incite_lust`, `suppress_inhibition`, `stunning_orgasm`, `power_word_cum` → `lewd_climax_check` `forceClimax`.
 
 ## Do not
 
-- Invent spell names that collide with shipped ids but change mechanics.
-- Apply bondage conditions without updating `bindings[]`.
-- Assume the catalog is the full handbook — it is curated priority content only.
-
-Also see `lewd-vices` for addiction StatusEffects `vice_*` and yaml under `RulesetData/dnd5e/vices/`.
+Collide shipped spell ids with different mechanics. Bondage StatusEffects without `bindings[]`. Treat this as the full handbook — priority curated only.

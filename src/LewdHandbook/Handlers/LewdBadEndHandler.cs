@@ -30,9 +30,8 @@ public sealed class LewdBadEndHandler : IWorldChangeHandler
         if (!BadEndMath.IsVerbReason(req.Reason))
             return ChangeHandlerResult.Failure("reason must be defeat or explicit.");
 
-        var mode = context.ActiveMode;
-        if (mode is null || !mode.IsActive ||
-            !string.Equals(mode.ModeId, LewdEncounterMode.ModeIdValue, StringComparison.OrdinalIgnoreCase))
+        var mode = LewdModeAccess.TryGetActive(context);
+        if (mode is null)
         {
             return ChangeHandlerResult.Failure("lewd_bad_end requires an active lewd_encounter.");
         }
@@ -41,14 +40,18 @@ public sealed class LewdBadEndHandler : IWorldChangeHandler
             string.Equals(p.CharacterId, req.TargetId, StringComparison.OrdinalIgnoreCase));
         if (participant is null)
             return ChangeHandlerResult.Failure($"Target '{req.TargetId}' is not in the lewd encounter.");
-        if (string.Equals(ConsentGate.GetString(participant, LewdKeys.Consent), LewdKeys.ConsentRevoked, StringComparison.OrdinalIgnoreCase))
-            return ChangeHandlerResult.Failure("consent revoked.");
         if (!context.Characters.TryGetValue(req.TargetId, out var character))
             return ChangeHandlerResult.Failure($"Target '{req.TargetId}' is not in the commit context.");
+        if (LewdProfile.IsRevoked(participant, character))
+            return ChangeHandlerResult.Failure("consent revoked.");
 
-        var tone = await IntimacyTone.ResolveAsync(context, ct).ConfigureAwait(false);
-        if (tone == IntimacyToneKind.Consensual)
-            return ChangeHandlerResult.Failure("lewd_bad_end requires intimacyTone fade or grimdark.");
+        if (!AgeGate.TryPass(character, req.TargetId, out var ageError))
+            return ChangeHandlerResult.Failure(ageError!);
+
+        // A bad end is a defeat by definition, so it needs the player's non-consent setting to allow it for this target.
+        var settings = await LewdSettings.ResolveAsync(context, ct).ConfigureAwait(false);
+        if (!settings.AllowsUnwanted(character, req.TargetId, out var policyError))
+            return ChangeHandlerResult.Failure($"lewd_bad_end: {policyError}");
 
         var consequence = string.IsNullOrWhiteSpace(req.Consequence) ? null : req.Consequence.Trim().ToLowerInvariant();
         if (consequence is not null && !Consequences.Contains(consequence))
@@ -66,17 +69,13 @@ public sealed class LewdBadEndHandler : IWorldChangeHandler
                 return ChangeHandlerResult.Failure("imprintJump must be 1–3.");
         }
 
-        if (consequence == "vice" && string.IsNullOrWhiteSpace(req.ViceId))
-            return ChangeHandlerResult.Failure("vice requires viceId.");
+        if (consequence == "vice" && !ViceCatalog.TryGet(req.ViceId, out _))
+            return ChangeHandlerResult.Failure("vice requires viceId: sex, sexual_fluids, alcohol, or succubus_venom.");
 
-        if (tone == IntimacyToneKind.Fade)
-        {
-            context.RecordPhysicalStateNudge(
-                $"{req.TargetId} bad-end recorded under intimacyTone=fade; narrate a fade, not a graphic defeat.");
-        }
+        settings.Narrate(context);
 
         var reason = req.Reason.Trim().ToLowerInvariant();
-        BadEndState.Apply(participant, character, reason, sourceId: "lewd_bad_end", consequence, context);
+        BadEndState.Apply(participant, character, reason, sourceId: "lewd_bad_end", consequence, context, publish: false);
         if (track is not null)
         {
             BadEndState.StoreImprint(participant, character, track, jump, req.ImprintWilling ? "willing" : "unwilling");
@@ -85,6 +84,18 @@ public sealed class LewdBadEndHandler : IWorldChangeHandler
         }
         if (consequence == "vice")
             BadEndState.StoreVice(participant, character, req.ViceId!.Trim());
+
+        context.Publish(
+            Events.LewdEvents.BadEnd,
+            new
+            {
+                characterId = req.TargetId,
+                reason,
+                consequence,
+                viceId = consequence == "vice" ? req.ViceId?.Trim() : null,
+                imprintTrack = track,
+                imprintJump = track is null ? null : (int?)jump,
+            });
         return ChangeHandlerResult.Ok;
     }
 }

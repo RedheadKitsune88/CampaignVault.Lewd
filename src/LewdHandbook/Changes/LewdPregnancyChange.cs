@@ -10,7 +10,7 @@ public sealed class LewdPregnancyChange : WorldChange
 
     public string? ActorId { get; set; }
 
-    /// <summary>impregnate | advance | rest | terminate | termination_save</summary>
+    /// <summary>impregnate | advance | rest | birth | terminate | termination_save</summary>
     public string Action { get; set; } = "impregnate";
 
     /// <summary>traditional | nontraditional</summary>
@@ -52,6 +52,9 @@ public sealed class LewdPregnancyChange : WorldChange
     public int? ProgressDelta { get; set; }
 
     public int? ProgressOnSuccess { get; set; }
+
+    /// <summary>Term length in days for this pregnancy (default: 270 traditional, 3 nontraditional). Progress follows campaign time.</summary>
+    public int? TermDays { get; set; }
 
     public string? Notes { get; set; }
 }

@@ -3,7 +3,8 @@ using CampaignVault.Models;
 
 namespace LewdHandbook.Mechanics;
 
-internal readonly record struct ImprintTrack(string Id, int Points, int Level, string Origin, int LastDay);
+/// <param name="AnchorId">Who the conditioning is tied to (a captor, a trusted partner); null = anyone.</param>
+internal readonly record struct ImprintTrack(string Id, int Points, int Level, string Origin, int LastDay, string? AnchorId = null);
 
 internal static class ImprintState
 {
@@ -22,9 +23,12 @@ internal static class ImprintState
             var points = int.TryParse(bits[1], out var p) ? p : 0;
             var origin = bits[3] == "willing" ? "willing" : "unwilling";
             var day = bits.Length > 4 && int.TryParse(bits[4], out var d) ? d : 0;
+            var anchor = bits.Length > 5 ? string.Join(':', bits[5..]).Trim() : null;
             if (points <= 0)
                 continue;
-            list.Add(new ImprintTrack(ImprintMath.Normalize(bits[0]), points, ImprintMath.LevelFor(points), origin, day));
+            list.Add(new ImprintTrack(
+                ImprintMath.Normalize(bits[0]), points, ImprintMath.LevelFor(points), origin, day,
+                string.IsNullOrWhiteSpace(anchor) ? null : anchor));
         }
 
         return list;
@@ -33,15 +37,25 @@ internal static class ImprintState
     public static string Format(IEnumerable<ImprintTrack> tracks) =>
         string.Join("|", tracks
             .Where(t => t.Points > 0)
-            .Select(t => $"{t.Id}:{t.Points}:{ImprintMath.LevelFor(t.Points)}:{t.Origin}:{t.LastDay}"));
+            .Select(t => $"{t.Id}:{t.Points}:{ImprintMath.LevelFor(t.Points)}:{t.Origin}:{t.LastDay}{(t.AnchorId is null ? "" : ":" + t.AnchorId)}"));
+
+    /// <summary>
+    /// Inhibition lost to unwilling imprints against <paramref name="actorId"/>: an imprint tied to someone only weighs
+    /// against that someone (learned helplessness toward the captor, not toward everyone); an untied one against all.
+    /// </summary>
+    public static int InhibitionPenalty(Character? character, string? actorId) =>
+        Parse(PregnancyState.Text(character, LewdKeys.TraitImprints))
+            .Where(t => t.Origin != "willing" &&
+                        (t.AnchorId is null || string.Equals(t.AnchorId, actorId, StringComparison.OrdinalIgnoreCase)))
+            .Sum(t => t.Level);
 
     public static bool HasAny(Character? character) =>
-        Parse(PregnancyState.Text(character, LewdKeys.Imprints)).Count > 0;
+        Parse(PregnancyState.Text(character, LewdKeys.TraitImprints)).Count > 0;
 
     public static ImprintTrack? Find(Character? character, string id)
     {
         var key = ImprintMath.Normalize(id);
-        foreach (var track in Parse(PregnancyState.Text(character, LewdKeys.Imprints)))
+        foreach (var track in Parse(PregnancyState.Text(character, LewdKeys.TraitImprints)))
         {
             if (track.Id == key)
                 return track;
@@ -59,19 +73,20 @@ internal static class ImprintState
         _ => false,
     };
 
-    public static bool HardBlocked(ModeParticipantState? participant, string track, IEnumerable<string>? tags)
+    public static bool HardBlocked(
+        ModeParticipantState? participant,
+        Character? character,
+        LewdSettings settings,
+        string track,
+        IEnumerable<string>? tags)
     {
-        if (participant is null)
-            return false;
-        var hard = ConsentGate.GetStringList(participant, LewdKeys.HardLimits);
+        var hard = LewdProfile.HardLimits(participant, character).Concat(settings.HardLimits).ToList();
         if (hard.Count == 0)
             return false;
-        if (hard.Any(h => string.Equals(h, track, StringComparison.OrdinalIgnoreCase) ||
-                          string.Equals(h, "imprint", StringComparison.OrdinalIgnoreCase)))
-            return true;
-        if (tags is null)
-            return false;
-        return hard.Any(h => tags.Any(t => string.Equals(h, t, StringComparison.OrdinalIgnoreCase)));
+        var probe = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { track, "imprint" };
+        if (tags is not null)
+            probe.UnionWith(tags.Where(t => !string.IsNullOrWhiteSpace(t)));
+        return hard.Any(probe.Contains);
     }
 
     public static int SufferingBonus(Character? actor, IEnumerable<string>? tags, int targetOverstim) =>
@@ -86,14 +101,14 @@ internal static class ImprintState
 
     public static void ConsumeJump(ModeParticipantState? participant, Character character, int day, IChangeContext? context)
     {
-        var track = PregnancyState.Text(character, LewdKeys.BadEndImprintTrack);
+        var track = PregnancyState.Text(character, LewdKeys.TraitBadEndImprintTrack);
         if (string.IsNullOrWhiteSpace(track) || !ImprintMath.IsTrack(track))
             return;
-        var jump = PregnancyState.Int(character, LewdKeys.BadEndImprintJump);
+        var jump = PregnancyState.Int(character, LewdKeys.TraitBadEndImprintJump);
         if (jump < 1)
             jump = 3;
         jump = Math.Clamp(jump, 1, 3);
-        var origin = PregnancyState.Text(character, LewdKeys.BadEndImprintOrigin) == "willing" ? "willing" : "unwilling";
+        var origin = PregnancyState.Text(character, LewdKeys.TraitBadEndImprintOrigin) == "willing" ? "willing" : "unwilling";
         var jumped = ImprintMath.Normalize(track);
         Write(participant, character, jumped, ImprintMath.PointsFor(jump), origin, day, forceOrigin: true, context);
         SetExposed(character, jumped);
@@ -110,7 +125,8 @@ internal static class ImprintState
         int delta,
         int day,
         bool convert,
-        IChangeContext? context)
+        IChangeContext? context,
+        string? anchorId = null)
     {
         ConsumeJump(participant, character, day, context);
         id = ImprintMath.Normalize(id);
@@ -121,10 +137,28 @@ internal static class ImprintState
         if (existing is not null && !convert)
             origin = existing.Value.Origin;
         var points = (existing?.Points ?? 0) + Math.Clamp(delta, 1, 3);
-        Write(participant, character, id, points, origin, day, forceOrigin: true, context);
+        Write(participant, character, id, points, origin, day, forceOrigin: true, context, anchorId ?? existing?.AnchorId);
         SetExposed(character, id);
         context?.RecordMessage(
             $"{character.Id} imprint {id} +{Math.Clamp(delta, 1, 3)} → {points} (level {ImprintMath.LevelFor(points)}, {origin}).");
+    }
+
+    /// <summary>Sets a track to exactly <paramref name="level"/> (backstory), keeping any higher existing points.</summary>
+    public static void Seed(
+        ModeParticipantState? participant,
+        Character character,
+        string id,
+        int level,
+        bool willing,
+        int day,
+        IChangeContext? context,
+        string? anchorId = null)
+    {
+        id = ImprintMath.Normalize(id);
+        var points = Math.Max(ImprintMath.PointsFor(Math.Clamp(level, 1, 3)), Find(character, id)?.Points ?? 0);
+        var origin = willing ? "willing" : "unwilling";
+        Write(participant, character, id, points, origin, day, forceOrigin: true, context, anchorId ?? Find(character, id)?.AnchorId);
+        context?.RecordMessage($"{character.Id} imprint {id} seeded at level {ImprintMath.LevelFor(points)} ({origin}).");
     }
 
     public static bool Accept(ModeParticipantState? participant, Character character, string id, int day, IChangeContext? context)
@@ -133,7 +167,7 @@ internal static class ImprintState
         var existing = Find(character, id);
         if (existing is null)
             return false;
-        Write(participant, character, existing.Value.Id, existing.Value.Points, "willing", existing.Value.LastDay, forceOrigin: true, context);
+        Write(participant, character, existing.Value.Id, existing.Value.Points, "willing", existing.Value.LastDay, forceOrigin: true, context, existing.Value.AnchorId);
         context?.RecordMessage($"{character.Id} accepted imprint {existing.Value.Id}. Origin is willing. Buffs apply; unwilling debuffs drop.");
         return true;
     }
@@ -189,10 +223,15 @@ internal static class ImprintState
             Write(participant, character, id, points, existing.Value.Origin, day, forceOrigin: true, context: null);
         ClearExposed(character, id);
         if (method == "rest")
-            character.SystemStats.Traits[RestDayKey(id)] = day.ToString();
+            PregnancyState.Set(character, RestDayKey(id), day.ToString());
         return $"{character.Id} imprint {id} decondition {die}+{wisMod}={total} ≥ DC {dc}. −{drop} → {points} (level {ImprintMath.LevelFor(points)}).";
     }
 
+    /// <summary>
+    /// Imprint pressure from an act. Inside a lewd scene it only records the tracks in the scene ledger — at most
+    /// one tick per track per scene, resolved by <see cref="ResolveSceneAsync"/> when the encounter ends. Outside a
+    /// scene it resolves at once.
+    /// </summary>
     public static async Task AutoAsync(
         IChangeContext context,
         ModeParticipantState? participant,
@@ -200,70 +239,130 @@ internal static class ImprintState
         IEnumerable<string>? tags,
         bool wanted,
         bool bitchsuit,
-        CancellationToken ct)
+        CancellationToken ct,
+        string? anchorId = null)
     {
         if (character is null)
             return;
-        var tracks = ImprintMath.TracksFor(tags, bitchsuit);
+        if (string.Equals(anchorId, character.Id, StringComparison.OrdinalIgnoreCase))
+            anchorId = null;
+        var tagList = tags?.ToList() ?? [];
+        var tracks = ImprintMath.TracksFor(tagList, bitchsuit);
         if (tracks.Count == 0)
             return;
 
-        var tone = await IntimacyTone.ResolveAsync(context, ct).ConfigureAwait(false);
-        var day = await DayAsync(context, ct).ConfigureAwait(false);
+        var inScene = LewdModeAccess.TryGetParticipant(context, character.Id) is not null;
+        var settings = await LewdSettings.ResolveAsync(context, ct).ConfigureAwait(false);
+        var ledger = inScene ? ReadLedger(character) : null;
+        var day = inScene ? 0 : await DayAsync(context, ct).ConfigureAwait(false);
         foreach (var id in tracks)
         {
-            if (HardBlocked(participant, id, tags))
+            if (HardBlocked(participant, character, settings, id, tagList))
             {
                 context.RecordMessage($"{character.Id} hard limit blocks imprint '{id}'. Hard limits never imprint.");
                 continue;
             }
 
-            if (wanted)
+            if (ledger is not null)
             {
-                Tick(participant, character, id, willing: true, delta: 1, day, convert: false, context);
+                // Unwilling pressure outweighs willing within one scene; the first to press it is its anchor.
+                if (!ledger.TryGetValue(id, out var already) || (already.Wanted && !wanted))
+                    ledger[id] = (wanted, already.Anchor ?? anchorId);
                 continue;
             }
 
-            if (tone == IntimacyToneKind.Consensual)
-            {
-                context.RecordMessage($"{character.Id} unwilling imprint '{id}' skipped: intimacyTone=consensual.");
-                continue;
-            }
-
-            if (tone == IntimacyToneKind.Fade)
-            {
-                context.RecordPhysicalStateNudge(
-                    $"{character.Id} unwilling imprint '{id}' under intimacyTone=fade; narrate the lean, not a graphic conditioning scene.");
-            }
-
-            if (context.Rolls is null)
-            {
-                context.RecordMessage(
-                    $"{character.Id} imprint '{id}' suggested (unwilling). Emit lewd_imprint with a WIS or INT save (DC {ImprintMath.ResistDc(Level(character, id), 0)}) to negate. This beat did not tick.");
-                continue;
-            }
-
-            var abilityMod = AbilityScores.Mod(character, "wis");
-            var roll = await SaveDice.RollAsync(
-                context, "lewd_imprint_resist", faceOrZero: 0, abilityMod, disadvantage: false, ct).ConfigureAwait(false);
-            if (roll.Error is not null)
-            {
-                context.RecordMessage($"{character.Id} imprint '{id}': {roll.Error}");
-                continue;
-            }
-
-            var dc = ImprintMath.ResistDc(Level(character, id), 0);
-            context.RecordMessage(
-                $"Lewd imprint resist {id}: {roll.Summary} vs DC {dc} (wis from sheet; pass abilityMod on lewd_imprint to override).");
-            if (roll.Total >= dc)
-            {
-                context.RecordMessage($"{character.Id} resisted imprint '{id}'.");
-                continue;
-            }
-
-            Tick(participant, character, id, willing: false, delta: 1, day, convert: false, context);
+            await ResolveTickAsync(context, participant, character, id, wanted, settings, day, ct, anchorId).ConfigureAwait(false);
         }
+
+        if (ledger is not null)
+            WriteLedger(character, ledger);
     }
+
+    /// <summary>Resolves and clears the scene ledger: one tick (or resist save) per recorded track.</summary>
+    public static async Task ResolveSceneAsync(IChangeContext context, Character character, CancellationToken ct)
+    {
+        var ledger = ReadLedger(character);
+        character.SystemStats.Traits.Remove(LewdKeys.TraitSceneImprints);
+        if (ledger.Count == 0)
+            return;
+
+        var settings = await LewdSettings.ResolveAsync(context, ct).ConfigureAwait(false);
+        var day = await DayAsync(context, ct).ConfigureAwait(false);
+        foreach (var (id, entry) in ledger.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+            await ResolveTickAsync(context, null, character, id, entry.Wanted, settings, day, ct, entry.Anchor).ConfigureAwait(false);
+    }
+
+    private static async Task ResolveTickAsync(
+        IChangeContext context,
+        ModeParticipantState? participant,
+        Character character,
+        string id,
+        bool wanted,
+        LewdSettings settings,
+        int day,
+        CancellationToken ct,
+        string? anchorId = null)
+    {
+        if (wanted)
+        {
+            Tick(participant, character, id, willing: true, delta: 1, day, convert: false, context, anchorId);
+            return;
+        }
+
+        if (!settings.AllowsUnwanted(character, character.Id, out _))
+        {
+            context.RecordMessage($"{character.Id} unwilling imprint '{id}' skipped: lewdNonConsent does not allow it for them.");
+            return;
+        }
+
+        if (context.Rolls is null)
+        {
+            context.RecordMessage(
+                $"{character.Id} imprint '{id}' suggested (unwilling). Emit lewd_imprint with a WIS or INT save (DC {ImprintMath.ResistDc(Level(character, id), 0)}) to negate. This did not tick.");
+            return;
+        }
+
+        var abilityMod = AbilityScores.Mod(character, "wis");
+        var roll = await SaveDice.RollAsync(
+            context, "lewd_imprint_resist", faceOrZero: 0, abilityMod, disadvantage: false, ct).ConfigureAwait(false);
+        if (roll.Error is not null)
+        {
+            context.RecordMessage($"{character.Id} imprint '{id}': {roll.Error}");
+            return;
+        }
+
+        var dc = ImprintMath.ResistDc(Level(character, id), 0);
+        context.RecordMessage(
+            $"Lewd imprint resist {id}: {roll.Summary} vs DC {dc} (wis from sheet; pass abilityMod on lewd_imprint to override).");
+        if (roll.Total >= dc)
+        {
+            context.RecordMessage($"{character.Id} resisted imprint '{id}'.");
+            return;
+        }
+
+        Tick(participant, character, id, willing: false, delta: 1, day, convert: false, context, anchorId);
+    }
+
+    private static Dictionary<string, (bool Wanted, string? Anchor)> ReadLedger(Character character)
+    {
+        var ledger = new Dictionary<string, (bool Wanted, string? Anchor)>(StringComparer.OrdinalIgnoreCase);
+        var raw = PregnancyState.Text(character, LewdKeys.TraitSceneImprints);
+        if (string.IsNullOrWhiteSpace(raw))
+            return ledger;
+        foreach (var part in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var bits = part.Split(':', 3, StringSplitOptions.TrimEntries);
+            if (ImprintMath.IsTrack(bits[0]))
+                ledger[ImprintMath.Normalize(bits[0])] = (bits.Length > 1 && bits[1] == "willing", bits.Length > 2 && bits[2].Length > 0 ? bits[2] : null);
+        }
+
+        return ledger;
+    }
+
+    private static void WriteLedger(Character character, Dictionary<string, (bool Wanted, string? Anchor)> ledger) =>
+        PregnancyState.Set(character, LewdKeys.TraitSceneImprints,
+            string.Join(",", ledger.OrderBy(kv => kv.Key, StringComparer.Ordinal)
+                .Select(kv => $"{kv.Key}:{(kv.Value.Wanted ? "willing" : "unwilling")}{(kv.Value.Anchor is null ? "" : ":" + kv.Value.Anchor)}")));
 
     public static async Task OnLongRestAsync(
         Character character,
@@ -272,7 +371,7 @@ internal static class ImprintState
         CancellationToken ct)
     {
         var day = await DayAsync(context, ct).ConfigureAwait(false);
-        foreach (var track in Parse(PregnancyState.Text(character, LewdKeys.Imprints)))
+        foreach (var track in Parse(PregnancyState.Text(character, LewdKeys.TraitImprints)))
         {
             if (Exposed(character, track.Id))
             {
@@ -321,13 +420,13 @@ internal static class ImprintState
     {
         if (string.IsNullOrWhiteSpace(removed))
             return;
-        foreach (var track in Parse(PregnancyState.Text(character, LewdKeys.Imprints)))
+        foreach (var track in Parse(PregnancyState.Text(character, LewdKeys.TraitImprints)))
         {
             if (track.Level < 3)
                 continue;
             if (!StatusMatches(removed, track.Id))
                 continue;
-            Stamp(character, track.Id, track.Level, track.Origin);
+            Stamp(character, track.Id, track.Level, track.Origin, track.AnchorId);
         }
     }
 
@@ -338,7 +437,7 @@ internal static class ImprintState
         PregnancyState.Set(character, ExposedKey(id), "true");
 
     public static void ClearExposed(Character character, string id) =>
-        character.SystemStats.Traits.Remove(ExposedKey(id));
+        PregnancyState.Remove(character, ExposedKey(id));
 
     public static async Task<int> DayAsync(IChangeContext context, CancellationToken ct)
     {
@@ -361,29 +460,31 @@ internal static class ImprintState
         string origin,
         int day,
         bool forceOrigin,
-        IChangeContext? context)
+        IChangeContext? context,
+        string? anchorId = null)
     {
-        var tracks = Parse(PregnancyState.Text(character, LewdKeys.Imprints)).ToList();
+        var tracks = Parse(PregnancyState.Text(character, LewdKeys.TraitImprints)).ToList();
         var index = tracks.FindIndex(t => t.Id == id);
         var keptOrigin = !forceOrigin && index >= 0 ? tracks[index].Origin : origin;
+        var anchor = anchorId ?? (index >= 0 ? tracks[index].AnchorId : null);
         if (index >= 0)
-            tracks[index] = new ImprintTrack(id, points, ImprintMath.LevelFor(points), keptOrigin, day);
+            tracks[index] = new ImprintTrack(id, points, ImprintMath.LevelFor(points), keptOrigin, day, anchor);
         else
-            tracks.Add(new ImprintTrack(id, points, ImprintMath.LevelFor(points), keptOrigin, day));
-        PregnancyState.Set(character, LewdKeys.Imprints, Format(tracks));
+            tracks.Add(new ImprintTrack(id, points, ImprintMath.LevelFor(points), keptOrigin, day, anchor));
+        PregnancyState.Set(character, LewdKeys.TraitImprints, Format(tracks));
         ApplyEffects(participant, character, tracks);
         _ = context;
     }
 
     private static void Remove(ModeParticipantState? participant, Character character, string id)
     {
-        var tracks = Parse(PregnancyState.Text(character, LewdKeys.Imprints)).Where(t => t.Id != id).ToList();
+        var tracks = Parse(PregnancyState.Text(character, LewdKeys.TraitImprints)).Where(t => t.Id != id).ToList();
         if (tracks.Count == 0)
-            character.SystemStats.Traits.Remove(LewdKeys.Imprints);
+            PregnancyState.Remove(character, LewdKeys.TraitImprints);
         else
-            PregnancyState.Set(character, LewdKeys.Imprints, Format(tracks));
-        character.SystemStats.Traits.Remove(FeatKey(id));
-        character.SystemStats.Traits.Remove(ExposedKey(id));
+            PregnancyState.Set(character, LewdKeys.TraitImprints, Format(tracks));
+        PregnancyState.Remove(character, FeatKey(id));
+        PregnancyState.Remove(character, ExposedKey(id));
         character.SystemStats.StatusEffects.RemoveAll(e => StatusMatches(e.Name, id) || StatusMatches(e.ConditionName, id));
         ApplyEffects(participant, character, tracks);
     }
@@ -399,11 +500,11 @@ internal static class ImprintState
                 EnsureKink(participant, track.Id);
             if ((unwilling && track.Level >= 1) || (!unwilling && track.Level >= 3))
                 thoughts.Add("imprint:" + track.Id);
-            if (unwilling)
+            if (unwilling && track.AnchorId is null)
                 inhib += track.Level;
             if (track.Level >= 3)
             {
-                Stamp(character, track.Id, track.Level, track.Origin);
+                Stamp(character, track.Id, track.Level, track.Origin, track.AnchorId);
                 var feat = FeatStub(track.Id);
                 if (feat is not null)
                     PregnancyState.Set(character, FeatKey(track.Id), feat);
@@ -411,26 +512,29 @@ internal static class ImprintState
             else
             {
                 character.SystemStats.StatusEffects.RemoveAll(e => StatusMatches(e.Name, track.Id) || StatusMatches(e.ConditionName, track.Id));
-                character.SystemStats.Traits.Remove(FeatKey(track.Id));
+                PregnancyState.Remove(character, FeatKey(track.Id));
             }
         }
 
-        var thoughtText = string.Join(",", thoughts.Distinct().OrderBy(t => t));
+        var others = (PregnancyState.Text(character, LewdKeys.TraitIntrusiveThoughts) ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(t => !t.StartsWith("imprint:", StringComparison.OrdinalIgnoreCase));
+        var thoughtText = string.Join(",", thoughts.Concat(others).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(t => t, StringComparer.Ordinal));
         if (thoughtText.Length == 0)
-            character.SystemStats.Traits.Remove(LewdKeys.IntrusiveThoughts);
+            PregnancyState.Remove(character, LewdKeys.TraitIntrusiveThoughts);
         else
-            PregnancyState.Set(character, LewdKeys.IntrusiveThoughts, thoughtText);
-        character.SystemStats.Traits[LewdKeys.ImprintInhib] = inhib.ToString();
+            PregnancyState.Set(character, LewdKeys.TraitIntrusiveThoughts, thoughtText);
+        PregnancyState.Set(character, LewdKeys.TraitImprintInhib, inhib.ToString());
 
         Mirror(participant, character, tracks, thoughtText, inhib);
     }
 
-    private static void Stamp(Character character, string id, int level, string origin)
+    private static void Stamp(Character character, string id, int level, string origin, string? anchorId)
     {
         var effects = character.SystemStats.StatusEffects;
         var condition = "imprint:" + id;
         var name = EffectPrefix + Title(id);
-        var hint = Hint(id, level, origin);
+        var hint = Hint(id, level, origin, anchorId);
         var existing = effects.FirstOrDefault(e =>
             string.Equals(e.ConditionName, condition, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
@@ -452,15 +556,16 @@ internal static class ImprintState
         });
     }
 
-    private static string Hint(string id, int level, string origin)
+    private static string Hint(string id, int level, string origin, string? anchorId)
     {
         var tail = id switch
         {
-            "training" when level >= 3 => " Obey-save vs owner DC 15. Engine does not roll it.",
+            "training" when level >= 3 => $" Obey-save vs {anchorId ?? "whoever trained them"} DC 15. Engine does not roll it.",
             "cruelty" when level >= 3 => " +1 stimulation when this bearer inflicts pain or the target is overstimulated.",
             _ => "",
         };
-        return $"Lasting {id} fetish, level {level}, {origin}. Decondition with lewd_decondition. Not a vice. Not removed by remove curse.{tail}";
+        var tied = anchorId is null ? "" : $" Tied to {anchorId}: only they trigger it.";
+        return $"Lasting {id} fetish, level {level}, {origin}.{tied} Decondition with lewd_decondition. Not a vice. Not removed by remove curse.{tail}";
     }
 
     private static void Mirror(
@@ -490,9 +595,9 @@ internal static class ImprintState
 
     private static void ClearJump(ModeParticipantState? participant, Character character)
     {
-        character.SystemStats.Traits.Remove(LewdKeys.BadEndImprintTrack);
-        character.SystemStats.Traits.Remove(LewdKeys.BadEndImprintJump);
-        character.SystemStats.Traits.Remove(LewdKeys.BadEndImprintOrigin);
+        PregnancyState.Remove(character, LewdKeys.TraitBadEndImprintTrack);
+        PregnancyState.Remove(character, LewdKeys.TraitBadEndImprintJump);
+        PregnancyState.Remove(character, LewdKeys.TraitBadEndImprintOrigin);
         if (participant is null)
             return;
         participant.State.Remove(LewdKeys.BadEndImprintTrack);
@@ -514,7 +619,7 @@ internal static class ImprintState
         _ => id,
     };
 
-    private static string ExposedKey(string id) => "imprint." + id + ".exposed";
-    private static string FeatKey(string id) => "imprint." + id + ".feat";
-    private static string RestDayKey(string id) => "imprint." + id + ".rest_day";
+    private static string ExposedKey(string id) => LewdKeys.ImprintTraitPrefix + id + ".exposed";
+    private static string FeatKey(string id) => LewdKeys.ImprintTraitPrefix + id + ".feat";
+    private static string RestDayKey(string id) => LewdKeys.ImprintTraitPrefix + id + ".rest_day";
 }

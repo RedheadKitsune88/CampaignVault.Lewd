@@ -1,18 +1,44 @@
 {
   "id": "com.campaignvault.lewd-handbook",
   "displayName": "Lewd Handbook",
-  "version": "0.1.1",
-  "minEngineVersion": "0.2.0",
+  "version": "0.2.0",
+  "minEngineVersion": "0.7.0",
   "modeIds": ["lewd_encounter"],
+  "playerOnlyModeIds": ["lewd_encounter"],
   "rulesetDataRoots": ["./RulesetData"],
   "skillsPath": "./skills",
+  "publishes": [
+    "com.campaignvault.lewd-handbook.climax.v1",
+    "com.campaignvault.lewd-handbook.bad_end.v1",
+    "com.campaignvault.lewd-handbook.brand_changed.v1",
+    "com.campaignvault.lewd-handbook.vice_state.v1",
+    "com.campaignvault.lewd-handbook.imprint_changed.v1",
+    "com.campaignvault.lewd-handbook.pregnancy.v1",
+    "com.campaignvault.lewd-handbook.binding_changed.v1"
+  ],
   "campaignOptions": [
     {
-      "key": "intimacyTone",
+      "key": "lewdNarration",
       "type": "enum",
-      "values": ["consensual", "fade", "grimdark"],
-      "default": "consensual",
-      "description": "How non-consenting sexual advances resolve. hard_limits and revoked always fail-closed. Plugin install is operator opt-in, not per-scene consent."
+      "values": ["explicit", "suggestive", "fade"],
+      "default": "suggestive",
+      "playerOnly": true,
+      "description": "How sexual content is narrated. Mechanics always resolve in full; fade narrates before and after, never the act."
+    },
+    {
+      "key": "lewdNonConsent",
+      "type": "enum",
+      "values": ["off", "not_against_pc", "on"],
+      "default": "off",
+      "playerOnly": true,
+      "description": "Whether acts a character does not want can resolve in the fiction. not_against_pc allows them among NPCs but never against the player's character. Revoked stance and hard limits always refuse."
+    },
+    {
+      "key": "lewdHardLimits",
+      "type": "string",
+      "default": "",
+      "playerOnly": true,
+      "description": "Comma-separated content the player never wants (tags such as pregnancy, lustbrand, imprint, bondage). Always refused, in every verb."
     }
   ]
 }

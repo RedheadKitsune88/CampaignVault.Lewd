@@ -19,9 +19,47 @@ internal static class LewdPoolHelper
             return pool;
         }
 
-        if (pool.Max <= 0 && defaultMax > 0)
-            pool.Max = defaultMax;
+        // An existing pool keeps its Max even at 0: arousal max ≤ 0 is a bad-end condition, not a missing value.
         return pool;
+    }
+
+    /// <summary>The arousal pool, created if missing, with its maximum re-derived from the sheet.</summary>
+    public static ResourcePool Arousal(Character character)
+    {
+        var pool = EnsurePool(character, LewdKeys.PoolArousal, ArousalMath.FallbackMax, RecoveryType.Never);
+        SyncArousalMax(character, pool);
+        return pool;
+    }
+
+    public static ResourcePool Numbing(Character character) =>
+        EnsurePool(character, LewdKeys.PoolNumbing, 0, RecoveryType.Never);
+
+    /// <summary>
+    /// Sets the arousal maximum from the recovery die, Con and level (<see cref="ArousalMath"/>), less any Brand of
+    /// Altruism suppression (floor 1). Without a recovery die or sexual history the stored maximum is kept, so a
+    /// hand-set value survives. Current never exceeds the new maximum.
+    /// </summary>
+    public static void SyncArousalMax(Character character, ResourcePool? pool = null)
+    {
+        pool ??= character.SystemStats.ResourcePools.GetValueOrDefault(LewdKeys.PoolArousal);
+        if (pool is null)
+            return;
+
+        var derived = ArousalMath.DerivedMax(character);
+        var suppressed = PregnancyState.Int(character, BrandState.AltruismSuppressedKey);
+        if (suppressed > 0)
+        {
+            var baseMax = derived ?? PregnancyState.Int(character, BrandState.AltruismBaseMaxKey);
+            if (baseMax > 0)
+                pool.Max = Math.Max(1, baseMax - suppressed);
+        }
+        else if (derived is not null)
+        {
+            pool.Max = derived.Value;
+        }
+
+        if (pool.Current > pool.Max && pool.Max > 0)
+            pool.Current = pool.Max;
     }
 
     public static void MirrorArousal(ModeParticipantState participant, ResourcePool arousal)
@@ -30,11 +68,15 @@ internal static class LewdPoolHelper
         participant.State[LewdKeys.ArousalMaxMirror] = arousal.Max;
     }
 
-    public static void SetEdging(ModeParticipantState participant, Character? character, bool edging)
+    public static void SetEdging(ModeParticipantState? participant, Character? character, bool edging)
     {
-        participant.State[LewdKeys.Edging] = edging;
-        if (!edging)
-            participant.State[LewdKeys.EdgingBeats] = 0;
+        if (participant is not null)
+        {
+            participant.State[LewdKeys.Edging] = edging;
+            if (!edging)
+                participant.State[LewdKeys.EdgingBeats] = 0;
+        }
+
         if (character is null)
             return;
 
@@ -88,6 +130,7 @@ internal static class LewdPoolHelper
         if (character is null)
             return;
 
+        SyncOverstimCascade(character, level, sourceId);
         var effects = character.SystemStats.StatusEffects;
         var existing = effects.FirstOrDefault(IsOverstimEffect);
         if (level <= 0)
@@ -129,8 +172,72 @@ internal static class LewdPoolHelper
             Category = "Condition",
             ConditionName = conditionName,
             RecoveryHint = recoveryHint,
-            AppliedBy = "lewd_overstim",
+            AppliedBy = OverstimAppliedBy,
         });
+    }
+
+    internal const string OverstimAppliedBy = "lewd_overstim";
+
+    /// <summary>
+    /// Cascade conditions for an overstimulation level: 1+ intoxicated, 2+ hyperaroused, 4+ infatuated (by the source).
+    /// Adds what the level implies and removes the ones this cascade stamped that it no longer implies.
+    /// </summary>
+    public static void SyncOverstimCascade(Character character, int level, string? sourceId = null)
+    {
+        var cascade = new (int Min, string Name, string Hint)[]
+        {
+            (1, LewdKeys.ConditionIntoxicated, "Overstimulation 1+: Intoxicated."),
+            (2, LewdKeys.ConditionHyperaroused, "Overstimulation 2+: Hyperaroused."),
+            (4, LewdKeys.ConditionInfatuated, "Overstimulation 4+: Infatuated by the source of overstimulation."),
+        };
+        var effects = character.SystemStats.StatusEffects;
+        foreach (var (min, name, hint) in cascade)
+        {
+            if (level >= min)
+            {
+                EnsureNamedCondition(character, name, name, hint);
+                continue;
+            }
+
+            effects.RemoveAll(e =>
+                string.Equals(e.AppliedBy, OverstimAppliedBy, StringComparison.Ordinal) &&
+                string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (level >= 4 && !string.IsNullOrWhiteSpace(sourceId))
+        {
+            var infatuated = effects.FirstOrDefault(e =>
+                string.Equals(e.AppliedBy, OverstimAppliedBy, StringComparison.Ordinal) &&
+                string.Equals(e.Name, LewdKeys.ConditionInfatuated, StringComparison.OrdinalIgnoreCase));
+            if (infatuated is not null)
+                infatuated.RecoveryHint = $"Overstimulation 4+: Infatuated by {sourceId}.";
+        }
+    }
+
+    /// <summary>Level from the sheet's <c>Overstimulation N</c> status (host long rest decrements it).</summary>
+    public static int SheetOverstimLevel(Character character)
+    {
+        var existing = character.SystemStats.StatusEffects.FirstOrDefault(IsOverstimEffect);
+        if (existing?.Name is null)
+            return 0;
+        var parts = existing.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2 && int.TryParse(parts[^1], out var n) ? n : 0;
+    }
+
+    /// <summary>Ends climax incapacitation: resets the streak and drops the stunned/paralyzed it stamped.</summary>
+    public static void EndClimaxIncapacitation(ModeParticipantState? participant, Character? character)
+    {
+        if (participant is not null)
+        {
+            participant.State[LewdKeys.ClimaxIncapacitated] = false;
+            participant.State[LewdKeys.ClimaxIncapTurns] = 0;
+            participant.State[LewdKeys.ClimaxStreak] = 0;
+        }
+
+        character?.SystemStats.StatusEffects.RemoveAll(e =>
+            string.Equals(e.AppliedBy, OverstimAppliedBy, StringComparison.Ordinal) &&
+            (string.Equals(e.Name, LewdKeys.ConditionStunned, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(e.Name, LewdKeys.ConditionParalyzed, StringComparison.OrdinalIgnoreCase)));
     }
 
     private static bool IsOverstimEffect(StatusEffect e) =>

@@ -35,7 +35,7 @@ public class BindingSeedTests
             }
         };
 
-        var character = new Character { Id = "bob", Name = "bob", SystemStats = new SystemExtension() };
+        var character = new Character { LifeStage = LifeStage.Adult, Id = "bob", Name = "bob", SystemStats = new SystemExtension() };
         var ctx = new SeedContext(mode, suit, character);
         var result = await new LewdBindHandler().ApplyAsync(
             new LewdBindChange { ActorId = "alice", TargetId = "bob", ItemId = "items/bitchsuit-1" },
@@ -68,7 +68,7 @@ public class BindingSeedTests
                 ["posture"] = "gagged",
             }
         };
-        var character = new Character { Id = "bob", Name = "bob", SystemStats = new SystemExtension() };
+        var character = new Character { LifeStage = LifeStage.Adult, Id = "bob", Name = "bob", SystemStats = new SystemExtension() };
         var ctx = new SeedContext(mode, gag, character);
 
         var result = await new LewdBindHandler().ApplyAsync(
@@ -79,7 +79,9 @@ public class BindingSeedTests
         Assert.Equal("gagged", bob.State[LewdKeys.Posture]?.ToString());
         var gagged = character.SystemStats.StatusEffects.Single(e => e.Name == "gagged");
         Assert.Equal("gagged", gagged.ConditionName);
-        Assert.True(gagged.StatModifiers.TryGetValue("BlocksVerbalComponents", out var v) && v != 0);
+        // The component blocks ride on the one "Bound" summary, which lasts exactly as long as the bindings.
+        var summary = character.SystemStats.StatusEffects.Single(e => e.Name == Restraint.SummaryName);
+        Assert.True(summary.StatModifiers.TryGetValue("BlocksVerbalComponents", out var v) && v != 0);
     }
 
     [Fact]
@@ -100,7 +102,7 @@ public class BindingSeedTests
                 ["implies"] = new List<string> { "cuffed" },
             }
         };
-        var character = new Character { Id = "bob", Name = "bob", SystemStats = new SystemExtension() };
+        var character = new Character { LifeStage = LifeStage.Adult, Id = "bob", Name = "bob", SystemStats = new SystemExtension() };
         var ctx = new SeedContext(mode, cuffs, character);
 
         var result = await new LewdBindHandler().ApplyAsync(
@@ -207,6 +209,8 @@ public class BindingSeedTests
             var chars = new Dictionary<string, Character>();
             if (character is not null)
                 chars[character.Id] = character;
+            chars.TryAdd("alice", new Character { Id = "alice", Name = "alice", LifeStage = LifeStage.Adult });
+            chars.TryAdd("bob", new Character { Id = "bob", Name = "bob", LifeStage = LifeStage.Adult });
             Characters = chars;
         }
 
@@ -218,6 +222,10 @@ public class BindingSeedTests
         public Microsoft.Extensions.Logging.ILogger Logger { get; } = NullLogger.Instance;
         public CombatEncounter? ActiveCombat => null;
         public ModeEncounter? ActiveMode { get; }
+        public IReadOnlyDictionary<string, ModeEncounter> ActiveModes =>
+            ActiveMode is { } m
+                ? new Dictionary<string, ModeEncounter>(StringComparer.OrdinalIgnoreCase) { [m.ModeId] = m }
+                : new Dictionary<string, ModeEncounter>(StringComparer.OrdinalIgnoreCase);
         public CampaignConfig? Config => null;
         public CampaignVault.Data.IRollService? Rolls => null;
         public string? CampaignName => "test";
@@ -233,6 +241,9 @@ public class BindingSeedTests
         public void RegisterNewItem(Item i) { }
         public void RegisterNewFaction(Faction f) { }
         public void RegisterNewQuest(Quest q) { }
+        public void Publish(string topic, object? data = null) =>
+            Published.Add((topic, data));
+        public List<(string Topic, object? Data)> Published { get; } = [];
         public void RecordMessage(string message) { }
         public void RecordPhysicalStateNudge(string message) { }
         public void RecordFailure() { }

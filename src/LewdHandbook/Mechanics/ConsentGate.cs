@@ -2,120 +2,89 @@ using CampaignVault.Models;
 
 namespace LewdHandbook.Mechanics;
 
-internal enum ConsentAuthorizeResult
-{
-    Allow,
-    Fail,
-    FadeNoStim,
-}
-
 internal static class ConsentGate
 {
     /// <summary>
-    /// Hard limits + revoked always fail-closed. Unwilling handling depends on intimacyTone.
+    /// Revoked stance, the player's campaign hard limits and the character's own hard limits always refuse.
+    /// An advance the character doesn't want resolves only when <see cref="LewdSettings.NonConsent"/> allows it.
     /// </summary>
-    public static ConsentAuthorizeResult AuthorizeAdvance(
+    public static bool AuthorizeAdvance(
         ModeParticipantState target,
+        Character? targetChar,
         string actorId,
         string? stimulationType,
         IEnumerable<string>? tags,
-        IntimacyToneKind tone,
+        LewdSettings settings,
         out string? error)
     {
-        error = null;
-        var consent = GetString(target, LewdKeys.Consent) ?? LewdKeys.ConsentWilling;
-
-        if (string.Equals(consent, LewdKeys.ConsentRevoked, StringComparison.OrdinalIgnoreCase))
+        if (LewdProfile.IsRevoked(target, targetChar))
         {
             error = $"Target '{target.CharacterId}' has revoked consent; advance refused.";
-            return ConsentAuthorizeResult.Fail;
+            return false;
         }
 
-        var hard = GetStringList(target, LewdKeys.HardLimits);
-        if (hard.Count > 0)
+        var probe = BuildProbe(stimulationType, tags);
+        if (settings.HitsHardLimit(probe, out var campaignHit))
         {
-            var probe = BuildProbe(stimulationType, tags);
-            var hit = hard.FirstOrDefault(h => probe.Contains(h));
-            if (hit is not null)
-            {
-                error = $"Target '{target.CharacterId}' hard limit '{hit}' blocks this advance.";
-                return ConsentAuthorizeResult.Fail;
-            }
+            error = $"Campaign hard limit '{campaignHit}' blocks this advance.";
+            return false;
         }
 
-        if (string.Equals(consent, LewdKeys.ConsentSelective, StringComparison.OrdinalIgnoreCase))
+        var personal = LewdProfile.HardLimits(target, targetChar).FirstOrDefault(probe.Contains);
+        if (personal is not null)
         {
-            var allowed = GetStringList(target, LewdKeys.AllowedPartners);
-            if (allowed.Count > 0 &&
-                !allowed.Any(id => string.Equals(id, actorId, StringComparison.OrdinalIgnoreCase)))
-            {
-                // Selective miss → treat as unwilling for tone purposes
-                return AuthorizeUnwilling(target, tone, out error);
-            }
+            error = $"Target '{target.CharacterId}' hard limit '{personal}' blocks this advance.";
+            return false;
         }
 
-        if (string.Equals(consent, LewdKeys.ConsentUnwilling, StringComparison.OrdinalIgnoreCase))
-            return AuthorizeUnwilling(target, tone, out error);
+        if (!LewdProfile.Wants(target, targetChar, actorId))
+            return settings.AllowsUnwanted(targetChar, target.CharacterId, out error);
 
-        return ConsentAuthorizeResult.Allow;
-    }
-
-    private static ConsentAuthorizeResult AuthorizeUnwilling(
-        ModeParticipantState target,
-        IntimacyToneKind tone,
-        out string? error)
-    {
         error = null;
-        return tone switch
-        {
-            IntimacyToneKind.Grimdark => ConsentAuthorizeResult.Allow,
-            IntimacyToneKind.Fade => ConsentAuthorizeResult.FadeNoStim,
-            _ => FailConsensual(target, out error),
-        };
+        return true;
     }
 
-    private static ConsentAuthorizeResult FailConsensual(ModeParticipantState target, out string? error)
+    /// <summary>
+    /// Inhibition bonus against an advance: a willing partner treats it as 0 unless already negative (handbook),
+    /// then Lustbrand tiers and unwilling imprint levels lower it further.
+    /// </summary>
+    public static int EffectiveInhibition(
+        ModeParticipantState target, bool advanceIsWanted, Character? character = null, string? actorId = null)
     {
-        error = $"Target '{target.CharacterId}' is unwilling; intimacyTone=consensual refuses the advance.";
-        return ConsentAuthorizeResult.Fail;
-    }
-
-    /// <summary>Legacy bool API used by older call sites/tests.</summary>
-    public static bool TryAuthorizeAdvance(
-        ModeParticipantState target,
-        string actorId,
-        string? stimulationType,
-        IEnumerable<string>? tags,
-        out string? error) =>
-        AuthorizeAdvance(target, actorId, stimulationType, tags, IntimacyToneKind.Consensual, out error) ==
-        ConsentAuthorizeResult.Allow;
-
-    /// <summary>Willing partners treat Inhibition as 0 unless already negative (handbook).</summary>
-    public static int EffectiveInhibition(ModeParticipantState target, bool advanceIsWanted)
-    {
-        var raw = GetInt(target, LewdKeys.Inhibition);
+        var raw = LewdProfile.Inhibition(target, character);
         if (advanceIsWanted)
             raw = Math.Min(0, raw);
-        return raw - GetInt(target, LewdKeys.LustbrandInhib) - GetInt(target, LewdKeys.ImprintInhib);
+        return raw - InhibitionPenalty(target, character, actorId);
     }
 
-    public static bool IsAdvanceWanted(ModeParticipantState target, string actorId)
+    /// <summary>
+    /// Climax saves use raw Inhibition (no willing clamp), still lowered by brands and imprints — imprints tied to someone
+    /// count when that someone gave the latest stimulation.
+    /// </summary>
+    public static int ClimaxInhibition(ModeParticipantState target, Character? character) =>
+        LewdProfile.Inhibition(target, character) - InhibitionPenalty(target, character, LastStimulatedBy(character));
+
+    private static int InhibitionPenalty(ModeParticipantState target, Character? character, string? actorId) =>
+        character is null
+            ? GetInt(target, LewdKeys.LustbrandInhib) + GetInt(target, LewdKeys.ImprintInhib)
+            : BrandState.TierSum(character) + ImprintState.InhibitionPenalty(character, actorId);
+
+    private const string LastStimulatedByKey = LewdKeys.ModeTraitPrefix + "last_stim_by";
+
+    public static void RecordStimulatedBy(Character? character, string? actorId)
     {
-        var consent = GetString(target, LewdKeys.Consent) ?? LewdKeys.ConsentWilling;
-        if (string.Equals(consent, LewdKeys.ConsentWilling, StringComparison.OrdinalIgnoreCase))
-            return true;
-        if (string.Equals(consent, LewdKeys.ConsentSelective, StringComparison.OrdinalIgnoreCase))
-        {
-            var allowed = GetStringList(target, LewdKeys.AllowedPartners);
-            return allowed.Count == 0 ||
-                   allowed.Any(id => string.Equals(id, actorId, StringComparison.OrdinalIgnoreCase));
-        }
-
-        return false;
+        if (character is not null && !string.IsNullOrWhiteSpace(actorId))
+            character.SystemStats.Traits[LastStimulatedByKey] = actorId;
     }
+
+    public static string? LastStimulatedBy(Character? character) => PregnancyState.Text(character, LastStimulatedByKey);
+
+    public static bool IsAdvanceWanted(ModeParticipantState target, string actorId, Character? character = null) =>
+        LewdProfile.Wants(target, character, actorId);
 
     public static int AdjustStimulationForTags(
         ModeParticipantState target,
+        Character? character,
         int stimulation,
         string? stimulationType,
         IEnumerable<string>? tags)
@@ -124,8 +93,8 @@ internal static class ConsentGate
             return stimulation;
 
         var probe = BuildProbe(stimulationType, tags);
-        var soft = GetStringList(target, LewdKeys.SoftLimits);
-        var kinks = GetStringList(target, LewdKeys.Kinks);
+        var soft = LewdProfile.SoftLimits(target, character);
+        var kinks = LewdProfile.Kinks(target, character);
         var softHit = soft.Any(probe.Contains);
         var kinkHit = kinks.Any(probe.Contains);
 
@@ -169,7 +138,7 @@ internal static class ConsentGate
             return stimulation;
 
         var history = SexualHistory(target, character);
-        if (AllowsFullVerbalDice(history, target))
+        if (AllowsFullVerbalDice(history, target, character))
             return stimulation;
 
         return Math.Min(stimulation, 2);
@@ -187,20 +156,22 @@ internal static class ConsentGate
             return false;
 
         var history = SexualHistory(target, character);
-        return !AllowsFullVerbalDice(history, target);
+        return !AllowsFullVerbalDice(history, target, character);
     }
 
     public static string? SexualHistory(ModeParticipantState target, Character? character)
     {
-        if (character?.SystemStats.Traits.TryGetValue(LewdKeys.TraitSexualHistory, out var trait) == true &&
-            trait is not null &&
-            !string.IsNullOrWhiteSpace(trait.ToString()))
-            return trait.ToString()!.Trim().ToLowerInvariant();
+        var fromTraits = AnatomyTraits.GetSexualHistory(character);
+        if (!string.IsNullOrWhiteSpace(fromTraits))
+            return fromTraits.Trim().ToLowerInvariant();
 
-        return GetString(target, LewdKeys.TraitSexualHistory)?.Trim().ToLowerInvariant();
+        // Participant bag is already mode-scoped; accept either short or mode-prefixed keys.
+        return (GetString(target, LewdKeys.LegacyTraitSexualHistory)
+                ?? GetString(target, LewdKeys.TraitSexualHistory))
+            ?.Trim().ToLowerInvariant();
     }
 
-    private static bool AllowsFullVerbalDice(string? history, ModeParticipantState target)
+    private static bool AllowsFullVerbalDice(string? history, ModeParticipantState target, Character? character)
     {
         if (string.IsNullOrWhiteSpace(history))
             return false;
@@ -209,10 +180,7 @@ internal static class ConsentGate
             return true;
 
         if (history == "devoted_partner")
-        {
-            var allowed = GetStringList(target, LewdKeys.AllowedPartners);
-            return allowed.Count > 0;
-        }
+            return LewdProfile.AllowedPartners(target, character).Count > 0;
 
         return false;
     }
@@ -235,7 +203,7 @@ internal static class ConsentGate
         return false;
     }
 
-    private static HashSet<string> BuildProbe(string? stimulationType, IEnumerable<string>? tags)
+    public static HashSet<string> BuildProbe(string? stimulationType, IEnumerable<string>? tags)
     {
         var probe = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (!string.IsNullOrWhiteSpace(stimulationType))

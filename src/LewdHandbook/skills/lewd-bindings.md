@@ -1,230 +1,67 @@
 ---
 name: lewd-bindings
-description: Structured binding graph v1 — participant bindings[] + posture; lewd_bind / lewd_unbind; no prose scanners.
+description: Restraint on the character, in or out of scenes — lewd_bind, lewd_unbind, lewd_escape; anchors (chains, leashes, posts), locks and keys, escape/break/pick.
 metadata:
   type: skill
   plugin: com.campaignvault.lewd-handbook
 ---
 
-# Bindings (graph v1)
+# Bindings
 
-Restraint is **structured State**, not prose. There is **no** keyword scanner that infers “cuffed” from narration. If it is not in `bindings[]` / derived StatusEffects, limbs are free.
+Restraint is State, not prose. If it is not in the bindings (and the conditions they stamp), limbs are free.
 
-## When to use
+Bindings live on the **character** and work anywhere: a sex scene, a captive after combat, a road gang of convicts. Adults only (same rule as every lewd verb). The sheet shows a **`Bound`** status listing each binding with its id, DCs, lock and anchor, plus the conditions it implies (`cuffed`, `hobbled`, `gagged`, `mitted`, `limb_bound`, `leashed`, `encased`, `full_tied`, `suspended`, `restrained`, `blinded`). Spell components are blocked while they apply.
 
-- Applying or removing cuffs, rope, suits, gags, hoods, leashes, encasement.
-- Before narrating inability to move, speak, see, cast, or use hands.
-- When an ItemDefinition (bondage gear / suit) should seed default bind entries.
+## Putting it on — `lewd_bind`
 
-## Verbs
-
-| `$type` | Purpose |
-|---------|---------|
-| `lewd_bind` | Append/merge a bind entry; refresh `implies` + StatusEffects |
-| `lewd_unbind` | Remove by id/sites/kind; clear implies when no longer justified |
-
-**Emit bind/unbind before narrating.** Never describe locked wrists then forget the commit.
-
-## Participant State
-
-| Key | Role |
-|-----|------|
-| `bindings` | Array of bind entries (source of truth) |
-| `posture` | Coarse whole-body pose (`standing`, `kneeling`, `prone`, `suspended`, `all_fours_crawl`, …) |
-| `arm_position` | Derived from wrist/arm binds: `free` \| `front` \| `behind` \| `above` \| `together` \| `crossed` \| `folded` |
-| `leg_position` | Derived from ankle/leg binds: `free` \| `front` \| `behind` \| `apart` \| `together` \| `crossed` \| `folded` |
-| `binding_implies` | Aggregated condition tokens |
-| `binding_effects` | Aggregated effect tags |
-
-Prefer engine `StatusEffects` for handbook bound conditions (`cuffed`, `hobbled`, `encased`, …) derived from `implies`. See `lewd-catalog`.
-
-
-## Limb positions (arms & legs)
-
-Cuffs and rope do **not** imply a pose by themselves. Always set `orientation` on `lewd_bind` (or Item `properties.orientation`).
-
-| Orientation | Typical sites | State update | Narration / casting |
-|-------------|---------------|--------------|---------------------|
-| `behind` | `wrists`, `arms` | `arm_position=behind` | Hands at the back; no fine manipulation; stamps `no_somatic_spellcasting` |
-| `front` | `wrists`, `arms` | `arm_position=front` | Hands before the body; can still see/use limited gestures; still `cuffed` |
-| `above` | `wrists`, `arms` | `arm_position=above` | Arms raised / overhead; hands useless for tools |
-| `together` | wrists or ankles | matching limb `together` | Limbs bound to each other |
-| `apart` | `ankles` (+ spreader) | `leg_position=apart` | Forced open stance / hobble-spread |
-| `crossed` | wrists or ankles | matching limb `crossed` | Crossed and locked |
-| `folded` | suit / encasement | arms/legs `folded` | Crawl-suit / tar wrap limb tuck |
-| `free` | (no bind) | default on enter / after unbind | Limb free |
-
-**Examples**
-
-Wrists behind the back:
+Emit **before** narrating the restraint.
 
 ```json
-{
-  "$type": "lewd_bind",
-  "actorId": "chars/alice",
-  "targetId": "chars/bob",
-  "kind": "cuffs",
-  "sites": ["wrists"],
-  "orientation": "behind",
-  "implies": ["cuffed"],
-  "itemId": "leather_cuffs"
-}
+{ "$type": "lewd_bind", "actorId": "chars/warden", "targetId": "chars/convict", "kind": "shackles", "sites": ["ankles"], "anchorId": "chars/lead_convict", "keyItemId": "items/warden_key" }
 ```
 
-→ `State.arm_position = "behind"`, effects gain `arms_rear_bound` / `no_hand_use` / `no_somatic_spellcasting`.
+| Field | Notes |
+|-------|-------|
+| `kind` | `cuffs`, `manacles` (locked), `shackles` (ankles, locked, hobble), `rope`, `gag`, `hood`, `collar`, `leash`/`chain`, `armbinder`, `spreader`, `bitchsuit`… — the kind alone seeds sensible defaults |
+| `sites` / `orientation` | `wrists`/`ankles`/… and `behind`/`front`/`above`/`together`/`apart`/`hogtie`. Arms behind the back block hands and somatic components |
+| `implies` / `effects` | Extra condition tokens / tags |
+| `anchorId` | What they're tied to: a character (`chars/…`), an item or fixture (`items/wall_ring`), or a named post. **They cannot travel unless the anchor goes too, in the same commit** |
+| `locked` / `lockDc` / `keyItemId` | A lock (DC 15 by default). With a `keyItemId`, `lewd_unbind` needs that key |
+| `escapeDc` / `breakDc` / `hp` | Default 20 / 20 / 15. `hardened` or `hardenAtRound` → 25 |
+| `willing` | The target submits. Otherwise an unwilling target must be **subdued first**: grappled (e.g. by the actor), restrained, incapacitated, unconscious, paralyzed, stunned, already bound, or at 0 HP |
+| `erotic` | Omitted: true inside a lewd_encounter or for erotic gear (suit, spreader…). Erotic binds follow the lewd consent rules (stance, limits, `lewdNonConsent`); plain restraint only the player's hard limits |
+| `posture` | `kneeling`, `prone`, `all_fours_crawl`… kept until the last binding comes off |
 
-Wrists in front (marching cuffs):
+Inside a scene, binding someone is the actor's action for the turn.
+
+## Moving a chained group
+
+A binding with an anchor pins the character: core refuses their `travel` ("cannot travel because they are bound to …"). To move a coffle, a leashed captive or a prisoner and escort, send one `travel` per character **in the same commit** to the same destination. Anyone anchored to a post or item stays until freed.
+
+## Getting out — `lewd_escape`
 
 ```json
-{
-  "$type": "lewd_bind",
-  "sites": ["wrists"],
-  "orientation": "front",
-  "implies": ["cuffed"],
-  "itemId": "leather_cuffs"
-}
+{ "$type": "lewd_escape", "characterId": "chars/convict", "method": "slip", "d20": 0 }
 ```
 
-→ `State.arm_position = "front"` (still cuffed; somatic may be awkward — narrate disadvantage; engine does **not** auto-block S unless you also imply `mitted` / add effect).
+| method | Roll | Notes |
+|--------|------|-------|
+| `slip` | Dex (or `ability: str`) + `bonus` vs escape DC | The bound character only. Disadvantage when encased, hog-tied or suspended |
+| `break` | Str + `bonus` vs break DC | Self or a helper (`actorId`) |
+| `pick` | Dex + `bonus` (tools) vs lock DC | Locked only. Bound hands can't pick their own lock: a helper must |
+| `unlock` | — | With `keyItemId` matching the lock's key |
+| `cut` | — | `amount` damage off the binding's hp; 0 hp and it's gone |
 
-Ankles spread:
+`d20: 0` lets the host roll. In a scene, an attempt is the character's action. Success removes that binding (and its anchor); failure leaves it. `bindingId` picks one; otherwise the most recent.
+
+## Taking it off — `lewd_unbind`
 
 ```json
-{
-  "$type": "lewd_bind",
-  "sites": ["ankles"],
-  "orientation": "apart",
-  "implies": ["cuffed", "hobbled"],
-  "itemId": "spreader_bar"
-}
+{ "$type": "lewd_unbind", "actorId": "chars/warden", "targetId": "chars/convict", "bindingId": "3f9a12bc", "keyItemId": "items/warden_key" }
 ```
 
-→ `State.leg_position = "apart"`.
-
-**Tracking discipline:** before narrating “hands behind their back” or “ankles locked apart”, read `arm_position` / `leg_position`. If State says `front`, do not invent behind. Change pose with a new `lewd_bind` (or unbind + rebind) — never by prose alone.
-
-## Bind entry schema
-
-```json
-{
-  "id": "bind_01",
-  "kind": "cuffs",
-  "sites": ["wrists"],
-  "orientation": "behind",
-  "links": ["anchor:bedpost"],
-  "implies": ["cuffed"],
-  "materials": ["iron"],
-  "hardened": false,
-  "effects": { "escapeDc": 20, "breakDc": 20, "hp": 15 },
-  "itemId": "items/iron_cuffs"
-}
-```
-
-| Field | Meaning |
-|-------|---------|
-| `kind` | `cuffs`, `rope`, `gag`, `hood`, `blindfold`, `mitts`, `hobble`, `harness`, `suit`, `collar`, `leash`, `web`, … |
-| `sites` | Body sites: `wrists`, `ankles`, `thighs`, `arms`, `legs`, `mouth`, `eyes`, `head`, `torso`, `whole`, … |
-| `orientation` | **Required for cuffs/ties.** Arms/legs: `front` \| `behind` \| `above` \| `together` \| `apart` \| `crossed` \| `folded` \| `hogtie`. Engine mirrors into `arm_position` / `leg_position`. |
-| `links` | Anchors / partners: `anchor:…`, `to:chars/…`, `to:bind_02` |
-| `implies` | Condition tokens handlers/LLM must honor: `cuffed`, `hobbled`, `encased`, `gagged`, `mitted`, `blinded`, `deafened`, `suspended`, `leashed`, `full_tied`, `limb_bound` |
-| `materials` | `hemp`, `leather`, `iron`, `silk`, `linen`, `tar`, … |
-| `hardened` | Magical / masterwork — harder escape; `word_of_safety` may not clear |
-| `effects` | Freeform constraint tags from gear (`forced_crawl`, `bent_knees_elbows`, `forced_spread`, …) plus escape/break/HP when set on the commit |
-| `itemId` | Gear that seeded defaults |
-
-### `lewd_bind` example
-
-```json
-{
-  "$type": "lewd_bind",
-  "actorId": "chars/alice",
-  "targetId": "chars/bob",
-  "kind": "cuffs",
-  "sites": ["wrists"],
-  "orientation": "behind",
-  "implies": ["cuffed"],
-  "materials": ["iron"],
-  "itemId": "items/iron_cuffs",
-  "effects": { "escapeDc": 20, "breakDc": 20, "hp": 15 }
-}
-```
-
-### `lewd_unbind` example
-
-```json
-{
-  "$type": "lewd_unbind",
-  "targetId": "chars/bob",
-  "bindingId": "bind_01"
-}
-```
-
-Or match `sites` / `kind` / `itemId` when id unknown. After unbind, drop StatusEffects that no remaining entry implies.
-
-## Suit / gear seeding
-
-When `itemId` references a suit or restraint ItemDefinition, seed missing fields from item Properties (e.g. `bindingDefaults`, `implies`, `sites`, `materials`). Do not invent encasement if the item only implies `hobbled`.
-
-
-## ItemDefinition → bind seeding
-
-When `lewd_bind.itemId` points at a live Item (or template name like `bitchsuit`), Properties seed the graph:
-
-| Property | Becomes |
-|----------|---------|
-| `implies` / `seedsConditions` | `bindings[].implies` |
-| `sites` | `bindings[].sites` |
-| `effects` | `bindings[].effects` (e.g. bitchsuit → `forced_crawl`, `bent_knees_elbows`, `all_fours`) |
-| `posture` | participant `State.posture` if the commit omits `posture` |
-| `materials` / DCs / hp | binding materials + escape/break/hp |
-
-**Narrate from State.** Example: bitchsuit bound → posture `all_fours_crawl` + effects include `forced_crawl` → character crawls on bent knees and elbows; do not narrate upright walking until unbound / effects cleared.
-
-**Spellcasting:** gags/hoods that imply `gagged` (or effects `no_verbal_spellcasting`) stamp StatusEffect `gagged` with `BlocksVerbalComponents` — host casting gate hard-fails V spells. Armbinders / mitts / crawl-suits that block hands stamp `BlocksSomaticComponents`. Prefer Faerûn materials in gear prose (leather, iron, hemp, silk, pitch) — avoid modern latex/nylon/zippers.
-
-## Limb freedom (enforce in narration)
-
-Handlers (and you) treat `implies` as constraints:
-
-| Implies | Freedom loss |
-|---------|----------------|
-| `cuffed` | Bound limbs unusable / disadv on checks needing them; Dex disadv |
-| `limb_bound` | Named limbs fully unusable |
-| `mitted` | No fine manipulation; fail Sleight of Hand; no somatic if hands required |
-| `hobbled` | Speed ≤ 5 ft |
-| `gagged` | No clear speech; no verbal components |
-| `encased` | Incapacitated; includes cuffed+hobbled; auto-fail Str/Dex saves |
-| `full_tied` | Cuffed + restrained + prone; cannot stand |
-| `suspended` | Restrained, no leverage; auto-fail Str/Dex saves |
-| `leashed` | Grappled-to-anchor; max distance = leash length |
-| `blinded` / hood | See hood rules below |
-
-Respect handbook **Biological Posture Realism**: if posture + clothing + bindings make an action impossible, the action fails (optional Con save DC 13 for strain) — do not narrate impossible straddles / crawls.
-
-## Apply rules (handbook)
-
-| Target state | Bind attempt |
-|--------------|--------------|
-| Willing | Action; apply one binding |
-| Restrained | Contested Athletics/Acrobatics vs grapple or Sleight of Hand |
-| Unconscious | Sleight of Hand vs Perception / passive; fail → wakes, no bind |
-
-Default nonmagical gear: ~15 HP, escape Dex DC 20, break Str DC 20 (DM/item override).
-
-Consent: `hard_limits` / `revoked` still fail-closed for coercive binding the table forbids; check `intimacyTone` for unwilling scenes (`lewd-intimacy-tone`).
-
-## Hood / blindfold — agency split
-
-| Subject | Rule |
-|---------|------|
-| **NPC** | Hood/blindfold may reduce their scene agency (cannot target by sight, disadvantage, rely on sound/touch). You may compress their tactical options. |
-| **PC** | Do **not** mute the player. Narrate sensory constraint (darkness, muffled audio) but keep asking the player for intent; translate intent into what remaining senses/limbs allow. Never auto-pilot a hooded PC into compliance. |
-
-`implies` should include `blinded` (and `deafened` if the hood does that). Still require `lewd_bind` before claiming they cannot see.
+By `bindingId`, `itemId`, or `removeAll: true`; otherwise the most recent. A selector that matches nothing fails and lists the bindings. Conditions from other sources (a web spell, a grapple) stay.
 
 ## Do not
 
-- Scan narration for the word “rope” and invent State.
-- Leave stale `implies` after unbind.
-- Narrate escape without `lewd_unbind` or a successful escape check + unbind.
-- Treat `engagement_relation` grappling as a full binding graph — use both when needed (grapple now, `lewd_bind` for lasting cuffs).
+Prose-only ties or escapes. Tie up an unwilling character who is not subdued (grapple first). Move one member of a chained group alone. Skip `orientation` when the pose matters.
