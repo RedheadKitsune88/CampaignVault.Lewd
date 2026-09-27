@@ -19,12 +19,6 @@ log/
 *.pfx
 *.pem
 
-# Local Sdk feed: keep the checked-in CampaignVault.PluginSdk.*.nupkg until nuget.org publish,
-# then delete it and remove the local-packages source from nuget.config.
-local-packages/*.snupkg
-local-packages/*.nupkg.md5
-local-packages/*.nupkg.sha512
-
 # Pack / build output
 artifacts/
 pack/out/
@@ -34,6 +28,7 @@ pack/out/
 .grok/
 .claude/
 .cursor/
+opencode.json
 
 # Handbook source extracts — never commit
 *.pdf
