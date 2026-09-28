@@ -1,0 +1,16 @@
+name: genital_torsion
+system: dnd5e
+level: 5
+school: evocation
+classes: [sorcerer, warlock, wizard]
+concentration: true
+castingTime: 1 action
+range: 30 feet
+verbal: true
+somatic: true
+material: true
+materialConsumed: false
+description: >
+  5th-level evocation, concentration up to 1 minute. Con save: 8d6 force damage (half on success); on a fail also
+  stunned for 1 minute (repeat Con save each turn). No effect on constructs or creatures without reproductive organs.
+  Cruelty imprint tag. Material: refractive prism. (Lewd Handbook)

@@ -1,0 +1,13 @@
+name: path_of_the_breeder
+system: dnd5e
+hitDie: d12
+casterType: None
+savingThrows: [Strength, Constitution]
+pools: []
+aliases: [path of the breeder, breeder, barbarian (breeder), breeder barbarian]
+description: >
+  Barbarian Path of the Breeder (Lewd Handbook). 3rd Feral Heat (while raging: Inhibition 0, hyperaroused, hyperfertile/
+  hypervirile, double PB on grapple/restrain, treat overstim/exhaustion one lower; rage needs stim or advance). 6th Breeder's
+  Scent (Primal Musk while raging; scent fertility/pregnancy); Endless Endurance (no climax stun/incap; immune overstim/
+  exhaustion while raging). 10th Unrestrained Instinct (cast Incite Lust / related while raging limited/rest). 14th Instant
+  Pregnancy (visible immediately; progresses in hours; ignore most infertility). Hard-limit tags: pregnancy, breeding.

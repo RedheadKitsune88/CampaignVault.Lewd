@@ -49,7 +49,18 @@ internal static class LewdKeys
     public const string ArousalMaxMirror = "arousal_max";
 
     public const string Bindings = "bindings";
+    public const string Occupied = "occupied";
+    public const string InternalDeposits = "internal_deposits";
     public const string Posture = "posture";
+
+    public const string SealOpen = "open";
+    public const string SealPlugged = "plugged";
+    public const string SealBeaded = "beaded";
+    public const string OccupancyPhallic = "phallic";
+    public const string OccupancyPlug = "plug";
+    public const string OccupancyBeads = "beads";
+    public const string OccupancyWand = "wand";
+    public const string OccupancyPartner = "partner";
     /// <summary>Derived from bindings on wrists/arms: free | front | behind | above | together | crossed.</summary>
     public const string ArmPosition = "arm_position";
     /// <summary>Derived from bindings on ankles/legs: free | front | behind | apart | together | crossed | folded.</summary>
@@ -91,6 +102,31 @@ internal static class LewdKeys
     public const string NonConsentOn = "on";
     public const string HardLimitsOption = "lewdHardLimits";
     public const string MoodBuffsOption = "lewdMoodBuffs";
+    public const string HumiliationOption = "lewdHumiliation";
+    public const string FluidsOption = "lewdFluids";
+    public const string ExternalMarksOption = "lewdExternalMarks";
+    public const string FluidViceHookOption = "lewdFluidViceHook";
+    public const string CreampiePregnancyOption = "lewdCreampiePregnancy";
+    public const string InsertedToysOption = "lewdInsertedToys";
+    public const string LeaksOption = "lewdLeaks";
+
+    public const string OptionOn = "on";
+    public const string OptionOff = "off";
+    public const string CreampiePregnancyPrompt = "prompt";
+    public const string CreampiePregnancyAuto = "auto";
+
+    /// <summary>Core <c>soil</c> kind for climax deposits (namespaced; Phrase shows the leaf).</summary>
+    public const string DirtKindCum = "lewd.cum";
+    public const string DirtKindFluids = "lewd.fluids";
+
+    public const string FinishInside = "inside";
+    public const string FinishOutside = "outside";
+    public const string FinishNone = "none";
+
+    /// <summary>Pending deposit from a <c>lewd_advance</c>: applied when this character next climaxes.</summary>
+    public const string PendingFinish = "pending_finish";
+    public const string PendingTargetAnatomy = "pending_target_anatomy";
+    public const string PendingDepositOn = "pending_deposit_on";
 
     /// <summary>Mode-gated catalog/track Traits use <see cref="ModeTraitPrefix"/> so NpcCard.SystemTraits only shows them in an active lewd_encounter.</summary>
     public const string ModeTraitPrefix = "lewd_encounter.";
@@ -127,12 +163,27 @@ internal static class LewdKeys
 
     /// <summary>JSON list of bindings — lives on the Character so restraints outlast the scene. Unprefixed on purpose: a captive's cuffs are visible outside a scene.</summary>
     public const string TraitBindings = Bindings;
+    public const string TraitOccupied = Occupied;
+    /// <summary>Mode-gated bookkeeping for internal finishes; StatusEffect <c>Filled</c> is the always-on signal.</summary>
+    public const string TraitInternalDeposits = ModeTraitPrefix + InternalDeposits;
+    public const string TraitPendingFinish = ModeTraitPrefix + PendingFinish;
+    public const string TraitPendingTargetAnatomy = ModeTraitPrefix + PendingTargetAnatomy;
+    public const string TraitPendingDepositOn = ModeTraitPrefix + PendingDepositOn;
 
     /// <summary>Posture a binding put the character in (kneeling, prone, all_fours_crawl…); cleared when the last binding goes. Unprefixed: visible outside a scene.</summary>
     public const string TraitPosture = Posture;
 
     /// <summary>Per-scene imprint ledger, resolved once per track when the encounter ends.</summary>
     public const string TraitSceneImprints = ModeTraitPrefix + "scene.imprints";
+
+    /// <summary>Campaign day of last pain-tagged advance (ordeal climb assist).</summary>
+    public const string TraitRecentPain = ModeTraitPrefix + "recent_pain";
+    /// <summary>Campaign day of last <c>lewd_humiliate</c>.</summary>
+    public const string TraitRecentHumiliate = ModeTraitPrefix + "recent_humiliate";
+    /// <summary>Set when climax lands close to pain/shame; cleared on imprint tick / rest / scene end.</summary>
+    public const string TraitPendingOrdealFromPain = ModeTraitPrefix + "pending_ordeal_from_pain";
+    /// <summary>Day the ordeal-climb Message nudge already fired (one per character per day).</summary>
+    public const string TraitOrdealNudgeDay = ModeTraitPrefix + "ordeal_nudge_day";
 
     // Legacy unprefixed / bare keys — read by dual-read helpers and rewritten by LewdTraitsUpgrader.
     public const string LegacyTraitSexualHistory = "sexual_history";

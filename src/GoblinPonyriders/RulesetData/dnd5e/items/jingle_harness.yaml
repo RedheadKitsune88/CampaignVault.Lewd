@@ -1,0 +1,14 @@
+name: Clan Jingle Harness
+system: dnd5e
+type: adventuring gear
+rarity: uncommon
+description: >
+  Stitched leather quadrupedal harness with bells, muzzle points, and insert straps. Camp/village
+  Entertainer and punishment roles — not for field Riding-Girls. Bind via lewd_bind + lewd_insert.
+  Flaw: flaking lacquer on one bandage strap.
+properties:
+  lewd_bind_sites: "neck,wrists,ankles,torso,head"
+  posture: quadrupedal
+  faction: unified_clans
+  role: entertainer
+  exploitable_flaw: flaking lacquer strap

@@ -1,0 +1,14 @@
+name: Goblin Clan Shaman
+system: dnd5e
+description: >
+  Small Humanoid (Goblinoid). One of the Cult of the Dragon's magically enhanced shamans who broke the leash.
+  Coordinates Unified Clans raids, naming rituals, and Clan Mark ceremonies. Smarter, crueler, still goblin.
+challengeRating: "2"
+hp: 27
+defense: 13
+skills: ["Arcana +4", "Religion +4", "Intimidation +5"]
+abilities:
+  - "Speed 30 ft. Darkvision 60 ft. Languages: Goblin, Common, Draconic fragments."
+  - "Enhanced mind: advantage on saves vs charm/fear from non-dragon sources; can share short doctrine whispers to nearby riders."
+  - "Clan Mark rite: during a naming ceremony may raise a captive's Clan Mark (goblin_state action=mark) after public use."
+  - "Hard-limit tags at table: clan_mark, capture, goblin, breeding."

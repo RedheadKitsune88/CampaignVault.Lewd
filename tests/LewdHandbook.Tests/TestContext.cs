@@ -92,10 +92,30 @@ internal sealed class TestContext : IChangeContext
     public Task<string?> SuggestQuestMatchAsync(string? nameQuery) => Task.FromResult<string?>(null);
 
     /// <summary>Published payload field, read the way a subscriber would see it.</summary>
-    public string? Field(string topic, string field) =>
-        Published.Where(p => p.Topic == topic)
-            .Select(p => p.Data?.GetType().GetProperty(field)?.GetValue(p.Data)?.ToString())
-            .LastOrDefault();
+    public string? Field(string topic, string field)
+    {
+        foreach (var (_, data) in Published.Where(p => p.Topic == topic).Reverse())
+        {
+            if (data is null)
+                continue;
+            if (data is System.Collections.IDictionary map)
+            {
+                foreach (System.Collections.DictionaryEntry entry in map)
+                {
+                    if (string.Equals(entry.Key?.ToString(), field, StringComparison.OrdinalIgnoreCase))
+                        return entry.Value?.ToString();
+                }
+            }
+
+            var prop = data.GetType().GetProperty(field) ??
+                       data.GetType().GetProperties()
+                           .FirstOrDefault(pr => string.Equals(pr.Name, field, StringComparison.OrdinalIgnoreCase));
+            if (prop is not null)
+                return prop.GetValue(data)?.ToString();
+        }
+
+        return null;
+    }
 }
 
 internal sealed class FixedRolls(int face) : IRollService

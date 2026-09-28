@@ -1,0 +1,13 @@
+name: perversion_domain
+system: dnd5e
+hitDie: d8
+casterType: Full
+savingThrows: [Wisdom, Charisma]
+pools: [spell_slots_1, spell_slots_2, spell_slots_3, spell_slots_4, spell_slots_5, spell_slots_6, spell_slots_7, spell_slots_8, spell_slots_9, channel_divinity]
+aliases: [perversion domain, cleric (perversion), domain of perversion]
+description: >
+  Cleric Perversion Domain (Lewd Handbook). Domain spells include Maddening Desire, Instant Recovery, Incite Lust, Suppress
+  Inhibition. 1st Sinful Temptation (Persuasion expertise for seduction); Profane Worship (proficient in sexual implements as
+  holy symbol). 2nd Channel Divinity Discover Depravity (touch Wis save → flustered + learn a kink/secret). 6th Perverse Magic
+  (reaction: swap damage type among listed). 8th Create Depravity (instead grant a temporary fetish). 17th Corruptive Climax
+  (reaction when adjacent creature climaxes: swap a resistance/immunity/vulnerability for 24h).

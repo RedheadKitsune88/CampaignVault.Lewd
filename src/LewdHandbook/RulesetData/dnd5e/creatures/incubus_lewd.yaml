@@ -1,0 +1,13 @@
+name: Incubus (Lewd)
+system: dnd5e
+description: >
+  Medium Fiend (Shapechanger, Concubus). Lewd Handbook / Monsterfucker's Bestiary incubus. Typically Neutral Evil.
+challengeRating: "4"
+hp: 66
+defense: 12
+skills: ["Insight +3", "Intimidation +9", "Perception +1"]
+abilities:
+  - "Speed 30 ft., fly 60 ft. Darkvision 60 ft. Telepathy 60 ft."
+  - "Inhibition +5 (Cha). Maximum Arousal 138. Fiend of Lust (Cha max arousal; true form AC 17)."
+  - "Shapechanger as succubus. Same resistances/stim profile as Succubus (Lewd)."
+  - "Lewd: intimidation-forward advances; natural cock implement + charm."

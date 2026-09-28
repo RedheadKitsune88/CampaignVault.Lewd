@@ -1,0 +1,15 @@
+name: ear_notch_iron
+system: dnd5e
+category: Jewelry
+tags: [goblin, jewelry, piercing, clan]
+description: >
+  Crude iron stud/notch through the left earlobe stamped at the naming ritual.
+  Core piercing kind goblins.ear_notch_iron, tags locked+fresh.
+properties:
+  faction: unified_clans
+  piercingSite: ear.lobe.left
+  piercingKind: goblins.ear_notch_iron
+  suggestedLoad: none
+  suggestedTags: [locked, fresh]
+  weight: 0.05
+  costGp: 1

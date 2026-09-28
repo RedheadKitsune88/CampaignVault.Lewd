@@ -1,0 +1,14 @@
+name: primal_musk
+system: dnd5e
+level: 2
+school: transmutation
+classes: [druid, ranger, barbarian]
+concentration: true
+castingTime: 1 action
+range: Self
+verbal: true
+somatic: true
+material: false
+description: >
+  2nd-level transmutation. Natural-implement advances deal +1d8 poison stimulation; creatures entering/starting within
+  5 ft Con-save or become hyperaroused until end of their next turn. Path of the Breeder gains this while raging. (Lewd Handbook)

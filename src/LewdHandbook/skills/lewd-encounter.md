@@ -30,6 +30,14 @@ A character recorded as `child` or `adolescent` can never be changed to adult. N
 | `lewdNarration` | `explicit` \| `suggestive` (default) \| `fade` | How you narrate. Mechanics always resolve in full; `fade` = before and after, never the act |
 | `lewdNonConsent` | `off` (default) \| `not_against_pc` \| `on` | Whether acts a character doesn't want can resolve. `not_against_pc`: among NPCs only, never against the player's character. `on` is the grimdark setting: no consent refusals for anything a character merely doesn't want (brands, imprints, impregnation, forced climax as well as advances) |
 | `lewdHardLimits` | comma list | Content the player never wants. Refused in every verb |
+| `lewdFluids` | `off` (default) \| `on` | Engine sexual mess via core `soil` (`lewd.cum`) when a climax has a known `finish` |
+| `lewdExternalMarks` | `on` (default) \| `off` | With fluids on: stamp face/hair/clothes/thighs marks |
+| `lewdFluidViceHook` | `on` (default) \| `off` | With fluids on: visible `lewd.*` soil nudges `sexual_fluids` presence |
+| `lewdCreampiePregnancy` | `off` (default) \| `prompt` \| `auto` | Inside finish → nothing / ask for `lewd_pregnancy` / enqueue impregnate |
+| `lewdInsertedToys` | `off` (default) \| `on` | `lewd_insert` / `lewd_remove` occupancy and passive seated stim |
+| `lewdLeaks` | `on` (default) \| `off` | With fluids on: internal deposits leak to core soil on turn/travel/unplug |
+| `lewdHumiliation` | `on` (default) \| `off` | Shame bite for `lewd_humiliate` (willpower + timed status). Arousal from shame only when ordeal ≥1 |
+| `lewdMoodBuffs` | `on` (default) \| `off` | Short engine mood buffs after wanted intimacy |
 
 Change them only when the player asks, in its own commit, quoting them:
 
@@ -76,7 +84,7 @@ The characters' own disposition, separate from the player's settings. Set NPCs' 
 
 ## Verb visibility
 
-`lewd_advance` and `lewd_bad_end` need the mode and are hidden from the default schema (`ModeId=lewd_encounter`); look them up with `type=`. Every other verb is in the default schema and works in or out of a scene (`lewd_bind`, `lewd_stance`, `lewd_pregnancy`, `lewd_vice`, `lewd_climax_check`, ...).
+`lewd_advance` and `lewd_bad_end` need the mode and are hidden from the default schema (`ModeId=lewd_encounter`); look them up with `type=`. Every other verb is in the default schema and works in or out of a scene (`lewd_bind`, `lewd_stance`, `lewd_pregnancy`, `lewd_vice`, `lewd_climax_check`, `lewd_humiliate`, ...).
 
 `lewd_turn_start`, `lewd_scene_end`, `lewd_rest` and `lewd_echo_check` are emitted by the plugin itself; the host refuses them if you send one.
 
@@ -89,14 +97,20 @@ The characters' own disposition, separate from the player's settings. Set NPCs' 
 Needs the mode. Prefer resolved `stimulationAmount`/`hit`. Refused on revoked stance or any hard limit; an unwanted advance resolves only if `lewdNonConsent` allows it for that target.
 
 ```json
-{ "$type": "lewd_advance", "actorId": "chars/a", "targetId": "chars/b", "kind": "martial", "stimulationAmount": 7, "stimulationType": "piercing", "tags": ["phallic"], "hit": true }
+{ "$type": "lewd_advance", "actorId": "chars/a", "targetId": "chars/b", "kind": "martial", "stimulationAmount": 7, "stimulationType": "piercing", "tags": ["phallic"], "hit": true, "targetAnatomy": "pussy", "finish": "inside" }
 ```
 
-Dice source when `stimulationAmount` is omitted: `implementId` → `anatomyKey` → `stimulationDice`, then a held item marked as an implement, then the character's declared implement anatomy (`lewd-catalog`), then derived `hands`. The engine never guesses a receptive part (name it via `anatomyKey` when it does the work). A held weapon is never a toy. Finesse → Dex. Verbal/non-contact: history caps (`lewd-catalog`); no verbal climax until `had_physical` for modest-tier histories. Dirt/fluids: core `character_update`/`item_update`.
+`finish` (`inside`|`outside`|`none`) + `targetAnatomy` are stored on the **actor** as a pending deposit and applied when **they** next climax (with `lewdFluids=on`).
+
+Dice source when `stimulationAmount` is omitted: `implementId` → `anatomyKey` → `stimulationDice`, then a held item marked as an implement, then the character's declared implement anatomy (`lewd-catalog`), then derived `hands`. The engine never guesses a receptive part (name it via `anatomyKey` when it does the work). A held weapon is never a toy. Finesse → Dex. Verbal/non-contact: history caps (`lewd-catalog`); no verbal climax until `had_physical` for modest-tier histories. Dirt/fluids: with `lewdFluids=on`, climax follow-ups stamp core `soil` (`lewd.cum`) when `finish` is `inside`/`outside` (from `lewd_advance` pending deposit or `lewd_climax_check`). Otherwise use core `soil` or `character_update`/`item_update` as before. Hard limits: `fluids`, `marking`, `creampie`.
 
 ## `lewd_climax_check`
 
-Only at the edge (edging or arousal at max) — otherwise refused. Works in or out of an encounter. d20 + Inhibition (minus brand tiers and unwilling imprint levels) vs DC 15; `d20: 0` rolls. `forceClimax` for effects that force one (`power_word_cum`).
+Only at the edge (edging or arousal at max) — otherwise refused. Works in or out of an encounter. d20 + Inhibition (minus brand tiers and unwilling imprint levels) vs DC 15; `d20: 0` rolls. `forceClimax` for effects that force one (`power_word_cum`). Optional `finish` / `targetAnatomy` / `depositOnId` name where this climax lands for fluids soil. Pending finish from an advance is stored on the sheet Traits so it survives leaving the scene.
+
+## `lewd_cleanup`
+
+Wash-up / aftercare: clears internal deposits and queues core `soil` clears for `lewd.*` dirt. `removeToys: true` also clears occupancy.
 
 ```json
 { "$type": "lewd_climax_check", "targetId": "chars/b", "d20": 12 }

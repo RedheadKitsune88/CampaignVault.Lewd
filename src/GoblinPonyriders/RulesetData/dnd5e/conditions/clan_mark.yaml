@@ -1,0 +1,10 @@
+name: Clan Mark
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Visible jagged tattoo stigma from the Unified Clans (levels 1–5 on Traits com.campaignvault.goblins.clan_mark).
+  Raises social friction in towns, speeds conditioning near clan territory, and at higher levels biases
+  obedience checks toward goblin commands. Remove only via story resolution or goblin_state mark absolute 0.
+moodHint: glowing jagged ink that draws stares and clan attention
+immunities: []
+suppresses: []

@@ -1,0 +1,18 @@
+name: labia_rings
+system: dnd5e
+category: Jewelry
+tags: [lewd, jewelry, piercing, intimate]
+description: >
+  Paired rings for the outer labia. Core piercing sites labia.left / labia.right, kind lewd.labia_ring.
+  Optional locked + leash_ring for display harnesses.
+properties:
+  lewdCategory: piercing
+  piercingSites: [labia.left, labia.right]
+  piercingKind: lewd.labia_ring
+  suggestedLoad: light
+  suggestedTags: []
+  hardLimitProbe: [piercing, genital_jewelry]
+  weight: 0.1
+  costGp: 10
+equipZones: [groin]
+equipLayer: Base

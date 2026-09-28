@@ -1,0 +1,17 @@
+name: gangbang
+system: dnd5e
+level: 4
+school: conjuration
+classes: [bard, sorcerer, warlock, wizard]
+concentration: true
+castingTime: 1 action
+range: 60 feet
+verbal: true
+somatic: true
+material: true
+materialConsumed: false
+description: >
+  4th-level conjuration. 10-ft-radius sphere of disembodied phalli: difficult terrain; enter/start turn Dex save
+  or 3d6 bludgeoning stim and restrained until start of next turn. When the spell ends the phalli climax —
+  creatures in the area make a Con save or take further stim / forced climax check (DM). Material: tiny obsidian phallus.
+  (Lewd Handbook)

@@ -11,7 +11,7 @@ Scoping a verb with `[PluginWorldChange("x", ModeId = LewdEncounterMode.ModeIdVa
   `lewd_scene_end`, `lewd_rest`, `lewd_echo_check`.
 - Work outside a scene (NO `ModeId`, must stay in the default schema): `lewd_stance` (default scope), `lewd_bind`,
   `lewd_unbind`, `lewd_escape`, `lewd_apply_brand`, `lewd_imprint`, `lewd_pregnancy`, `lewd_vice`,
-  `lewd_decondition`, `lewd_recover`, `lewd_climax_check` (spells/items force climaxes with no scene).
+  `lewd_decondition`, `lewd_recover`, `lewd_climax_check` (spells/items force climaxes with no scene), `lewd_insert`, `lewd_remove`, `lewd_cleanup`, `lewd_humiliate`.
 - Their handlers use `LewdModeAccess.TryGetParticipant(...)` and must keep working when it returns null
   (fall back to the character sheet / a scratch participant). Do not add "requires an active scene" to them.
 - These are not gated on `EnabledModeIds`; only `systems` limits where the plugin runs.
@@ -23,7 +23,7 @@ Scoping a verb with `[PluginWorldChange("x", ModeId = LewdEncounterMode.ModeIdVa
   and the age gate apply in every setting.
 
 ## Blocking statuses need an exit
-The host (SDK 0.9.0+; plugin builds on 0.10.0) refuses `[ActorAction]` verbs, and core attack/spell/item-use actions, from an actor with a hard-block
+The host (SDK 0.9.0+; plugin builds on 0.12.0) refuses `[ActorAction]` verbs, and core attack/spell/item-use actions, from an actor with a hard-block
 status (`incapacitated`, `stunned`, `paralyzed`, ... or `StatModifiers["BlocksAllActions"]`). Any status the plugin stamps that
 way must end in AND out of a scene: give it `ExpiresAtDay` (the host stops honouring an expired block even if nothing removed it),
 clear it in `EndClimaxIncapacitation` / scene end, and test "no scene, time passes, they can act again".
@@ -39,7 +39,7 @@ Time in restraints: `RestraintTimeObserver` (core `IWorldTimeObserver`) adds hou
 area (`restraint_aftermath.arms` / `.legs`, `AppliedBy = restraint_aftermath`, no `EffectTier`, so core's event-debuff cap
 ignores them, and `Restraint.Sync` keeps them). Magnitudes stay inside host `EffectTiers` by hand; plugins cannot reference
 host code. `Willpower` only records drain in `SystemExtension.WillpowerDrained` (core restores it on rest and applies weak willpower
-to charm/fear/compulsion/mental saves). `LewdRollModifierProvider` (core `IRollModifierProvider`, SDK 0.11.0) turns conditions and
+to charm/fear/compulsion/mental saves). `LewdRollModifierProvider` (core `IRollModifierProvider`, SDK 0.12.0) turns conditions and
 restraints into situational advantage/disadvantage and the hobbled speed cap; it adds no numbers, those live on status effects, so
 nothing counts twice. Plugin rolls go through `SaveDice.RollAsync(..., who:, subject:, tags:)` so they see core's layers; give escape
 checks the `escape` tag so the restraint being escaped does not hamper its own escape.

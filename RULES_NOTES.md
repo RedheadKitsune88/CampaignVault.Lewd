@@ -1,3 +1,9 @@
+## Source texts
+
+- Canonical mechanics: *The Lewd Handbook* **3.7.1** (`~/Downloads/The lewd handbook 3.7.1 [Low-Res].pdf`) and the fuller text dump `~/Downloads/lewd_handbook.md`. Prefer these over the older truncated `lewd-handbook.md` extract when they disagree.
+- Creature adaptations: *Monsterfucker's Bestiary* (`~/Downloads/MM.pdf`) — unfinished community adaptation of official monsters for Lewd Handbook arousal/implements. PDF fonts extract poorly; curated `RulesetData/dnd5e/creatures/*_lewd.yaml` stubs are intentional, not a full port.
+- Plugin encoding stays curated stubs (spells/classes/creatures/feats) for the LLM — not a page-faithful reprint.
+
 # RULES_NOTES — Lewd Handbook encoding
 
 Sources (operator machine only; do not commit PDF/extracts):
@@ -69,10 +75,22 @@ Core publishes `core.rested.v1` for completed rests only. `LewdRestEventHandler`
 - Cascade (current level and below): 1 Intoxicated, 2 Hyperaroused, 3 Inhibition 0, 4 Infatuated by source, 5 climax does not clear edging, 6 `bad_ended`. Cascade conditions the plugin stamped are removed again when the level drops (resynced at scene end from the sheet's `Overstimulation N`).
 - Long rest −1 only if no sexual stim while resting — host decrements the stacking status; do not also clear it in prose.
 
-## Filth
+## Filth / fluids
 
-- Not an engine counter. Lewd advance, climax, and bind do not increment filth. Verbal / non-contact beats never dirty a target.
-- The model records dirt when the fiction changes (sex, dust, mud, cleanup) via core verbs: `character_update.appearanceOverride` + temporary visual tags; `item_update` temporary tags / `newState` on the container, not the contents; `upsertItemDetail` for durable stains, retired when no longer true.
+- General dirt is core `soil` / `DirtMark` (blood, mud, dust…). Sexual mess uses the same verb with namespaced kinds `lewd.cum` / `lewd.fluids` when `lewdFluids=on` (default **off**).
+- A climax with a known `finish` (`inside` / `outside`) and deposit site stamps soil via `LewdSoilHandler` follow-ups. `lewd_advance` can set `finish` + `targetAnatomy` (pending on the actor until they climax); `lewd_climax_check` can set `finish` / `targetAnatomy` / `depositOnId` on the check itself. No finish → no engine soil.
+- Verbal / non-contact climaxes never soil. Hard limits `fluids` / `marking` / `creampie` / `cum` / `sexual_fluids` refuse. `lewdExternalMarks=off` skips DirtMarks; `lewdCreampiePregnancy` (`off`|`prompt`|`auto`) bridges inside finishes to `lewd_pregnancy`. `lewdFluidViceHook` nudges `sexual_fluids` presence when `lewd.*` soil lands.
+- With `lewdFluids=off`, the model still records dirt via core `soil` or appearance/item tags as before.
+
+## Occupancy / plugs / leaks
+
+- `lewdInsertedToys` (default off): enables `lewd_insert` / `lewd_remove` and passive stim while occupied. Occupancy is Trait JSON `occupied` (unprefixed, visible like bindings) plus StatusEffects (`Plugged`, `Beads seated`, `Occupied`).
+- Seal: `open` | `plugged` | `beaded`. Plugs hold internal deposits; beads leak on travel/unplug/bead-pull, not on quiet turn ticks.
+- Inside finish writes `lewd_encounter.internal_deposits` and stamps `Filled`. If sealed, no immediate external soil; `lewdLeaks` (default on with fluids) emits `leak.v1` → core `soil` on turn/travel/remove.
+- `lewd_advance leaveInserted` + `targetAnatomy` seats the implement/partner when toys are on.
+- Pending finish is mirrored to sheet Traits (`lewd_encounter.pending_finish` / `pending_target_anatomy` / `pending_deposit_on`) so a later `lewd_climax_check` outside the scene still sees the deposit intent.
+- `lewd_cleanup`: clear internal deposits (optional `removeToys`) and queue core `soil` clears for `lewd.cum` / `lewd.fluids`.
+- Hard limits: `plugs`, `beads`, `insertion`, `toys`, `anal`.
 
 ## Kink / verbal gating
 
@@ -240,10 +258,11 @@ Sex/sexual_fluids withdrawal failure bumps overstimulation. Alcohol bumps `Exhau
 
 All rest effects run in `lewd_rest` (see **Rest pipeline**), emitted from `core.rested.v1`, so an interrupted rest does nothing. Long-rest overstim decrement stays host-side on `Overstimulation N`.
 
-## Feather-goblins-style state
+## High-stakes clan / ponyrider state
 
-Marks, filth, and conditioning stay compatible with feather-goblins-style Traits/tags:
+Marks, filth, and conditioning stay compatible with optional faction overlays (see **GoblinPonyriders** / CampaignVault.Goblins):
 
-- Filth: core `character_update` / `item_update` / `upsertItemDetail` only (no plugin filth counter).
+- Filth: core soil / `character_update` / `item_update` / `upsertItemDetail` (no plugin filth counter).
 - Brands/imprints/vices: Trait strings + StatusEffects the LLM can read on `get_entity`.
 - Participant mirrors inside `lewd_encounter` for encounter-scoped counters; durable vice/pregnancy/brand/imprint live on the Character.
+- Unified Clans Defiance Clock / Clan Mark / Capture State live in the separate `GoblinPonyriders` plugin (`com.campaignvault.goblins`); bondage stays on Lewd `lewd_bind` / `lewd_insert`.

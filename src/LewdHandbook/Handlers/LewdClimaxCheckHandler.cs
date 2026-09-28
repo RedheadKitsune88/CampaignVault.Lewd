@@ -83,9 +83,23 @@ public sealed class LewdClimaxCheckHandler : IWorldChangeHandler
             summary = result.Summary;
         }
 
+        if (!string.IsNullOrWhiteSpace(check.Finish))
+        {
+            LewdAdvanceHandler.RememberPendingDeposit(
+                target,
+                new LewdAdvanceChange
+                {
+                    ActorId = check.TargetId,
+                    TargetId = string.IsNullOrWhiteSpace(check.DepositOnId) ? check.TargetId : check.DepositOnId!,
+                    Finish = check.Finish,
+                    TargetAnatomy = check.TargetAnatomy,
+                },
+                targetChar);
+        }
+
         var ruin = await BrandState.PreRollRuinAsync(context, targetChar, ct).ConfigureAwait(false);
         var aftermath = LewdAdvanceHandler.ApplyClimaxResult(
-            target, targetChar, arousal, result, sourceId: null, context, forced: check.ForceClimax, ruin: ruin,
+            target, targetChar, arousal, result, sourceId: check.DepositOnId, context, forced: check.ForceClimax, ruin: ruin,
             nowDays: await LewdClock.NowDaysAsync(context).ConfigureAwait(false));
         context.RecordMessage($"Lewd climax check {check.TargetId}: {summary}{aftermath}");
         settings.Narrate(context);

@@ -44,7 +44,10 @@ public sealed class LewdRestHandler : IWorldChangeHandler
         var day = await ImprintState.DayAsync(context, ct).ConfigureAwait(false);
         ImprintState.ApplyPendingJump(participant, character, day, context);
         if (longRest)
+        {
             await ImprintState.OnLongRestAsync(character, participant, context, ct).ConfigureAwait(false);
+            Humiliation.ClearRecent(character);
+        }
 
         if (PregnancyState.Sync(character, now, context) is { } progress)
             notes.Add(progress);

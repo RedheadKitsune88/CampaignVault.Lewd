@@ -1,0 +1,16 @@
+name: Succubus (Lewd)
+system: dnd5e
+description: >
+  Medium Fiend (Shapechanger, Concubus). Lewd Handbook / Monsterfucker's Bestiary adaptation of the MM succubus with
+  arousal pools and Fiend of Lust. Typically Neutral Evil.
+challengeRating: "4"
+hp: 66
+defense: 13
+skills: ["Deception +9", "Insight +5", "Perception +3", "Persuasion +9", "Stealth +5"]
+abilities:
+  - "Speed 30 ft., fly 60 ft. Darkvision 60 ft. Telepathy 60 ft. Languages: Abyssal, Common, Infernal."
+  - "Inhibition +5 (Cha). Maximum Arousal 138 (12d12+60). Condition immunity: Infatuated."
+  - "Fiend of Lust: use Cha for max arousal; in true form add Cha mod to AC (AC 18)."
+  - "Shapechanger: action to polymorph into Small/Medium humanoid (loses fly without wings)."
+  - "Resistances: cold, fire, poison; bludgeoning/piercing/slashing from nonmagical. Stim resist cold/psychic; stim vuln poison."
+  - "Lewd: Charm / Draining Kiss / natural implement advances per handbook — treat as high-Cha seduction + piercing stim."

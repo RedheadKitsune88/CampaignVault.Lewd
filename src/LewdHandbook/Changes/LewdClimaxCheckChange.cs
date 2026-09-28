@@ -21,5 +21,14 @@ public sealed class LewdClimaxCheckChange : WorldChange
     /// <summary>Force climax without rolling (e.g. Power Word Cum).</summary>
     public bool ForceClimax { get; set; }
 
+    /// <summary>Where this climax lands: inside | outside | none. Required for engine soil when lewdFluids is on.</summary>
+    public string? Finish { get; set; }
+
+    /// <summary>Site on the deposit target (face, hair, chest, pussy, ass...).</summary>
+    public string? TargetAnatomy { get; set; }
+
+    /// <summary>Who receives the deposit when different from the climaxing character (partner id).</summary>
+    public string? DepositOnId { get; set; }
+
     public string? Notes { get; set; }
 }

@@ -1,0 +1,44 @@
+{
+  "id": "com.campaignvault.goblins",
+  "displayName": "Goblin Ponyriders",
+  "version": "0.1.0",
+  "minEngineVersion": "0.12.0",
+  "systems": [
+    "dnd5e"
+  ],
+  "modeIds": [],
+  "playerOnlyModeIds": [],
+  "rulesetDataRoots": [
+    "./RulesetData"
+  ],
+  "skillsPath": "./skills",
+  "publishes": [
+    "com.campaignvault.goblins.capture.v1",
+    "com.campaignvault.goblins.defiance.v1",
+    "com.campaignvault.goblins.clan_mark.v1",
+    "com.campaignvault.goblins.role.v1",
+    "com.campaignvault.goblins.training.v1",
+    "com.campaignvault.goblins.release.v1",
+    "com.campaignvault.goblins.name.v1"
+  ],
+  "campaignOptions": [
+    {
+      "key": "goblinClans",
+      "type": "enum",
+      "values": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "playerOnly": true,
+      "description": "Enable the Goblin Ponyriders / Unified Clans overlay (capture, Defiance Clock, Clan Mark, training roles). off keeps verbs inert. High-stakes content: pair with LewdHandbook lewdNonConsent and hard limits. Adults only."
+    },
+    {
+      "key": "goblinHardLimits",
+      "type": "string",
+      "default": "",
+      "playerOnly": true,
+      "description": "Comma-separated tags this plugin always refuses (e.g. capture, pony, breeding, clan_mark, terror_release). Stacks with LewdHandbook lewdHardLimits."
+    }
+  ]
+}

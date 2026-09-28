@@ -1,0 +1,16 @@
+name: heavy_nose_ring
+system: dnd5e
+category: Jewelry
+tags: [goblin, jewelry, piercing, clan]
+description: >
+  Thick hammered iron through the septum. Unified Clans terror-release and parade jewelry.
+  Apply via core piercing (site nose.septum, kind goblins.heavy_nose_ring, load heavy, tags locked).
+  Visible walking warning; rumor seed on terror_release.
+properties:
+  faction: unified_clans
+  piercingSite: nose.septum
+  piercingKind: goblins.heavy_nose_ring
+  suggestedLoad: heavy
+  suggestedTags: [locked]
+  weight: 0.4
+  costGp: 2

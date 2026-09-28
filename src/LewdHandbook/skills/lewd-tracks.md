@@ -46,6 +46,26 @@ Durable: Traits `lewd_encounter.vice.<id>.*`, Attributes `vice.<id>.*` (dc, last
 
 Tracks: `wanton`, `training`, `breeding`, `ordeal`, `cruelty`. Levels 0–3. Hard limits (player's and the character's) block. Unwilling needs `lewdNonConsent` to allow it for the target, or `willing`.
 
+**Ordeal ≈ masochism** (how much pain/humiliation converts to want). Distinct from **inhibition** (how hard it is to start an advance / climax save). Do not invent a sixth `masochism` track.
+
+### Humiliation — `lewd_humiliate` (global)
+
+Public theater, naming, piercing display, forced begging. Always drains willpower and stamps timed `Humiliated` / `Deeply humiliated` (no EffectTier; daily cap 3; `lewdHumiliation` default on). Hard limits `humiliation` / `shame`.
+
+```json
+{ "$type": "lewd_humiliate", "characterId": "chars/b", "severity": 2, "tags": ["public", "piercing"], "sourceId": "chars/a" }
+```
+
+| Severity | Willpower | Status |
+|----------|-----------|--------|
+| 1 | −2 | Humiliated ~4h: Cha −1 |
+| 2 | −4 | Humiliated ~8h: Cha −1, Wis −1 |
+| 3 | −6 | Deeply humiliated ~24h: Cha −2, Wis −1 |
+
+**Arousal from shame only if ordeal ≥1** (severity 1 never arouses; 2–3 roll 1d4 ± ordeal). Inhibition is never an input. Publishes `humiliated.v1`.
+
+**Slow ordeal climb:** after a pain-tagged advance or `lewd_humiliate`, if a climax lands soon, you *may* commit `lewd_imprint` category=`ordeal` with a small points tick. Engine Message-nudges once/day; never auto-levels.
+
 Backstory (an NPC who arrives conditioned): `setLevel: 1–3` sets the track directly, no save; `willing` picks the origin.
 
 `anchorId` ties a track to a person (the captor, a trusted partner): an unwilling imprint then lowers Inhibition only against them, and a level-3 training imprint obeys them. Imprints from an advance or a bind are tied to whoever pressed them.

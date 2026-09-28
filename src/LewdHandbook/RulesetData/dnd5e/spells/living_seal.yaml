@@ -1,0 +1,16 @@
+name: living_seal
+system: dnd5e
+level: 9
+school: abjuration
+classes: [wizard, warlock]
+concentration: false
+castingTime: 1 minute
+range: 30 feet
+verbal: true
+somatic: true
+material: true
+materialConsumed: true
+description: >
+  9th-level abjuration, until dispelled. Bind a willing (or Wis-failed unwilling) creature as a warding seal or spell seal
+  for a curse / permanent magic (true polymorph, imprisonment, etc.). Material: magical ink + 1000 gp diamond (consumed).
+  (Lewd Handbook)

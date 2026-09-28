@@ -1,0 +1,14 @@
+name: Goblin Ponyrider
+system: dnd5e
+description: >
+  Small Humanoid (Goblinoid). Unified Clans scout/raider who rides a broken tall-folk mount (Riding-Girl).
+  Sharper than common goblins — doctrine leaked from Cult-enhanced shamans. Alive-capture priority; nets and bolas before steel.
+challengeRating: "1"
+hp: 16
+defense: 14
+skills: ["Stealth +6", "Animal Handling +3", "Athletics +2"]
+abilities:
+  - "Speed 30 ft. Darkvision 60 ft. Languages: Goblin, broken Common. Nimble Escape."
+  - "Mounted net: while riding a Riding-Girl mount, throw weighted net with retrieval rope; yank assists grapple."
+  - "Doctrine: non-lethal priority on fertile captives until pin+collar secured. Terror-release males as warnings."
+  - "Hard-limit tags at table: capture, pony, breeding, goblin."

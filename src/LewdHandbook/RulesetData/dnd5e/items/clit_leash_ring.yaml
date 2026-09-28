@@ -1,0 +1,19 @@
+name: clit_leash_ring
+system: dnd5e
+category: Jewelry
+tags: [lewd, jewelry, piercing, intimate, leash]
+description: >
+  Small captive ring through the clitoral hood with a leash eye. Apply via core piercing
+  (site clitoris, kind lewd.clit_ring, tags leash_ring). Actual leash is core tether or lewd_bind
+  with AttachedBy=pierce:clitoris. Hard limits piercing / clit_piercing / genital_jewelry refuse.
+properties:
+  lewdCategory: piercing
+  piercingSites: [clitoris]
+  piercingKind: lewd.clit_ring
+  suggestedLoad: none
+  suggestedTags: [leash_ring, locked]
+  hardLimitProbe: [piercing, clit_piercing, genital_jewelry]
+  weight: 0.05
+  costGp: 12
+equipZones: [groin]
+equipLayer: Base

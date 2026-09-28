@@ -1,0 +1,22 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[] + definitionName.
+name: anal_plug
+system: dnd5e
+category: Implement
+tags: [lewd, implement, plug, insertable]
+description: >
+  Tapered plug meant to stay seated. Use lewd_insert orifice=ass kind=plug; seal=plugged
+  holds internal deposits until lewd_remove.
+properties:
+  lewdCategory: implement
+  damageDice: 1d4
+  damageType: piercing
+  implementTags: [phallic, artificial, plug, insertable]
+  insertable: true
+  defaultOrifice: ass
+  defaultSeal: plugged
+  finesse: false
+  weight: 0.5
+  costGp: 5
+  damage: 1d4
+equipZones: [MainHand]
+equipLayer: Held

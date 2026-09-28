@@ -1,0 +1,10 @@
+name: Capture State
+system: dnd5e
+durationType: Manual
+mechanicalSummary: >
+  Held by the Unified Clans. Expect collar, hobble, and short-range supervision. Escape is a hard contested
+  check (DM sets DC from restraints via LewdHandbook bindings). Ends on rescue, escape, role assignment exit,
+  or goblin_state action=release.
+moodHint: iron collar, short steps, clan riders watching
+immunities: []
+suppresses: []

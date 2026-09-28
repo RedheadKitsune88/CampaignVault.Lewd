@@ -15,6 +15,9 @@ public static class LewdEvents
     public const string ImprintChanged = SourcePrefix + "imprint_changed.v1";
     public const string Pregnancy = SourcePrefix + "pregnancy.v1";
     public const string BindingChanged = SourcePrefix + "binding_changed.v1";
+    public const string Leak = SourcePrefix + "leak.v1";
+    public const string Cleanup = SourcePrefix + "cleanup.v1";
+    public const string Humiliated = SourcePrefix + "humiliated.v1";
 
     public static readonly string[] All =
     [
@@ -25,6 +28,9 @@ public static class LewdEvents
         ImprintChanged,
         Pregnancy,
         BindingChanged,
+        Leak,
+        Cleanup,
+        Humiliated,
     ];
 
     public static class Fields
@@ -45,5 +51,14 @@ public static class LewdEvents
         public const string Dc = "dc";
         public const string Category = "category";
         public const string Level = "level";
+        public const string SourceId = "sourceId";
+        public const string Finish = "finish";
+        public const string TargetAnatomy = "targetAnatomy";
+        public const string DepositOnId = "depositOnId";
+        public const string Physical = "physical";
+        public const string Severity = "severity";
+        public const string WillpowerDrained = "willpowerDrained";
+        public const string Ordeal = "ordeal";
+        public const string ArousalDelta = "arousalDelta";
     }
 }

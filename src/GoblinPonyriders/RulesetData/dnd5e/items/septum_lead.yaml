@@ -1,0 +1,16 @@
+name: septum_lead
+system: dnd5e
+category: Jewelry
+tags: [goblin, jewelry, piercing, clan, leash]
+description: >
+  Iron septum ring with a short lead eye for Riding-Girls. Core piercing kind goblins.septum_lead,
+  tags leash_ring+locked. Reins still go through lewd_bind / core tether (AttachedBy=pierce:nose.septum).
+properties:
+  faction: unified_clans
+  piercingSite: nose.septum
+  piercingKind: goblins.septum_lead
+  suggestedLoad: light
+  suggestedTags: [leash_ring, locked]
+  roleHint: riding_girl
+  weight: 0.25
+  costGp: 3

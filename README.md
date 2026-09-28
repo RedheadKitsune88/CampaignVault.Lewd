@@ -9,8 +9,8 @@ This repository is intentionally **separate** from the main CampaignVault tree s
 ## Requirements
 
 - .NET SDK that targets `net10.0`
-- A CampaignVault host with engine version ≥ `0.8.0` (`minEngineVersion` in `plugin.json`)
-- `CampaignVault.PluginSdk` **0.8.0**. New in 0.8.0: public `[EngineOnly]` (the plugin's `lewd_rest`, `lewd_scene_end`, `lewd_turn_start` and `lewd_echo_check` are hidden and refused if the model sends them), `plugin.json` `systems` (this plugin declares `["dnd5e"]`, so the host skips it entirely in any other system), and `mode_transition` `join` / `leave`. From 0.7.0: From 0.6.0: `Character.LifeStage`, `IInteractionMode.ValidateEntry`, `playerOnly` campaign options, `mode_transition action=turn`. New in 0.7.0: `IPluginCampaignOptionsUpgrader`, `IContextTurn.Config` / `Time` / `LoadCharacterAsync`, `playerOnlyModeIds`, owner-managed pools (`ownerManaged` / `startsAt`), mode action budgets enforced by the host, and travel alongside a hard engagement whose target travels in the same commit. Restored from nuget.org.
+- A CampaignVault host with engine version ≥ `0.12.0` (`minEngineVersion` in `plugin.json`)
+- `CampaignVault.PluginSdk` **0.12.0** (local `../CampaignVault/nupkgs` via `nuget.config`, or nuget.org once published). Adds body piercings (`piercing` / `PiercingMark` / `core.pierced.v1`). 0.11.x covers dirt, roll modifiers, willpower, and climax-related host surfaces.
 
 ## Build
 
@@ -20,7 +20,7 @@ dotnet build
 dotnet test
 ```
 
-See [EVENTS.md](EVENTS.md) for topics other plugins can subscribe to. Only the verbs that need an active scene (`lewd_advance`, `lewd_bad_end` and the engine-only scene verbs) use `ModeId=lewd_encounter`, so they are absent from the default commit_schema index (look up with `type=`). Everything else (`lewd_stance`, `lewd_bind`/`unbind`/`escape`, `lewd_apply_brand`, `lewd_imprint`, `lewd_pregnancy`, `lewd_vice`, `lewd_decondition`, `lewd_recover`, `lewd_climax_check`) stays in the default schema and works outside a scene, anywhere the plugin applies. The engine-only verbs are refused if the model sends them.
+See [EVENTS.md](EVENTS.md) for topics other plugins can subscribe to. Only the verbs that need an active scene (`lewd_advance`, `lewd_bad_end` and the engine-only scene verbs) use `ModeId=lewd_encounter`, so they are absent from the default commit_schema index (look up with `type=`). Everything else (`lewd_stance`, `lewd_bind`/`unbind`/`escape`, `lewd_apply_brand`, `lewd_imprint`, `lewd_pregnancy`, `lewd_vice`, `lewd_decondition`, `lewd_recover`, `lewd_climax_check`, `lewd_insert`, `lewd_remove`, `lewd_cleanup`) stays in the default schema and works outside a scene, anywhere the plugin applies. The engine-only verbs are refused if the model sends them.
 
 Host-level tests run the plugin inside core's real dispatcher and need the core repo next to this one: `./scripts/test-host.sh`.
 
@@ -39,6 +39,10 @@ Host-level tests run the plugin inside core's real dispatcher and need the core 
 ```
 
 **Never** place `CampaignVault.PluginSdk.dll` in the plugin folder. The host already provides it.
+
+### Optional: Goblin Ponyriders (CampaignVault.Goblins)
+
+Separate plugin in `src/GoblinPonyriders/` — Unified Clans faction overlay (Defiance Clock, Clan Mark, capture/training roles). Pack with `./scripts/pack-goblins.sh` → `artifacts/GoblinPonyriders/`. Enable player-owned `goblinClans=on`. Bondage stays on LewdHandbook; see `src/GoblinPonyriders/README.md`.
 
 ### Scenes, joining and interruptions
 
@@ -92,7 +96,7 @@ Two separate layers, because the only human at the table is the player:
 
 | Layer | Who sets it | Where | Controls |
 |-------|-------------|-------|----------|
-| **Player settings** | The human player | Campaign options `lewdNarration`, `lewdNonConsent`, `lewdHardLimits` (`playerOnly`) | How it's narrated, whether unwanted acts can resolve, content that's always refused |
+| **Player settings** | The human player | Campaign options including `lewdFluids`, `lewdInsertedToys`, `lewdLeaks`, consent/narration (`playerOnly`) | Narration, non-consent policy, hard limits, mood buffs, and optional engine sexual dirt via core `soil` |
 | **Stance** | The model for NPCs, the player for their PC | `lewd_stance` → scene State or character Traits `lewd_encounter.*` | Whether a character wants a given act, and their own limits, kinks and Inhibition |
 
 `lewdNarration` (`explicit` / `suggestive` / `fade`) only steers narration; mechanics always resolve in full. `lewdNonConsent`: `off` (default) refuses anything a character doesn't want; `not_against_pc` allows it among NPCs but never against the player's character; `on` is the **grimdark switch**: nothing a character merely doesn't want is refused, for advances, brands, imprints, impregnation and forced climax alike. Revoked stance, hard limits and the adults-only rule refuse in every setting.

@@ -98,6 +98,8 @@ public sealed class LewdImprintHandler : IWorldChangeHandler
         if (delta > 0)
             ImprintState.Tick(participant, character, category, willing, delta, day, req.Accept, context, req.AnchorId,
                 await LewdClock.NowDaysAsync(context).ConfigureAwait(false));
+        if (category == "ordeal")
+            character.SystemStats.Traits.Remove(LewdKeys.TraitPendingOrdealFromPain);
         PublishChanged(context, req.TargetId, character, category, req.Accept ? "accept" : "tick");
         return ChangeHandlerResult.Ok;
     }

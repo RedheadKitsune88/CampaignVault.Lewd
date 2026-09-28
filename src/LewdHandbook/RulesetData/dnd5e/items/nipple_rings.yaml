@@ -1,0 +1,20 @@
+# Intimate piercing kit — apply via core piercing verb (site nipple.left/right, kind lewd.nipple_ring).
+name: nipple_rings
+system: dnd5e
+category: Jewelry
+tags: [lewd, jewelry, piercing, intimate]
+description: >
+  Matched rings for the nipples. Optional light weights or bells. When worn with load heavy or tag bell,
+  public notice is theater for lewd_humiliate — do not auto-drain willpower every travel step.
+  Leashable when tagged leash_ring (core tether / lewd_bind AttachedBy=pierce:nipple.*).
+properties:
+  lewdCategory: piercing
+  piercingSites: [nipple.left, nipple.right]
+  piercingKind: lewd.nipple_ring
+  suggestedLoad: light
+  suggestedTags: [bell]
+  hardLimitProbe: [piercing, nipple_piercing, genital_jewelry]
+  weight: 0.1
+  costGp: 8
+equipZones: [nipples]
+equipLayer: Base

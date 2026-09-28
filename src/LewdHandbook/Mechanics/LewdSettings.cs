@@ -19,11 +19,30 @@ internal enum LewdNonConsent
     On,
 }
 
+/// <summary>Whether an internal finish may enqueue impregnation after a climax deposit.</summary>
+internal enum LewdCreampiePregnancy
+{
+    Off,
+    Prompt,
+    Auto,
+}
+
 /// <summary>
 /// Player-owned campaign options (plugin.json <c>playerOnly</c>): narration style, the non-consent policy and
 /// campaign-wide hard limits. The in-fiction willingness of a character is <see cref="LewdProfile"/>, not this.
 /// </summary>
-internal sealed record LewdSettings(LewdNarration Narration, LewdNonConsent NonConsent, IReadOnlyList<string> HardLimits, bool MoodBuffs = true)
+internal sealed record LewdSettings(
+    LewdNarration Narration,
+    LewdNonConsent NonConsent,
+    IReadOnlyList<string> HardLimits,
+    bool MoodBuffs = true,
+    bool Humiliation = true,
+    bool Fluids = false,
+    bool ExternalMarks = true,
+    bool FluidViceHook = true,
+    LewdCreampiePregnancy CreampiePregnancy = LewdCreampiePregnancy.Off,
+    bool InsertedToys = false,
+    bool Leaks = true)
 {
     public static readonly LewdSettings Default = new(LewdNarration.Suggestive, LewdNonConsent.Off, []);
 
@@ -66,7 +85,14 @@ internal sealed record LewdSettings(LewdNarration Narration, LewdNonConsent NonC
             ParseNarration(Read(options, LewdKeys.NarrationOption)),
             ParseNonConsent(Read(options, LewdKeys.NonConsentOption)),
             ParseList(Read(options, LewdKeys.HardLimitsOption)),
-            Normalize(Read(options, LewdKeys.MoodBuffsOption)) != "off");
+            Normalize(Read(options, LewdKeys.MoodBuffsOption)) != "off",
+            Normalize(Read(options, LewdKeys.HumiliationOption)) != "off",
+            Normalize(Read(options, LewdKeys.FluidsOption)) == LewdKeys.OptionOn,
+            Normalize(Read(options, LewdKeys.ExternalMarksOption)) != LewdKeys.OptionOff,
+            Normalize(Read(options, LewdKeys.FluidViceHookOption)) != LewdKeys.OptionOff,
+            ParseCreampiePregnancy(Read(options, LewdKeys.CreampiePregnancyOption)),
+            Normalize(Read(options, LewdKeys.InsertedToysOption)) == LewdKeys.OptionOn,
+            Normalize(Read(options, LewdKeys.LeaksOption)) != LewdKeys.OptionOff);
     }
 
     public static LewdNarration ParseNarration(string? raw) => Normalize(raw) switch
@@ -83,6 +109,19 @@ internal sealed record LewdSettings(LewdNarration Narration, LewdNonConsent NonC
         LewdKeys.NonConsentNotAgainstPc => LewdNonConsent.NotAgainstPc,
         _ => LewdNonConsent.Off,
     };
+
+    /// <summary>Unknown values fail closed to <see cref="LewdCreampiePregnancy.Off"/>.</summary>
+    public static LewdCreampiePregnancy ParseCreampiePregnancy(string? raw) => Normalize(raw) switch
+    {
+        LewdKeys.CreampiePregnancyPrompt => LewdCreampiePregnancy.Prompt,
+        LewdKeys.CreampiePregnancyAuto => LewdCreampiePregnancy.Auto,
+        _ => LewdCreampiePregnancy.Off,
+    };
+
+    /// <summary>Hard-limit tags that refuse engine-owned sexual dirt.</summary>
+    public static readonly string[] FluidHardLimitTags = ["fluids", "marking", "creampie", "cum", "sexual_fluids"];
+
+    public static readonly string[] InsertHardLimitTags = ["plugs", "beads", "insertion", "toys", "anal"];
 
     /// <summary>
     /// Whether an unwanted act against <paramref name="target"/> may resolve. Callers only ask when the act is

@@ -1,0 +1,16 @@
+name: reign_of_cum
+system: dnd5e
+level: 9
+school: transmutation
+classes: [bard, sorcerer, warlock, wizard]
+concentration: true
+castingTime: 1 action
+range: Self
+verbal: true
+somatic: true
+material: true
+materialConsumed: false
+description: >
+  9th-level transmutation, concentration up to 8 hours. Humanoids who ingest your sexual fluids Wis-save or become
+  infatuated for the duration. Climaxing inside/on them instead applies dominate person for the full duration.
+  Material: signet of a powerful ruler. Pairs with lewdFluids / sexual_fluids vice. (Lewd Handbook)

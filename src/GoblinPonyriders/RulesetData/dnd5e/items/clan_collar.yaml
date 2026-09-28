@@ -1,0 +1,11 @@
+name: Clan Iron Collar
+system: dnd5e
+type: adventuring gear
+rarity: common
+description: >
+  Heavy hammered iron collar with a short leash ring. Unified Clans standard for captives.
+  Use via LewdHandbook lewd_bind (neck/collar site). Deliberate flaw: slightly bent locking pin.
+properties:
+  lewd_bind_site: neck
+  faction: unified_clans
+  exploitable_flaw: bent locking pin

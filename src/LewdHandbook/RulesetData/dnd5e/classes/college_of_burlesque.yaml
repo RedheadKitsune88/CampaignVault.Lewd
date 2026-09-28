@@ -1,0 +1,13 @@
+name: college_of_burlesque
+system: dnd5e
+hitDie: d8
+casterType: Full
+savingThrows: [Dexterity, Charisma]
+pools: [spell_slots_1, spell_slots_2, spell_slots_3, spell_slots_4, spell_slots_5, spell_slots_6, spell_slots_7, spell_slots_8, spell_slots_9, bardic_inspiration]
+aliases: [college of burlesque, burlesque, bard (burlesque), burlesque bard]
+description: >
+  Bard College of Burlesque (Lewd Handbook). 3rd: Exotic Arts (sexual implements as bard focus; Performance for seduction);
+  Salacious Performance (Performance ≥ spell save DC → Enthrall-like aura, bonus action to continue). 6th: Erotic Flourish
+  (spend Bardic Inspiration on stim gain → psychic stim to witnesses); Enchanting Display (Salacious targets disadv vs your
+  bard spells; allies adv vs charm/fear/hyperaroused/infatuated — replaces Countercharm). 14th: Stunning Finale (your climax
+  stuns Salacious targets until end of their next turn; allies immune).

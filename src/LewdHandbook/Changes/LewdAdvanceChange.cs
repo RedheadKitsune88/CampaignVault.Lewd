@@ -33,6 +33,21 @@ public sealed class LewdAdvanceChange : WorldChange
     /// <summary>Natural anatomy Traits key or suffix (e.g. cock or lewd_encounter.anatomy.cock).</summary>
     public string? AnatomyKey { get; set; }
 
+    /// <summary>
+    /// Receptive site on the target for this beat (pussy, ass, face, mouth, chest, hair...). Used with
+    /// <see cref="Finish"/> when the actor later climaxes (pending deposit).
+    /// </summary>
+    public string? TargetAnatomy { get; set; }
+
+    /// <summary>
+    /// Where the actor's climax should land: <c>inside</c>, <c>outside</c>, or <c>none</c>. Stored on the actor until
+    /// they climax; omitted leaves any previous pending deposit unchanged.
+    /// </summary>
+    public string? Finish { get; set; }
+
+    /// <summary>When true and <see cref="TargetAnatomy"/> is set, leave the implement/partner seated (requires lewdInsertedToys).</summary>
+    public bool LeaveInserted { get; set; }
+
     /// <summary>Ability bonus added to rolled stim (Str, or Dex if finesse).</summary>
     public int AbilityBonus { get; set; }
 

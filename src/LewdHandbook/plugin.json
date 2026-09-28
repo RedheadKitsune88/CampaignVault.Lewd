@@ -2,11 +2,19 @@
   "id": "com.campaignvault.lewd-handbook",
   "displayName": "Lewd Handbook",
   "version": "0.3.0",
-  "minEngineVersion": "0.11.0",
-  "systems": ["dnd5e"],
-  "modeIds": ["lewd_encounter"],
-  "playerOnlyModeIds": ["lewd_encounter"],
-  "rulesetDataRoots": ["./RulesetData"],
+  "minEngineVersion": "0.12.0",
+  "systems": [
+    "dnd5e"
+  ],
+  "modeIds": [
+    "lewd_encounter"
+  ],
+  "playerOnlyModeIds": [
+    "lewd_encounter"
+  ],
+  "rulesetDataRoots": [
+    "./RulesetData"
+  ],
   "skillsPath": "./skills",
   "publishes": [
     "com.campaignvault.lewd-handbook.climax.v1",
@@ -15,13 +23,20 @@
     "com.campaignvault.lewd-handbook.vice_state.v1",
     "com.campaignvault.lewd-handbook.imprint_changed.v1",
     "com.campaignvault.lewd-handbook.pregnancy.v1",
-    "com.campaignvault.lewd-handbook.binding_changed.v1"
+    "com.campaignvault.lewd-handbook.binding_changed.v1",
+    "com.campaignvault.lewd-handbook.leak.v1",
+    "com.campaignvault.lewd-handbook.cleanup.v1",
+    "com.campaignvault.lewd-handbook.humiliated.v1"
   ],
   "campaignOptions": [
     {
       "key": "lewdNarration",
       "type": "enum",
-      "values": ["explicit", "suggestive", "fade"],
+      "values": [
+        "explicit",
+        "suggestive",
+        "fade"
+      ],
       "default": "suggestive",
       "playerOnly": true,
       "description": "How sexual content is narrated. Mechanics always resolve in full; fade narrates before and after, never the act."
@@ -29,7 +44,11 @@
     {
       "key": "lewdNonConsent",
       "type": "enum",
-      "values": ["off", "not_against_pc", "on"],
+      "values": [
+        "off",
+        "not_against_pc",
+        "on"
+      ],
       "default": "off",
       "playerOnly": true,
       "description": "Whether acts a character does not want can resolve in the fiction. off refuses them; not_against_pc allows them among NPCs but never against the player's character; on is the grimdark setting: no consent refusals for anything the character merely does not want. In every setting a revoked stance, hard limits and the adults-only rule still refuse."
@@ -37,10 +56,24 @@
     {
       "key": "lewdMoodBuffs",
       "type": "enum",
-      "values": ["on", "off"],
+      "values": [
+        "on",
+        "off"
+      ],
       "default": "on",
       "playerOnly": true,
       "description": "Short engine-owned mood buffs after wanted intimacy (a welcome advance, a finished scene, an imprint eased). One at a time, never stacked, at most three a day per character, and never twice for the same partner or scene on the same day. off disables them."
+    },
+    {
+      "key": "lewdHumiliation",
+      "type": "enum",
+      "values": [
+        "on",
+        "off"
+      ],
+      "default": "on",
+      "playerOnly": true,
+      "description": "Engine-owned shame bite for lewd_humiliate: willpower drain and a timed Humiliated status (daily cap 3). Arousal from shame only when the ordeal (masochism) imprint is ≥1 — inhibition stays orthogonal. off disables the verb's mechanical bite."
     },
     {
       "key": "lewdHardLimits",
@@ -48,6 +81,73 @@
       "default": "",
       "playerOnly": true,
       "description": "Comma-separated content the player never wants (tags such as pregnancy, lustbrand, imprint, bondage). Always refused, in every verb."
+    },
+    {
+      "key": "lewdFluids",
+      "type": "enum",
+      "values": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "playerOnly": true,
+      "description": "Engine-owned sexual mess via core soil (lewd.cum marks on climax). off keeps current behaviour: the model narrates dirt with character_update/item_update. on lets climax follow-ups stamp DirtMarks when a finish site is known."
+    },
+    {
+      "key": "lewdExternalMarks",
+      "type": "enum",
+      "values": [
+        "on",
+        "off"
+      ],
+      "default": "on",
+      "playerOnly": true,
+      "description": "When lewdFluids is on: stamp face/hair/skin/clothes/thighs soil from outside or overflow finishes. off skips external DirtMarks (pregnancy bridge can still prompt)."
+    },
+    {
+      "key": "lewdFluidViceHook",
+      "type": "enum",
+      "values": [
+        "on",
+        "off"
+      ],
+      "default": "on",
+      "playerOnly": true,
+      "description": "When lewdFluids is on: a visible lewd.* soil mark nudges sexual_fluids vice presence (RecordMessage / physical-state nudge). off is silent."
+    },
+    {
+      "key": "lewdCreampiePregnancy",
+      "type": "enum",
+      "values": [
+        "off",
+        "prompt",
+        "auto"
+      ],
+      "default": "off",
+      "playerOnly": true,
+      "description": "When lewdFluids is on and a climax finishes inside: off does nothing; prompt asks for lewd_pregnancy; auto enqueues impregnate (still respects contraceptives, stance, hard limits, lewdNonConsent)."
+    },
+    {
+      "key": "lewdInsertedToys",
+      "type": "enum",
+      "values": [
+        "off",
+        "on"
+      ],
+      "default": "off",
+      "playerOnly": true,
+      "description": "Allow lewd_insert/lewd_remove occupancy (plugs, beads, seated toys) and passive stim while occupied. off refuses insert."
+    },
+    {
+      "key": "lewdLeaks",
+      "type": "enum",
+      "values": [
+        "on",
+        "off"
+      ],
+      "default": "on",
+      "playerOnly": true,
+      "description": "When lewdFluids is on: internal deposits leak into core soil on turn/travel/unplug unless sealed by a plug."
     }
   ]
 }

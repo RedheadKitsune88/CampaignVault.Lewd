@@ -1,0 +1,15 @@
+name: inflate
+system: dnd5e
+level: 2
+school: transmutation
+classes: [bard, sorcerer, wizard]
+concentration: true
+castingTime: 1 action
+range: 10 feet
+verbal: false
+somatic: true
+material: true
+materialConsumed: false
+description: >
+  2nd-level transmutation, concentration up to 1 minute. Con save or size increases one category (body inflates);
+  walk speed replaced with fly 10 ft; disadvantage on attacks and Dex saves. Material: miniature bellows. (Lewd Handbook)

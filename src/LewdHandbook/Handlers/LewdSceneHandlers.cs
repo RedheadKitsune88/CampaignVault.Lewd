@@ -39,25 +39,69 @@ public sealed class LewdTurnStartHandler : IWorldChangeHandler
 {
     public bool ShouldHandle(WorldChange change) => change is LewdTurnStartChange;
 
-    public Task<ChangeHandlerResult> ApplyAsync(WorldChange change, IChangeContext context, CancellationToken ct = default)
+    public async Task<ChangeHandlerResult> ApplyAsync(WorldChange change, IChangeContext context, CancellationToken ct = default)
     {
         var req = (LewdTurnStartChange)change;
         var mode = LewdModeAccess.TryGetActive(context);
         var participant = LewdModeAccess.TryGetParticipant(context, req.CharacterId);
         if (mode is null || participant is null)
-            return Task.FromResult(ChangeHandlerResult.Failure($"'{req.CharacterId}' is not in an active lewd_encounter."));
+            return ChangeHandlerResult.Failure($"'{req.CharacterId}' is not in an active lewd_encounter.");
         context.Characters.TryGetValue(req.CharacterId, out var character);
         if (character is not null)
             RecoveryWindow.Close(character, RecoveryWindow.Climax); // the chance to spend dice on that climax has passed
 
+        await LewdSettings.ResolveAsync(context, ct).ConfigureAwait(false);
         var notes = new List<string>();
         TickIncapacitation(participant, character, notes);
         TickEdging(participant, character, context, notes);
         HardenDueBindings(participant, character, mode.Round, notes);
+        TickOccupancy(participant, character, context, notes);
 
         if (notes.Count > 0)
             context.RecordMessage($"{req.CharacterId} turn start (round {mode.Round}):{string.Concat(notes)}");
-        return Task.FromResult(ChangeHandlerResult.Ok);
+        return ChangeHandlerResult.Ok;
+    }
+
+    private static void TickOccupancy(
+        ModeParticipantState participant, Character? character, IChangeContext context, List<string> notes)
+    {
+        if (character is null)
+            return;
+        var settings = LewdSettings.Peek(context) ?? LewdSettings.Default;
+        if (settings.InsertedToys)
+        {
+            var occupied = OccupancyGraph.Get(participant, character);
+            var stim = 0;
+            foreach (var entry in occupied)
+            {
+                stim += entry.Kind switch
+                {
+                    LewdKeys.OccupancyWand => 2,
+                    LewdKeys.OccupancyPhallic or LewdKeys.OccupancyPartner => 1,
+                    LewdKeys.OccupancyBeads => Math.Max(1, entry.BeadStage / 2),
+                    _ => 0,
+                };
+            }
+
+            if (stim > 0)
+            {
+                var arousal = LewdPoolHelper.Arousal(character);
+                var numbing = LewdPoolHelper.Numbing(character);
+                var result = StimulationMath.Apply(arousal.Current, arousal.Max, numbing.Current, stim, isCritical: false);
+                numbing.Current = result.NumbingAfter;
+                arousal.Current = result.ArousalAfter;
+                LewdPoolHelper.MirrorArousal(participant, arousal);
+                notes.Add($" seated toys +{stim} stim (arousal {result.ArousalBefore}→{result.ArousalAfter}).");
+            }
+        }
+
+        var soils = LewdLeak.Tick(character, settings, "turn");
+        if (soils.Count > 0)
+        {
+            LewdLeak.RecordLeakMessages(context, character, soils, "turn");
+            LewdLeak.PublishSoils(context, character.Id, soils);
+            notes.Add(" leak tick.");
+        }
     }
 
     private static void TickIncapacitation(ModeParticipantState participant, Character? character, List<string> notes)
@@ -141,6 +185,7 @@ public sealed class LewdSceneEndHandler : IWorldChangeHandler
             RecoveryWindow.Close(character, RecoveryWindow.Climax);
             LewdPoolHelper.SyncOverstimCascade(character, LewdPoolHelper.SheetOverstimLevel(character));
             await ImprintState.ResolveSceneAsync(context, character, ct).ConfigureAwait(false);
+            Humiliation.ClearRecent(character);
 
             // Afterglow only for a scene that went somewhere and that this character wanted; never after a bad end.
             var participant = LewdModeAccess.TryGetParticipant(context, id);

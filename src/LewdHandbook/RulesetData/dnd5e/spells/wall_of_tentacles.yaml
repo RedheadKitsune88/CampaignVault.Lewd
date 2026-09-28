@@ -1,0 +1,16 @@
+name: wall_of_tentacles
+system: dnd5e
+level: 7
+school: conjuration
+classes: [sorcerer, warlock, wizard]
+concentration: true
+castingTime: 1 action
+range: 120 feet
+verbal: true
+somatic: true
+material: true
+materialConsumed: false
+description: >
+  7th-level conjuration, concentration up to 10 minutes. Wall (60×10×5 ft or 20-ft diameter cylinder) of tentacles;
+  blocks line of sight. Moving through is slow and forces sexual advances / grapples (Dex/Str saves; piercing stim).
+  Material: tentacle from a monstrosity or aberration. (Lewd Handbook)

@@ -1,0 +1,16 @@
+name: weighted_piercing_bells
+system: dnd5e
+category: Jewelry
+tags: [lewd, jewelry, piercing, intimate, bell]
+description: >
+  Small bells and hanging weights for existing nipple or labia rings. Update the piercing mark
+  (load heavy, tags bell) rather than inventing a second jewelry system. When noticed in public,
+  commit lewd_humiliate — Message nudges only; never auto willpower drain on travel.
+properties:
+  lewdCategory: piercing
+  piercingKind: lewd.weighted_bell
+  suggestedLoad: heavy
+  suggestedTags: [bell]
+  hardLimitProbe: [piercing, genital_jewelry]
+  weight: 0.3
+  costGp: 5

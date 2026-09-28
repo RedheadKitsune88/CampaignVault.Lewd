@@ -172,13 +172,23 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
             target.State[LewdKeys.FlirtBeats] = 0;
             BrandState.RecordStimulation(targetChar, tags);
             ConsentGate.RecordStimulatedBy(targetChar, advance.ActorId);
+            RememberPendingDeposit(actor, advance, actorChar);
+            MaybeLeaveInserted(advance, actor, target, targetChar, settings);
         }
 
         var beforeCap = stim;
         stim = ConsentGate.CapVerbalStimulation(target, targetChar, kind, tags, stim, flirtBeats);
         var capNote = stim < beforeCap ? $" Verbal cap {beforeCap}→{stim}." : "";
         if (!verbal)
+        {
             stim += ImprintState.SufferingBonus(actorChar, tags, ConsentGate.GetInt(target, LewdKeys.Overstimulation));
+            var receiverPain = OrdealClimb.ReceiverPainBonus(targetChar, tags);
+            if (receiverPain > 0)
+            {
+                stim += receiverPain;
+                capNote += $" Ordeal receiver +{receiverPain}.";
+            }
+        }
 
         var numbing = LewdPoolHelper.Numbing(targetChar);
         var result = StimulationMath.Apply(
@@ -256,6 +266,11 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
                 tickTags.Add("incapacitated");
             await ImprintState.AutoAsync(context, target, targetChar, tickTags, wanted, bitchsuit: false, ct, anchorId: advance.ActorId)
                 .ConfigureAwait(false);
+            if (ImprintMath.IsSuffering(tags, ConsentGate.GetInt(target, LewdKeys.Overstimulation)))
+            {
+                var day = await ImprintState.DayAsync(context, ct).ConfigureAwait(false);
+                OrdealClimb.MarkPain(targetChar, day);
+            }
         }
 
         if (!verbal && tags.Any(ImprintMath.IsCruelty))
@@ -313,7 +328,7 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         if (climaxed && BrandState.InterceptClimax(target, character, arousal, context, out var intercepted, ruin, tags, forced))
         {
             var blockedBy = BrandState.BlocksClimax(character!) || intercepted.Contains("Fertility") ? "denied" : "ruined";
-            PublishClimax(context, target, blockedBy, forced);
+            PublishClimax(context, target, blockedBy, forced, sourceId);
             return intercepted;
         }
 
@@ -324,7 +339,7 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         if (!climaxed)
         {
             LewdPoolHelper.SetEdging(target, character, climax.EdgingAfter);
-            PublishClimax(context, target, climax.Kind == ClimaxOutcomeKind.HeldEdge ? "held" : "edging", forced);
+            PublishClimax(context, target, climax.Kind == ClimaxOutcomeKind.HeldEdge ? "held" : "edging", forced, sourceId);
             return "";
         }
 
@@ -358,7 +373,7 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
 
         if (character is not null && BadEndRescue.IsPending(character))
         {
-            PublishClimax(context, target, "climax", forced);
+            PublishClimax(context, target, "climax", forced, sourceId);
             return $" {character.Id} blacks out (fade to black); the rescue is resolved next.";
         }
 
@@ -381,7 +396,7 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
             concentration = $" Concentration check DC {15 + ClimaxLog.Count(character, hours, 0)} for anything they concentrate on that is not a sexual advance.";
         }
 
-        PublishClimax(context, target, "climax", forced);
+        PublishClimax(context, target, "climax", forced, sourceId);
         if (character is not null && hasRecovery && recoveryCurrent > 0 && arousal.Max > 0)
             RecoveryWindow.Open(character, RecoveryWindow.Climax, 0);
         var extra = tick.IncapacitationCondition is null ? "" : $" {tick.IncapacitationCondition}.";
@@ -395,13 +410,152 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         return $" Climax streak {tick.ClimaxStreak}.{extra}{osNote}{bad}{missing}{brandNote}{concentration}{spend}";
     }
 
-    private static void PublishClimax(IChangeContext? context, ModeParticipantState target, string outcome, bool forced)
+    private static void PublishClimax(
+        IChangeContext? context,
+        ModeParticipantState target,
+        string outcome,
+        bool forced,
+        string? sourceId = null,
+        string? finish = null,
+        string? targetAnatomy = null,
+        string? depositOnId = null,
+        bool physical = true)
     {
         if (context is null)
             return;
-        var inEncounter = LewdModeAccess.TryGetParticipant(context, target.CharacterId) is not null;
-        context.Publish(
+        var ctx = context;
+
+        // Pending deposit from a prior advance (scene State, else sheet Traits) when the climax did not name one.
+        Character? sheet = null;
+        ctx.Characters.TryGetValue(target.CharacterId, out sheet);
+        if (string.IsNullOrWhiteSpace(finish))
+            finish = ConsentGate.GetString(target, LewdKeys.PendingFinish)
+                     ?? PregnancyState.Text(sheet, LewdKeys.TraitPendingFinish);
+        if (string.IsNullOrWhiteSpace(targetAnatomy))
+            targetAnatomy = ConsentGate.GetString(target, LewdKeys.PendingTargetAnatomy)
+                            ?? PregnancyState.Text(sheet, LewdKeys.TraitPendingTargetAnatomy);
+        if (string.IsNullOrWhiteSpace(depositOnId))
+            depositOnId = ConsentGate.GetString(target, LewdKeys.PendingDepositOn)
+                          ?? PregnancyState.Text(sheet, LewdKeys.TraitPendingDepositOn);
+
+        if (outcome == "climax" && !string.IsNullOrWhiteSpace(finish) &&
+            !string.Equals(finish, LewdKeys.FinishNone, StringComparison.OrdinalIgnoreCase))
+        {
+            ClearPendingDeposit(target, sheet);
+        }
+
+        var inEncounter = LewdModeAccess.TryGetParticipant(ctx, target.CharacterId) is not null;
+        ctx.Publish(
             Events.LewdEvents.Climax,
-            new { characterId = target.CharacterId, outcome, forced, inEncounter });
+            new Dictionary<string, object?>
+            {
+                [Events.LewdEvents.Fields.CharacterId] = target.CharacterId,
+                [Events.LewdEvents.Fields.Outcome] = outcome,
+                [Events.LewdEvents.Fields.Forced] = forced,
+                [Events.LewdEvents.Fields.InEncounter] = inEncounter,
+                [Events.LewdEvents.Fields.SourceId] = sourceId,
+                [Events.LewdEvents.Fields.Finish] = string.IsNullOrWhiteSpace(finish) ? null : finish.Trim().ToLowerInvariant(),
+                [Events.LewdEvents.Fields.TargetAnatomy] = string.IsNullOrWhiteSpace(targetAnatomy) ? null : targetAnatomy.Trim().ToLowerInvariant(),
+                [Events.LewdEvents.Fields.DepositOnId] = string.IsNullOrWhiteSpace(depositOnId) ? null : depositOnId.Trim(),
+                [Events.LewdEvents.Fields.Physical] = physical,
+            });
+    }
+
+
+    private static void MaybeLeaveInserted(
+        LewdAdvanceChange advance,
+        ModeParticipantState actor,
+        ModeParticipantState target,
+        Character targetChar,
+        LewdSettings settings)
+    {
+        if (!advance.LeaveInserted || !settings.InsertedToys || string.IsNullOrWhiteSpace(advance.TargetAnatomy))
+            return;
+        var orifice = OccupancyGraph.NormalizeOrifice(advance.TargetAnatomy);
+        if (orifice is not ("pussy" or "ass" or "mouth"))
+            return;
+
+        var kind = LewdKeys.OccupancyPhallic;
+        if (!string.IsNullOrWhiteSpace(advance.ImplementId))
+            kind = OccupancyGraph.NormalizeKind(null, advance.ImplementId);
+        else if (!string.IsNullOrWhiteSpace(advance.AnatomyKey))
+            kind = LewdKeys.OccupancyPartner;
+
+        var entry = new OccupancyEntry
+        {
+            Orifice = orifice,
+            Kind = kind,
+            Seal = OccupancyGraph.SealForKind(kind),
+            ItemId = advance.ImplementId,
+            SourceId = kind == LewdKeys.OccupancyPartner ? advance.ActorId : null,
+            AppliedById = advance.ActorId,
+        };
+        var list = OccupancyGraph.Get(target, targetChar);
+        OccupancyGraph.AddOrReplace(list, entry);
+        OccupancyGraph.Set(target, targetChar, list);
+        Occupancy.Sync(targetChar);
+    }
+
+    /// <summary>Remember where the actor intends to finish when they next climax.</summary>
+    internal static void RememberPendingDeposit(
+        ModeParticipantState actor, LewdAdvanceChange advance, Character? character = null)
+    {
+        if (string.IsNullOrWhiteSpace(advance.Finish))
+            return;
+        var finish = advance.Finish.Trim().ToLowerInvariant();
+        actor.State[LewdKeys.PendingFinish] = finish;
+        WritePendingTrait(character, LewdKeys.TraitPendingFinish, finish);
+        if (string.Equals(finish, LewdKeys.FinishNone, StringComparison.OrdinalIgnoreCase))
+        {
+            actor.State.Remove(LewdKeys.PendingTargetAnatomy);
+            actor.State.Remove(LewdKeys.PendingDepositOn);
+            ClearPendingTraits(character, keepFinish: true);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(advance.TargetAnatomy))
+        {
+            var anatomy = advance.TargetAnatomy.Trim().ToLowerInvariant();
+            actor.State[LewdKeys.PendingTargetAnatomy] = anatomy;
+            WritePendingTrait(character, LewdKeys.TraitPendingTargetAnatomy, anatomy);
+        }
+
+        actor.State[LewdKeys.PendingDepositOn] = advance.TargetId;
+        WritePendingTrait(character, LewdKeys.TraitPendingDepositOn, advance.TargetId);
+    }
+
+    internal static void ClearPendingDeposit(ModeParticipantState? participant, Character? character)
+    {
+        if (participant is not null)
+        {
+            participant.State.Remove(LewdKeys.PendingFinish);
+            participant.State.Remove(LewdKeys.PendingTargetAnatomy);
+            participant.State.Remove(LewdKeys.PendingDepositOn);
+        }
+
+        ClearPendingTraits(character, keepFinish: false);
+    }
+
+    private static void WritePendingTrait(Character? character, string key, string? value)
+    {
+        if (character is null)
+            return;
+        if (string.IsNullOrWhiteSpace(value))
+            character.SystemStats.Traits.Remove(key);
+        else
+            character.SystemStats.Traits[key] = value;
+    }
+
+    private static void ClearPendingTraits(Character? character, bool keepFinish)
+    {
+        if (character is null)
+            return;
+        var traits = character.SystemStats.Traits;
+        if (!keepFinish)
+            traits.Remove(LewdKeys.TraitPendingFinish);
+        traits.Remove(LewdKeys.TraitPendingTargetAnatomy);
+        traits.Remove(LewdKeys.TraitPendingDepositOn);
+        if (keepFinish)
+            traits[LewdKeys.TraitPendingFinish] = LewdKeys.FinishNone;
     }
 }

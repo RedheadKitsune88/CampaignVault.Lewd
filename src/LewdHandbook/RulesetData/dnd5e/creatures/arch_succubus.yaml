@@ -1,0 +1,13 @@
+name: Arch-Succubus
+system: dnd5e
+description: >
+  Medium Fiend (Shapechanger, Concubus), CR 20 legend from the Monsterfucker's Bestiary. Typically Neutral Evil.
+challengeRating: "20"
+hp: 255
+defense: 15
+skills: ["Deception +13", "Insight +7", "Perception +7", "Persuasion +13"]
+abilities:
+  - "Speed 30 ft., fly 60 ft. Darkvision 120 ft. Telepathy. Legendary Resistance 3/Day."
+  - "Inhibition +7 (Cha). Maximum Arousal 405. Archfiend of Lust (Cha max arousal; true form AC 22)."
+  - "Immunities: charmed, flustered, frightened, infatuated, poisoned; cold/fire/poison damage."
+  - "Legendary actions and lair features — see Monsterfucker's Bestiary; use high-CR fiend patterns + lewd advances."

@@ -10,7 +10,8 @@ properties:
   lewdCategory: implement
   damageDice: 1d6
   damageType: piercing
-  implementTags: [phallic, artificial]
+  implementTags: [phallic, artificial, insertable]
+  insertable: true
   finesse: false
   weight: 1
   costGp: 2

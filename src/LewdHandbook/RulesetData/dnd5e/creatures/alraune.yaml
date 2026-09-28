@@ -1,0 +1,11 @@
+name: Alraune
+system: dnd5e
+description: >
+  Plant temptress from the Monsterfucker's Bestiary (sizes Medium–Huge, alignments vary). Lures prey with scent and vines.
+challengeRating: "3"
+hp: 45
+defense: 14
+abilities:
+  - "Speed 20 ft. Plant type. Engulf / vine grapples as sexual advances (piercing or poison stim)."
+  - "Musk aura: creatures starting within 10 ft Con-save or hyperaroused (DM DC ~13)."
+  - "Scale HP/AC/CR by size (Medium ~CR 2–3, Large ~CR 5, Huge ~CR 8) per bestiary entry."

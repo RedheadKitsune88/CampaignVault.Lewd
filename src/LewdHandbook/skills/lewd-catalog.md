@@ -56,7 +56,21 @@ Pools: `arousal`, `numbing`, `recovery_dice`. Overstim name `Overstimulation N`,
 
 ## Items (definitionName)
 
-Implements: `finesse_implement`, `wooden_dildo`, `glass_wand`, `vibrating_wand`, `flogger`, `paddle`. Bondage: `leather_cuffs`, `armbinder`, `spreader_bar`, `ball_gag`, `blindfold`, `hood`, `bitchsuit`, `tar_bandages`, `rope_coil`. Jewelry: `nipple_clamps`. Contraceptives: `condom`, `oil_of_impotence`, `potion_of_infertility`, `beads_of_prevention`. Spawn via `world_build` + `definitionName`.
+Implements: `finesse_implement`, `wooden_dildo`, `glass_wand`, `vibrating_wand`, `flogger`, `paddle`, `anal_plug`, `anal_beads`. Bondage: `leather_cuffs`, `armbinder`, `spreader_bar`, `ball_gag`, `blindfold`, `hood`, `bitchsuit`, `tar_bandages`, `rope_coil`. Jewelry: `nipple_clamps`. Intimate piercings (core `piercing` verb — sites are open strings; Lewd documents intimate ones): `nipple_rings`, `clit_leash_ring`, `labia_rings`, `weighted_piercing_bells` (kinds `lewd.nipple_ring` / `lewd.clit_ring` / `lewd.labia_ring` / `lewd.weighted_bell`; sites `nipple.left|right`, `clitoris`, `labia.*`). Hard limits: `piercing`, `needles`, `genital_jewelry`. Contraceptives: `condom`, `oil_of_impotence`, `potion_of_infertility`, `beads_of_prevention`. Spawn via `world_build` + `definitionName`.
+
+### Piercings (core verb)
+
+```json
+{ "$type": "piercing", "characterId": "chars/b", "action": "add", "site": "nipple.left", "kind": "lewd.nipple_ring", "load": "heavy", "tags": ["bell"] }
+{ "$type": "piercing", "characterId": "chars/b", "action": "add", "site": "labia.left", "kind": "ring" }
+{ "$type": "piercing", "characterId": "chars/b", "action": "add", "site": "labia.left", "kind": "ring" }
+{ "$type": "piercing", "characterId": "chars/b", "action": "add", "site": "clitoris", "kind": "lewd.clit_ring", "tags": ["leash_ring", "locked"] }
+{ "$type": "piercing", "characterId": "chars/b", "action": "update", "id": "2", "load": "light", "tags": ["bell"] }
+```
+
+Several marks may share one site (and the same kind) — three labia rings + a clit ring is normal. Each mark gets `id` `1`,`2`,…; pass `id` to update/remove one of a stack. `replace:true` on add upserts a single site+kind (one septum ring). Cap 32.
+
+Leash: tag `leash_ring` then `lewd_bind` / core `tether` with `AttachedBy=pierce:<site>` (or pierce id in the note). Heavy load / bell / leash_ring only **Message-nudge** toward `lewd_humiliate` when noticed — never auto-drain willpower on travel.
 
 ## Spells (priority ids)
 
@@ -65,3 +79,40 @@ Implements: `finesse_implement`, `wooden_dildo`, `glass_wand`, `vibrating_wand`,
 ## Do not
 
 Collide shipped spell ids with different mechanics. Bondage StatusEffects without `bindings[]`. Treat this as the full handbook — priority curated only.
+
+
+## Occupancy (plugs / seated toys)
+
+Requires `lewdInsertedToys=on`. Not bondage.
+
+```json
+{ "$type": "lewd_insert", "actorId": "chars/a", "targetId": "chars/b", "orifice": "ass", "kind": "plug", "itemId": "items/anal_plug" }
+{ "$type": "lewd_remove", "actorId": "chars/a", "targetId": "chars/b", "orifice": "ass" }
+```
+
+Kinds: `phallic`, `plug`, `beads`, `wand`, `partner`. Seals: `open`, `plugged`, `beaded`. Inside finishes fill `Filled`; plugged holds until remove/travel leak (`lewdLeaks`).
+
+
+## Classes (subclass stubs)
+
+Curated ClassDefinition overlays (aliases match "bard (burlesque)" etc.):
+
+- `college_of_burlesque`, `college_of_romance` (bard)
+- `path_of_the_breeder` (barbarian)
+- `perversion_domain`, `sexuality_domain` (cleric)
+
+Full feature text lives in Lewd Handbook 3.7.1; YAML carries mechanical summaries for the LLM.
+
+## Creatures (Monsterfucker's Bestiary stubs)
+
+- `Succubus (Lewd)`, `Incubus (Lewd)`, `Arch-Succubus`
+- `Goblin Breeder`, `Goblin Stock`
+- `Alraune`
+
+Not a full MM port — stats are condensed for world_build / encounter prompts.
+
+## Cleanup
+
+```json
+{ "$type": "lewd_cleanup", "actorId": "chars/a", "targetId": "chars/b", "removeToys": false }
+```

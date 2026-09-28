@@ -1,0 +1,11 @@
+name: Goblin Stock
+system: dnd5e
+description: >
+  Small Humanoid (Goblinoid), Monsterfucker's Bestiary. Breeding stock counterpart — low Inhibition, high arousal pool.
+challengeRating: "1"
+hp: 26
+defense: 11
+abilities:
+  - "Speed 30 ft. Darkvision 60 ft. Inhibition −2 (Wis). Maximum Arousal 51 (6d10+…)."
+  - "Typically True Neutral. Soft target for advances; pair with Goblin Breeder encounters."
+  - "Use standard goblin Nimble Escape; lewd defenses are weak — favor soft limits / consent settings at the table."

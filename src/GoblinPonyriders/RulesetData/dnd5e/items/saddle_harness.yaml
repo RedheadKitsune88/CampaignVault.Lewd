@@ -1,0 +1,13 @@
+name: Riding Saddle Harness
+system: dnd5e
+type: adventuring gear
+rarity: uncommon
+description: >
+  Upright/bent-seat field harness for Riding-Girls: collar with reins, bit points, short wrist chains, girth.
+  Never for quadrupedal field work. Bind via lewd_bind; flaw: slightly loose girth strap.
+properties:
+  lewd_bind_sites: "neck,wrists,torso"
+  posture: upright
+  faction: unified_clans
+  role: riding_girl
+  exploitable_flaw: loose girth strap

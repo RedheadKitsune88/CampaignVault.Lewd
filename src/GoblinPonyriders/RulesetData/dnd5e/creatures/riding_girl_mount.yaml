@@ -1,0 +1,14 @@
+name: Riding-Girl Mount
+system: dnd5e
+description: >
+  Medium Humanoid (captive mount under Unified Clans). Fully broken high-trust Riding-Girl used as a field mount
+  by Goblin Ponyriders. Upright or bent-seat saddle only in the field — never quadrupedal on raid.
+challengeRating: "1/2"
+hp: 22
+defense: 12
+skills: ["Athletics +3", "Acrobatics +2"]
+abilities:
+  - "Speed 35 ft while driven; rider may yank reins for control. Net assist: help rider's grapple attempts when ordered."
+  - "Typical kit: collar with reins, bit/ring gag, short wrist-to-collar chains, hoof-boots, seated insert (LewdHandbook)."
+  - "Loyalty tests and Defiance Clock via goblin_state. Escape while mounted is nearly impossible without sabotaging girth/flaw."
+  - "Hard-limit tags at table: pony, capture, bondage, goblin."

@@ -1,0 +1,23 @@
+# ItemDefinition template (CampaignVault items/). Live instances via world_build items[] + definitionName.
+name: anal_beads
+system: dnd5e
+category: Implement
+tags: [lewd, implement, beads, insertable]
+description: >
+  A string of beads. lewd_insert orifice=ass kind=beads (beadStages default 5); seal=beaded
+  slows leaks. lewd_remove beadPull pulls stages with a leak tick.
+properties:
+  lewdCategory: implement
+  damageDice: 1d4
+  damageType: piercing
+  implementTags: [phallic, artificial, beads, insertable]
+  insertable: true
+  defaultOrifice: ass
+  defaultSeal: beaded
+  beadStages: 5
+  finesse: true
+  weight: 0.5
+  costGp: 8
+  damage: 1d4
+equipZones: [MainHand]
+equipLayer: Held

@@ -1,0 +1,13 @@
+name: Goblin Breeder
+system: dnd5e
+description: >
+  Small Humanoid (Goblinoid) from the Monsterfucker's Bestiary. Lawful Evil breeding specialist.
+challengeRating: "1"
+hp: 18
+defense: 13
+skills: ["Intimidation +4", "Stealth +4"]
+abilities:
+  - "Speed 30 ft. Darkvision 60 ft. Languages: Goblin. Nimble Escape (bonus Disengage/Hide)."
+  - "Inhibition +2 (Cha). Maximum Arousal 39. Universal Breeder: can impregnate regardless of creature type."
+  - "Combat Whip +4 / 1d4+2 piercing. Lewd Multiadvance (two Cock advances); Whip implement 1d6+2 slash stim; Cock 1d8+2 pierce stim."
+  - "Hard-limit tags at table: pregnancy, breeding, goblin."
