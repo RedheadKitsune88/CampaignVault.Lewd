@@ -87,7 +87,7 @@ public class BadEndTests
         var (mode, bob) = Mode();
         var character = Character("bob");
         character.CurrentHp = 0;
-        var ctx = new Recorder(mode, character);
+        var ctx = new Recorder(mode, character) { Tone = LewdKeys.NonConsentOn };
         var observer = new LewdBadEndObserver();
 
         await observer.OnCommittedAsync(new HpChange { CharacterId = "bob", Delta = -1 }, ctx);
@@ -124,7 +124,10 @@ public class BadEndTests
             Reason = "defeat",
             NoEscape = true,
         }, ctx);
-        Assert.False(consensual.Success);
+        // Non-consent is off: no permanent mark, a rescue instead (see BadEndRescueTests).
+        Assert.True(consensual.Success);
+        Assert.False(PregnancyState.Flag(character, LewdKeys.BadEnded));
+        Assert.Contains(character.SystemStats.StatusEffects, e => e.EffectKey == BadEndRescue.Key);
 
         ctx.Tone = LewdKeys.NonConsentOn;
         var noEscape = await handler.ApplyAsync(new LewdBadEndChange

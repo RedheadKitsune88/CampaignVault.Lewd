@@ -9,6 +9,7 @@ namespace LewdHandbook.Changes;
 /// plain restraint only the player's hard limits.
 /// </summary>
 [PluginWorldChange("lewd_bind")]
+[ActorAction]
 public sealed class LewdBindChange : WorldChange
 {
     public string ActorId { get; set; } = null!;
@@ -32,6 +33,21 @@ public sealed class LewdBindChange : WorldChange
 
     /// <summary>Ties the target to someone (chars/…) or something (items/…, a fixture): they can't travel unless it comes along.</summary>
     public string? AnchorId { get; set; }
+
+    /// <summary>Who holds the anchor end when the anchor is not a character (a rider with the rope on a saddle horn). Omitted when the anchor is a character: they hold it. Their incapacitation frees the tie.</summary>
+    public string? HolderId { get; set; }
+
+    /// <summary>How far from the anchor they can move, in feet. Omitted: held tight.</summary>
+    public int? SlackFeet { get; set; }
+
+    /// <summary>tight (default) or loose: how much play the tie leaves. A loose hobble (a 75 cm cord) lets them walk at 15 ft, not 5; loose wrists (long slack, tied in front or behind) leave the hands awkwardly usable (disadvantage on attacks and Dex) instead of pinned, and are easier to slip (DC −4). Omit for tight.</summary>
+    public string? Slack { get; set; }
+
+    /// <summary>How it is fitted, in a few words: "wrists to belt, 25 cm chain", "75 cm hobble cord". Not mechanics; the DM reads it in the summary and rules on what it allows (can she reach the buckle? hop the stairs?). `orientation` also takes `belt` and `collar` (wrists tied to the belt or the collar pin the hands).</summary>
+    public string? Fit { get; set; }
+
+    /// <summary>crude, poor, standard, fine, masterwork or enchanted: shifts the escape, break and lock DCs (−4 … +6). With `materials` (rope, leather, chain, iron, steel…) and no explicit DCs, the material sets the base DCs.</summary>
+    public string? Quality { get; set; }
 
     /// <summary>A lock: lewd_unbind needs the key when one is set; otherwise pick it or break it (lewd_escape).</summary>
     public bool? Locked { get; set; }
@@ -77,6 +93,7 @@ public sealed class LewdUnbindChange : WorldChange
 /// DC; pick: Dex + tools vs lock DC; unlock: with its key; cut / damage: <c>amount</c> off its hit points.
 /// </summary>
 [PluginWorldChange("lewd_escape")]
+[ActorAction]
 public sealed class LewdEscapeChange : WorldChange
 {
     /// <summary>The bound character.</summary>

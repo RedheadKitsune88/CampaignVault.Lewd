@@ -1,8 +1,9 @@
 {
   "id": "com.campaignvault.lewd-handbook",
   "displayName": "Lewd Handbook",
-  "version": "0.2.0",
-  "minEngineVersion": "0.7.0",
+  "version": "0.3.0",
+  "minEngineVersion": "0.11.0",
+  "systems": ["dnd5e"],
   "modeIds": ["lewd_encounter"],
   "playerOnlyModeIds": ["lewd_encounter"],
   "rulesetDataRoots": ["./RulesetData"],
@@ -31,7 +32,15 @@
       "values": ["off", "not_against_pc", "on"],
       "default": "off",
       "playerOnly": true,
-      "description": "Whether acts a character does not want can resolve in the fiction. not_against_pc allows them among NPCs but never against the player's character. Revoked stance and hard limits always refuse."
+      "description": "Whether acts a character does not want can resolve in the fiction. off refuses them; not_against_pc allows them among NPCs but never against the player's character; on is the grimdark setting: no consent refusals for anything the character merely does not want. In every setting a revoked stance, hard limits and the adults-only rule still refuse."
+    },
+    {
+      "key": "lewdMoodBuffs",
+      "type": "enum",
+      "values": ["on", "off"],
+      "default": "on",
+      "playerOnly": true,
+      "description": "Short engine-owned mood buffs after wanted intimacy (a welcome advance, a finished scene, an imprint eased). One at a time, never stacked, at most three a day per character, and never twice for the same partner or scene on the same day. off disables them."
     },
     {
       "key": "lewdHardLimits",

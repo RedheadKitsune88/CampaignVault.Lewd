@@ -9,12 +9,21 @@ public sealed class LewdClimaxCheckHandler : IWorldChangeHandler
 {
     public bool ShouldHandle(WorldChange change) => change is LewdClimaxCheckChange;
 
-    public async Task<ChangeHandlerResult> ApplyAsync(
+    public Task<ChangeHandlerResult> ApplyAsync(
         WorldChange change,
         IChangeContext context,
+        CancellationToken ct = default) =>
+        ApplyAsync((LewdClimaxCheckChange)change, context, enforceConsent: true, ct);
+
+    /// <param name="enforceConsent">
+    /// False only for a brand's own compulsion (Echoes): the brand itself was authorized when it was applied.
+    /// </param>
+    internal async Task<ChangeHandlerResult> ApplyAsync(
+        LewdClimaxCheckChange check,
+        IChangeContext context,
+        bool enforceConsent,
         CancellationToken ct = default)
     {
-        var check = (LewdClimaxCheckChange)change;
         if (string.IsNullOrWhiteSpace(check.TargetId))
             return ChangeHandlerResult.Failure("targetId is required.");
         if (!AgeGate.TryPassAll(context, out var ageError, check.TargetId))
@@ -29,6 +38,9 @@ public sealed class LewdClimaxCheckHandler : IWorldChangeHandler
 
         var arousal = LewdPoolHelper.Arousal(targetChar);
         var settings = await LewdSettings.ResolveAsync(context, ct).ConfigureAwait(false);
+        if (check.ForceClimax && enforceConsent &&
+            !ConsentGate.AuthorizeEffect(target, targetChar, check.TargetId, null, ["forced_climax"], settings, out _, out var gateError))
+            return ChangeHandlerResult.Failure($"Forced climax refused: {gateError}");
         BrandState.Mirror(target, targetChar);
         var wasIncap = ConsentGate.GetBool(target, LewdKeys.ClimaxIncapacitated);
 
@@ -51,22 +63,21 @@ public sealed class LewdClimaxCheckHandler : IWorldChangeHandler
             }
 
             LewdPoolHelper.SetEdging(target, targetChar, true);
-            var d20 = check.D20;
-            if (d20 is < 1 or > 20)
-            {
-                var die = await SaveDice.RollAsync(context, "lewd_climax_save", d20, abilityMod: 0, disadvantage: false, ct)
-                    .ConfigureAwait(false);
-                if (die.Error is not null)
-                    return ChangeHandlerResult.Failure(die.Error);
-                d20 = die.Face;
-            }
-
-            var inhib = check.InhibitionBonus ?? ConsentGate.ClimaxInhibition(target, targetChar);
+            // Not tagged "mental": nymphomanic and flustered already weigh in through inhibition. Numbers on status effects
+            // (a rattled will, dead arms do not apply) still count, so they join the inhibition bonus.
+            var die = await SaveDice.RollAsync(
+                context, "lewd_climax_save", check.D20, abilityMod: 0, disadvantage: false, ct,
+                who: targetChar, subject: "wis", tags: ["climax"]).ConfigureAwait(false);
+            if (die.Error is not null)
+                return ChangeHandlerResult.Failure(die.Error);
+            var d20 = die.Face;
+            var inhib = (check.InhibitionBonus ?? ConsentGate.ClimaxInhibition(target, targetChar)) + (die.Total - die.Face);
+            var (tallySuccesses, tallyFailures) = LewdPoolHelper.ClimaxCounters(target, targetChar);
             result = ClimaxMath.ResolveSave(
                 d20,
                 inhib,
-                ConsentGate.GetInt(target, LewdKeys.ClimaxSuccesses),
-                ConsentGate.GetInt(target, LewdKeys.ClimaxFailures),
+                tallySuccesses,
+                tallyFailures,
                 arousal.Current,
                 arousal.Max);
             summary = result.Summary;
@@ -74,7 +85,8 @@ public sealed class LewdClimaxCheckHandler : IWorldChangeHandler
 
         var ruin = await BrandState.PreRollRuinAsync(context, targetChar, ct).ConfigureAwait(false);
         var aftermath = LewdAdvanceHandler.ApplyClimaxResult(
-            target, targetChar, arousal, result, sourceId: null, context, forced: check.ForceClimax, ruin: ruin);
+            target, targetChar, arousal, result, sourceId: null, context, forced: check.ForceClimax, ruin: ruin,
+            nowDays: await LewdClock.NowDaysAsync(context).ConfigureAwait(false));
         context.RecordMessage($"Lewd climax check {check.TargetId}: {summary}{aftermath}");
         settings.Narrate(context);
 

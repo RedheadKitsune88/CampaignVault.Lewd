@@ -110,14 +110,27 @@ internal static class ImplementResolver
             }
         }
 
-        // Treat implementId as a template name with default dice when no live Item exists yet.
-        resolved = new ResolvedImplement(
-            implementId,
-            "1d6",
-            "piercing",
-            ["artificial", implementId],
-            implementId.Contains("finesse", StringComparison.OrdinalIgnoreCase));
-        return true;
+        resolved = null!;
+        return false;
+    }
+
+    /// <summary>
+    /// An <c>implementId</c> must name a live item that carries dice. Returns an error listing what would have worked (the items the
+    /// actor holds that are implements, then their declared anatomy), or null when the id is fine or absent.
+    /// </summary>
+    public static string? CheckId(Character? actor, IReadOnlyDictionary<string, Item> items, string? implementId)
+    {
+        if (string.IsNullOrWhiteSpace(implementId) || TryFromItemId(items, implementId, out _))
+            return null;
+
+        var held = actor is null
+            ? []
+            : items.Values.Where(i => IsHeldBy(i, actor.Id) && IsImplement(i) && TryFromItem(i, out _)).Select(i => i.Id).ToList();
+        var parts = AnatomyTraits.Effective(actor).Where(a => a.CanStimulate).Select(a => a.Slot).ToList();
+        return $"implementId '{implementId}' is not an item with stimulation dice. " +
+               $"Held implements: {(held.Count == 0 ? "none" : string.Join(", ", held))}. " +
+               $"Anatomy (use anatomyKey): {(parts.Count == 0 ? "none" : string.Join(", ", parts))}. " +
+               "Or give stimulationDice/stimulationAmount explicitly.";
     }
 
     private static bool TryFromItem(Item item, out ResolvedImplement resolved)

@@ -44,9 +44,10 @@ public sealed class BondageTests
         Assert.Contains("hobbled", effects);
         Assert.Contains("leashed", effects);
         Assert.Contains(Restraint.SummaryName, effects);
-        var relation = Assert.Single(convict.SystemStats.EngagementRelations, r => r.Verb == Restraint.BoundToVerb);
-        Assert.Equal("chars/guard", relation.TargetId);
-        Assert.Equal(EngagementRestrictionLevel.Hard, relation.RestrictionLevel);
+        var tether = Assert.Single(convict.SystemStats.Tethers);
+        Assert.Equal("chars/guard", tether.AnchorId);
+        Assert.Equal("chars/guard", tether.HolderId); // a character anchor holds their own end
+        Assert.Empty(convict.SystemStats.EngagementRelations);
         Assert.Equal("bound", ctx.Field(LewdHandbook.Events.LewdEvents.BindingChanged, "action"));
     }
 
@@ -223,6 +224,12 @@ public sealed class AgeTripwireTests
     [InlineData("Mara", "a widow with two children")]
     [InlineData("Mara", "mother of her own kids, forty")]
     [InlineData("Mara", "wears kid gloves and a riding coat")]
+    [InlineData("Mara", "looks one way, then another")]
+    [InlineData("Mara", "seven feet tall, looks 7 feet")]
+    [InlineData("Mara", "served 12 years in the guard")]
+    [InlineData("Mara", "a widow with 3 kids")]
+    [InlineData("Mara", "mother of 4 children")]
+    [InlineData("Mara", "a T-shirt and a.k.a. mask")]
     public void Everyday_uses_do_not_trip(string name, string? appearance)
     {
         var c = new Character { Id = "chars/x", Name = name, CurrentAppearance = appearance, LifeStage = LifeStage.Adult };
@@ -235,10 +242,36 @@ public sealed class AgeTripwireTests
     [InlineData("Pip", "looks like a child")]
     [InlineData("Pip", "a 15-year-old squire")]
     [InlineData("Little Schoolgirl Pip", null)]
+    [InlineData("Pip", "a 16yo squire")]
+    [InlineData("Pip", "16 y/o")]
+    [InlineData("Pip", "sixteen-year-old elf")]
+    [InlineData("Pip", "just turned 17")]
+    [InlineData("Pip", "aged twelve")]
+    [InlineData("Pip", "sweet sixteen")]
+    [InlineData("Pip", "under 18")]
+    [InlineData("Pip", "looks 14")]
+    [InlineData("Pip", "a l0li in a hat")]
+    [InlineData("Pip", "t.e.e.n")]
+    [InlineData("Pip", "a  15\u200B-year-old")]
     public void Minor_descriptions_still_trip(string name, string? appearance)
     {
         var c = new Character { Id = "chars/x", Name = name, CurrentAppearance = appearance, LifeStage = LifeStage.Adult };
 
         Assert.True(AgeGate.DescribesMinor(c, out _));
+    }
+}
+
+public sealed class AgeNotesTests
+{
+    [Theory]
+    [InlineData("Orphaned as a child, raised by monks.", false)]
+    [InlineData("When she was a teen her village burned.", false)]
+    [InlineData("She is a child.", true)]
+    [InlineData("Aged 15, lives at the inn.", true)]
+    public void Notes_allow_backstory_but_not_present_minors(string notes, bool trips)
+    {
+        var c = new Character { Id = "chars/x", Name = "Mara", Notes = notes, LifeStage = LifeStage.Adult };
+
+        Assert.Equal(trips, AgeGate.DescribesMinor(c, out _));
     }
 }

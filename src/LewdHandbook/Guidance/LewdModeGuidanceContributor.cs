@@ -21,7 +21,7 @@ public sealed class LewdModeGuidanceContributor : IPluginGuidanceContributor
         var settings = LewdSettings.From(ctx.Config?.SystemOptions);
         var nonConsent = settings.NonConsent switch
         {
-            LewdNonConsent.On => "unwanted acts may resolve",
+            LewdNonConsent.On => "unwanted acts resolve (grimdark: no consent refusals; revoked stance and hard limits still stop)",
             LewdNonConsent.NotAgainstPc => "unwanted acts may resolve, never against the player's character",
             _ => "keep it consensual: unwanted acts fail",
         };
@@ -31,8 +31,9 @@ public sealed class LewdModeGuidanceContributor : IPluginGuidanceContributor
             new PluginGuidanceHint(
                 "mode.enter",
                 $"lewd_encounter active. {narration} lewdNonConsent: {nonConsent}. Player settings change only when the player asks. " +
-                "Set NPC stance with lewd_stance. One action per participant on their own turn (lewd_advance, lewd_bind); " +
-                "mode_transition action=turn passes it on. After a climax: lewd_recover. Skills: lewd-encounter, lewd-bindings, lewd-tracks, lewd-catalog.",
+                "Set NPC stance with lewd_stance; the player's character only changes with their words (playerRequest). One action per participant on their own turn (lewd_advance, lewd_bind); " +
+                "mode_transition action=turn passes it on, join / leave change who is in the scene. A journey, rest, encounter, knockdown or combat ends it. After a climax: lewd_recover. " +
+                "Scene verbs (lewd_advance, lewd_bad_end) are looked up with type=; the rest are in the default schema and work outside scenes. Skills: lewd-encounter, lewd-bindings, lewd-tracks, lewd-catalog.",
                 Priority: 8),
         ]);
     }

@@ -1,6 +1,7 @@
 using CampaignVault.Data;
 using CampaignVault.Data.ChangeHandlers;
 using CampaignVault.Models;
+using LewdHandbook.Mechanics;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace LewdHandbook.Tests;
@@ -57,6 +58,28 @@ internal sealed class TestContext : IChangeContext
     public void RegisterNewFaction(Faction f) { }
     public void RegisterNewQuest(Quest q) { }
     public void Publish(string topic, object? data = null) => Published.Add((topic, data));
+    /// <summary>Providers folded by <see cref="ResolveRollModifiers"/>; the plugin's own by default. Core's layers (status effects,
+    /// willpower) are the host's and are covered by the host tests.</summary>
+    public List<IRollModifierProvider> Providers { get; } = [new LewdRollModifierProvider()];
+
+    public RollResolution ResolveRollModifiers(RollQuery query, int baseBonus, AdvantageEffect explicitAdvantage = AdvantageEffect.None)
+    {
+        var bonus = baseBonus;
+        var adv = explicitAdvantage == AdvantageEffect.Advantage;
+        var dis = explicitAdvantage == AdvantageEffect.Disadvantage;
+        var notes = new List<string>();
+        foreach (var m in Providers.SelectMany(p => p.Modifiers(query)))
+        {
+            bonus += m.Bonus;
+            adv |= m.Advantage == AdvantageEffect.Advantage;
+            dis |= m.Advantage == AdvantageEffect.Disadvantage;
+            if (!string.IsNullOrWhiteSpace(m.Reason))
+                notes.Add(m.Reason);
+        }
+
+        return new RollResolution(bonus, adv == dis ? AdvantageEffect.None : adv ? AdvantageEffect.Advantage : AdvantageEffect.Disadvantage, notes);
+    }
+
     public void RecordMessage(string message) => Messages.Add(message);
     public void RecordPhysicalStateNudge(string message) => Nudges.Add(message);
     public void RecordFailure() { }

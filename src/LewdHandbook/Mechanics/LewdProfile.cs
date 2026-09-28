@@ -32,12 +32,28 @@ internal static class LewdProfile
     public static List<string> Kinks(ModeParticipantState? participant, Character? character) =>
         List(participant, LewdKeys.Kinks, character, LewdKeys.TraitKinks);
 
+    /// <summary>
+    /// The Inhibition Bonus. Handbook: a nymphomanic creature's is reduced to 0 unless already lower, and an infatuated
+    /// one cannot benefit from a positive bonus, so both cap it at 0. This is the mechanical half only: it does not
+    /// make anyone "willing" (see <see cref="Wants"/>), so those conditions never bypass <c>lewdNonConsent</c>.
+    /// </summary>
     public static int Inhibition(ModeParticipantState? participant, Character? character)
     {
+        int value;
         if (participant is not null && participant.State.ContainsKey(LewdKeys.Inhibition))
-            return ConsentGate.GetInt(participant, LewdKeys.Inhibition);
-        var raw = PregnancyState.Text(character, LewdKeys.TraitInhibition);
-        return int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : 0;
+        {
+            value = ConsentGate.GetInt(participant, LewdKeys.Inhibition);
+        }
+        else
+        {
+            var raw = PregnancyState.Text(character, LewdKeys.TraitInhibition);
+            value = int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : 0;
+        }
+
+        return value > 0 && (PregnancyState.HasCondition(character, LewdKeys.ConditionNymphomanic) ||
+                             PregnancyState.HasCondition(character, LewdKeys.ConditionInfatuated))
+            ? 0
+            : value;
     }
 
     /// <summary>Whether <paramref name="actorId"/>'s advance is wanted by the character in the fiction.</summary>

@@ -32,6 +32,20 @@ public sealed class LewdViceHandler : IWorldChangeHandler
         if (def.Id != ViceCatalog.Alcohol && !AgeGate.TryPass(character, req.CharacterId, out var ageError))
             return ChangeHandlerResult.Failure(ageError!);
 
+        if (def.Id != ViceCatalog.Alcohol && action == "consume")
+        {
+            var partic = LewdModeAccess.TryGetParticipant(context, req.CharacterId);
+            var viceSettings = await LewdSettings.ResolveAsync(context, ct).ConfigureAwait(false);
+            if (LewdProfile.IsRevoked(partic, character))
+                return ChangeHandlerResult.Failure($"'{req.CharacterId}' has revoked consent.");
+            var probe = new[] { def.Id, "vice", "addiction" };
+            var limit = viceSettings.HitsHardLimit(probe, out var campaignHit)
+                ? campaignHit
+                : LewdProfile.HardLimits(partic, character).FirstOrDefault(l => probe.Contains(l, StringComparer.OrdinalIgnoreCase));
+            if (limit is not null)
+                return ChangeHandlerResult.Failure($"Hard limit '{limit}' blocks {def.Id}.");
+        }
+
         var ability = ViceCatalog.AbilityFor(def, req.Ability ?? PregnancyState.Text(character, ViceState.AbilityKey(def.Id)));
         if (def.Kind == "complex" && action == "consume" && string.IsNullOrWhiteSpace(req.Ability) &&
             !ViceState.IsAddicted(character, def.Id))
@@ -71,7 +85,8 @@ public sealed class LewdViceHandler : IWorldChangeHandler
             var mod = AbilityScores.Resolve(character, ability, req.AbilityMod);
             // First addiction save is standard. Disadv applies once already addicted (resist / rest / presence).
             var die = await SaveDice.RollAsync(
-                context, "lewd_vice_addiction", req.D20, mod, disadvantage: false, ct).ConfigureAwait(false);
+                context, "lewd_vice_addiction", req.D20, mod, disadvantage: false, ct,
+                who: character, subject: ability, tags: ["mental"]).ConfigureAwait(false);
             if (die.Error is not null)
                 return ChangeHandlerResult.Failure(die.Error);
 

@@ -115,6 +115,29 @@ public sealed class ViceLoopTests
         Assert.EndsWith(":Withdrawal", item.Key);
     }
 
+    [Fact]
+    public async Task Party_craving_line_stays_quiet_where_the_mode_is_not_enabled()
+    {
+        var (_, bob) = Drinker(hoursNow: 0);
+        var turn = new QuietTurn(new Turn(bob, new CampaignTime { Hour = 5 }));
+
+        Assert.Empty(await new LewdViceContributor().ContributeAsync(turn));
+    }
+
+    private sealed class QuietTurn(IContextTurn inner) : IContextTurn
+    {
+        public string CampaignName => inner.CampaignName;
+        public IReadOnlyList<WorldChange> AppliedChanges => inner.AppliedChanges;
+        public IReadOnlyList<string> InvolvedEntityIds => inner.InvolvedEntityIds;
+        public IReadOnlyList<string> PartyCharacterIds => inner.PartyCharacterIds;
+        public string? PartyLocationId => inner.PartyLocationId;
+        public CampaignTime? Time => inner.Time;
+        public CampaignConfig? Config => new();
+
+        public Task<Character?> LoadCharacterAsync(string characterId, CancellationToken ct = default) =>
+            inner.LoadCharacterAsync(characterId, ct);
+    }
+
     private sealed class Turn(Character pc, CampaignTime time) : IContextTurn
     {
         public string CampaignName => "test";
@@ -123,6 +146,7 @@ public sealed class ViceLoopTests
         public IReadOnlyList<string> PartyCharacterIds => [pc.Id];
         public string? PartyLocationId => null;
         public CampaignTime? Time => time;
+        public CampaignConfig? Config => new() { EnabledModeIds = [LewdEncounterMode.ModeIdValue] };
 
         public Task<Character?> LoadCharacterAsync(string characterId, CancellationToken ct = default) =>
             Task.FromResult<Character?>(characterId == pc.Id ? pc : null);

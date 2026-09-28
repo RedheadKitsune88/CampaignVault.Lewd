@@ -48,6 +48,9 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         var kind = string.IsNullOrWhiteSpace(advance.Kind) ? "martial" : advance.Kind.Trim().ToLowerInvariant();
         var stimType = advance.StimulationType;
 
+        if (ImplementResolver.CheckId(actorChar, context.Items, advance.ImplementId) is { } implementError)
+            return ChangeHandlerResult.Failure(implementError);
+
         // Resolve the implement before the consent check so its tags count against hard limits too.
         var stim = advance.StimulationAmount;
         var implement = ImplementResolver.Resolve(
@@ -108,7 +111,7 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         if (arousal.Max <= 0)
         {
             // Handbook: an arousal maximum of 0 or less is a bad end, not a pool to quietly refill.
-            BadEndState.Apply(target, targetChar, BadEndMath.ArousalMax, advance.ActorId, context: context);
+            BadEndState.Apply(target, targetChar, BadEndMath.ArousalMax, advance.ActorId, context: context, settings: settings);
             context.RecordMessage($"{advance.TargetId} arousal maximum is {arousal.Max}; no stimulation applies.");
             return ChangeHandlerResult.Ok;
         }
@@ -190,8 +193,7 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         LewdPoolHelper.MirrorArousal(target, arousal);
 
         var wasIncap = ConsentGate.GetBool(target, LewdKeys.ClimaxIncapacitated);
-        var successes = ConsentGate.GetInt(target, LewdKeys.ClimaxSuccesses);
-        var failures = ConsentGate.GetInt(target, LewdKeys.ClimaxFailures);
+        var (successes, failures) = LewdPoolHelper.ClimaxCounters(target, targetChar);
         var climaxNote = "";
 
         if (result.InstantClimax || result.AutoClimaxFailures > 0)
@@ -223,13 +225,14 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
                 {
                     var ruin = await BrandState.PreRollRuinAsync(context, targetChar, ct).ConfigureAwait(false);
                     climaxNote = " " + climax.Summary + ApplyClimaxResult(
-                        target, targetChar, arousal, climax, advance.ActorId, context, tags, forced: false, ruin: ruin);
+                        target, targetChar, arousal, climax, advance.ActorId, context, tags, forced: false, ruin: ruin,
+                        nowDays: await LewdClock.NowDaysAsync(context).ConfigureAwait(false));
                 }
             }
         }
         else
         {
-            LewdPoolHelper.WriteClimaxCounters(target, successes, failures);
+            LewdPoolHelper.WriteClimaxCounters(target, successes, failures, targetChar);
         }
 
         var typeLabel = string.IsNullOrWhiteSpace(stimType) ? "untyped" : stimType;
@@ -268,6 +271,17 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
                 ct).ConfigureAwait(false);
         }
 
+        if (!verbal && wanted && !wasIncap && !tags.Any(ImprintMath.IsCruelty))
+        {
+            var day = await ImprintState.DayAsync(context, ct).ConfigureAwait(false);
+            var now = await LewdClock.NowDaysAsync(context).ConfigureAwait(false) ?? day;
+            foreach (var (who, partner) in new[] { (actorChar, advance.TargetId), (targetChar, advance.ActorId) })
+            {
+                if (LewdMood.TryGrant(who, LewdMood.WarmGlow, partner, day, now, settings) is { } mood)
+                    context.RecordMessage(mood);
+            }
+        }
+
         return ChangeHandlerResult.Ok;
     }
 
@@ -285,7 +299,8 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         IChangeContext? context = null,
         IEnumerable<string>? tags = null,
         bool forced = false,
-        BrandState.RuinDice? ruin = null)
+        BrandState.RuinDice? ruin = null,
+        double? nowDays = null)
     {
         var climaxed = climax.Kind is ClimaxOutcomeKind.Climaxed or ClimaxOutcomeKind.InstantClimax;
         var overstim = ConsentGate.GetInt(target, LewdKeys.Overstimulation);
@@ -304,7 +319,7 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
 
         arousal.Current = climax.ArousalAfter;
         LewdPoolHelper.MirrorArousal(target, arousal);
-        LewdPoolHelper.WriteClimaxCounters(target, climax.Successes, climax.Failures);
+        LewdPoolHelper.WriteClimaxCounters(target, climax.Successes, climax.Failures, character);
 
         if (!climaxed)
         {
@@ -341,14 +356,29 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         else if (BadEndState.IsMarked(target, character) && level >= OverstimMath.MaxLevel)
             markedReason = PregnancyState.Text(character, LewdKeys.BadEndReason) ?? BadEndMath.Overstim;
 
+        if (character is not null && BadEndRescue.IsPending(character))
+        {
+            PublishClimax(context, target, "climax", forced);
+            return $" {character.Id} blacks out (fade to black); the rescue is resolved next.";
+        }
+
         var keepEdging = climax.EdgingAfter || level >= 5;
         LewdPoolHelper.SetEdging(target, character, keepEdging);
         if (character is not null)
         {
             LewdPoolHelper.SyncOverstimCascade(character, level, sourceId);
+            LewdPoolHelper.StampClimaxIncapacitation(character, LewdKeys.ConditionIncapacitated, nowDays);
             if (tick.IncapacitationCondition is { } incapacitation)
-                LewdPoolHelper.EnsureNamedCondition(character, incapacitation, incapacitation,
-                    "Repeated climax while still incapacitated. Ends with the climax incapacitation.");
+                LewdPoolHelper.StampClimaxIncapacitation(character, incapacitation, nowDays);
+        }
+
+        var concentration = "";
+        if (character is not null && nowDays is { } climaxDay)
+        {
+            var hours = (float)(climaxDay * 24);
+            ClimaxLog.Record(character, hours);
+            // Handbook: Concentration check on each climax, DC 15 + climaxes in the past minute (this one included).
+            concentration = $" Concentration check DC {15 + ClimaxLog.Count(character, hours, 0)} for anything they concentrate on that is not a sexual advance.";
         }
 
         PublishClimax(context, target, "climax", forced);
@@ -362,7 +392,7 @@ public sealed class LewdAdvanceHandler : IWorldChangeHandler
         var spend = character is not null && RecoveryWindow.Kind(character) == RecoveryWindow.Climax
             ? $" May spend up to {ArousalMath.ProficiencyBonus(character)} recovery dice now (lewd_recover), before the next turn."
             : "";
-        return $" Climax streak {tick.ClimaxStreak}.{extra}{osNote}{bad}{missing}{brandNote}{spend}";
+        return $" Climax streak {tick.ClimaxStreak}.{extra}{osNote}{bad}{missing}{brandNote}{concentration}{spend}";
     }
 
     private static void PublishClimax(IChangeContext? context, ModeParticipantState target, string outcome, bool forced)

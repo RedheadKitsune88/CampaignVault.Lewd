@@ -248,6 +248,7 @@ public class LewdAdvanceHandlerTests
         var (mode, bob) = BuildMode();
         var character = BuildCharacter("bob", 0, 0, 0);
         var ctx = new FakeChangeContext(mode, character);
+        ctx.GetSystemOptionsAsync = () => Task.FromResult(new Dictionary<string, string> { [LewdKeys.NonConsentOption] = LewdKeys.NonConsentOn });
 
         var result = await new LewdAdvanceHandler().ApplyAsync(
             new LewdAdvanceChange { ActorId = "alice", TargetId = "bob", Kind = "martial", Hit = true, StimulationAmount = 3 },

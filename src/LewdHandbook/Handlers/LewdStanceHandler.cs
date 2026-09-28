@@ -35,6 +35,13 @@ public sealed class LewdStanceHandler : IWorldChangeHandler
             return Task.FromResult(ChangeHandlerResult.Failure(
                 $"'{req.CharacterId}' is not in an active lewd_encounter; use scope=default for lasting defaults."));
 
+        if (character.IsPc && LoosensPc(req, scope, participant, character) is { } loosened && string.IsNullOrWhiteSpace(req.PlayerRequest))
+        {
+            return Task.FromResult(ChangeHandlerResult.Failure(
+                $"'{req.CharacterId}' is the player's character: {loosened} only changes when the player asks. " +
+                "Quote them in playerRequest; tightening (unwilling, revoked, more limits) needs no quote."));
+        }
+
         var written = new List<string>();
         if (scope == "scene")
         {
@@ -60,10 +67,34 @@ public sealed class LewdStanceHandler : IWorldChangeHandler
         if (written.Count == 0)
             return Task.FromResult(ChangeHandlerResult.Failure("lewd_stance has nothing to set."));
 
-        context.RecordMessage($"{req.CharacterId} lewd stance ({scope}): {string.Join(", ", written)}.");
+        var quoted = character.IsPc && !string.IsNullOrWhiteSpace(req.PlayerRequest)
+            ? $" Player: \"{req.PlayerRequest.Trim()}\"."
+            : "";
+        context.RecordMessage($"{req.CharacterId} lewd stance ({scope}): {string.Join(", ", written)}.{quoted}");
         if (stance == LewdKeys.ConsentRevoked)
             context.RecordPhysicalStateNudge($"{req.CharacterId} revoked consent. Stop: no further lewd verbs touch them.");
         return Task.FromResult(ChangeHandlerResult.Ok);
+    }
+
+    /// <summary>What the change would loosen on the player's character, or null when it only tightens or keeps things.</summary>
+    private static string? LoosensPc(LewdStanceChange req, string scope, ModeParticipantState? participant, Character character)
+    {
+        // What the value is now at this scope, falling back to what the character carries.
+        var current = scope == "scene" ? participant : null;
+        var after = req.Stance?.Trim().ToLowerInvariant();
+        if (after is LewdKeys.ConsentWilling or LewdKeys.ConsentSelective && after != LewdProfile.Stance(current, character))
+            return $"a more willing stance ({after})";
+
+        if (req.AllowedPartners is not null &&
+            req.AllowedPartners.Any(id => !string.IsNullOrWhiteSpace(id) &&
+                                          !LewdProfile.AllowedPartners(current, character).Contains(id.Trim(), StringComparer.OrdinalIgnoreCase)))
+            return "more allowed partners";
+
+        if (req.HardLimits is not null &&
+            LewdProfile.HardLimits(current, character).Any(limit => !req.HardLimits.Contains(limit, StringComparer.OrdinalIgnoreCase)))
+            return "fewer hard limits";
+
+        return null;
     }
 
     private static void SetList(Dictionary<string, object> state, string key, List<string>? values, List<string> written)

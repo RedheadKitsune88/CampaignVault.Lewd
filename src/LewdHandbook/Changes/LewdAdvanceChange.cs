@@ -4,6 +4,7 @@ using CampaignVault.Plugins;
 namespace LewdHandbook.Changes;
 
 [PluginWorldChange("lewd_advance", ModeId = LewdEncounterMode.ModeIdValue)]
+[ActorAction]
 public sealed class LewdAdvanceChange : WorldChange
 {
     public string ActorId { get; set; } = null!;

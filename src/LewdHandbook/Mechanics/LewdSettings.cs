@@ -23,11 +23,26 @@ internal enum LewdNonConsent
 /// Player-owned campaign options (plugin.json <c>playerOnly</c>): narration style, the non-consent policy and
 /// campaign-wide hard limits. The in-fiction willingness of a character is <see cref="LewdProfile"/>, not this.
 /// </summary>
-internal sealed record LewdSettings(LewdNarration Narration, LewdNonConsent NonConsent, IReadOnlyList<string> HardLimits)
+internal sealed record LewdSettings(LewdNarration Narration, LewdNonConsent NonConsent, IReadOnlyList<string> HardLimits, bool MoodBuffs = true)
 {
     public static readonly LewdSettings Default = new(LewdNarration.Suggestive, LewdNonConsent.Off, []);
 
+    // Synchronous rules (a bad end tripped inside a stat helper) cannot await the options. Whatever a handler or observer already
+    // resolved for this commit's context is remembered here; nothing resolved means "unknown", never "off".
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IChangeContext, LewdSettings> Resolved = new();
+
+    /// <summary>The settings already resolved for this commit, or null when nothing has resolved them yet.</summary>
+    public static LewdSettings? Peek(IChangeContext? context) =>
+        context is not null && Resolved.TryGetValue(context, out var settings) ? settings : null;
+
     public static async Task<LewdSettings> ResolveAsync(IChangeContext context, CancellationToken ct = default)
+    {
+        var settings = await ResolveCoreAsync(context).ConfigureAwait(false);
+        Resolved.AddOrUpdate(context, settings);
+        return settings;
+    }
+
+    private static async Task<LewdSettings> ResolveCoreAsync(IChangeContext context)
     {
         Dictionary<string, string>? options = null;
         try
@@ -50,7 +65,8 @@ internal sealed record LewdSettings(LewdNarration Narration, LewdNonConsent NonC
         return new LewdSettings(
             ParseNarration(Read(options, LewdKeys.NarrationOption)),
             ParseNonConsent(Read(options, LewdKeys.NonConsentOption)),
-            ParseList(Read(options, LewdKeys.HardLimitsOption)));
+            ParseList(Read(options, LewdKeys.HardLimitsOption)),
+            Normalize(Read(options, LewdKeys.MoodBuffsOption)) != "off");
     }
 
     public static LewdNarration ParseNarration(string? raw) => Normalize(raw) switch
@@ -99,10 +115,14 @@ internal sealed record LewdSettings(LewdNarration Narration, LewdNonConsent NonC
         _ => null,
     };
 
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IChangeContext, object> Narrated = new();
+
+    /// <summary>The narration nudge, once per commit however many lewd verbs it holds.</summary>
     public void Narrate(IChangeContext context)
     {
-        if (NarrationDirective is { } directive)
-            context.RecordPhysicalStateNudge(directive);
+        if (NarrationDirective is not { } directive || !Narrated.TryAdd(context, directive))
+            return;
+        context.RecordPhysicalStateNudge(directive);
     }
 
     private static string? Read(IReadOnlyDictionary<string, string> options, string key)

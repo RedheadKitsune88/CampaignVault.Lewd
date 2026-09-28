@@ -32,9 +32,12 @@ public sealed class LewdDeconditionHandler : IWorldChangeHandler
             string.Equals(p.CharacterId, req.TargetId, StringComparison.OrdinalIgnoreCase));
         var wisMod = AbilityScores.Resolve(character, "wis", req.WisMod);
         var die = await SaveDice.RollAsync(
-            context, "lewd_decondition", req.D20, abilityMod: 0, disadvantage: false, ct).ConfigureAwait(false);
+            context, "lewd_decondition", req.D20, abilityMod: 0, disadvantage: false, ct,
+            who: character, subject: "wis", tags: ["mental"]).ConfigureAwait(false);
         if (die.Error is not null)
             return ChangeHandlerResult.Failure(die.Error);
+        // Only the roll pipeline contributes to the total here (the Wis modifier is added by Decondition); fold it in.
+        wisMod += die.Total - die.Face;
 
         var advantage = method == "aftercare" || HasDevoted(character);
         var face = die.Face;
@@ -57,6 +60,7 @@ public sealed class LewdDeconditionHandler : IWorldChangeHandler
         }
 
         var day = await ImprintState.DayAsync(context, ct).ConfigureAwait(false);
+        var levelBefore = ImprintState.Level(character, category);
         var note = ImprintState.Decondition(participant, character, category, method, face, wisMod, day, out var error);
         if (note is not null)
         {
@@ -73,6 +77,14 @@ public sealed class LewdDeconditionHandler : IWorldChangeHandler
         if (note is null)
             return ChangeHandlerResult.Failure(error);
         context.RecordMessage(note);
+        if (ImprintState.Level(character, category) < levelBefore)
+        {
+            var settings = await LewdSettings.ResolveAsync(context, ct).ConfigureAwait(false);
+            var now = await LewdClock.NowDaysAsync(context).ConfigureAwait(false) ?? day;
+            if (LewdMood.TryGrant(character, LewdMood.Relief, category, day, now, settings) is { } mood)
+                context.RecordMessage(mood);
+        }
+
         return ChangeHandlerResult.Ok;
     }
 

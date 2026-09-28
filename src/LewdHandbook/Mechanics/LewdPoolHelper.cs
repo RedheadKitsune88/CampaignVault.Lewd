@@ -74,11 +74,22 @@ internal static class LewdPoolHelper
         {
             participant.State[LewdKeys.Edging] = edging;
             if (!edging)
+            {
                 participant.State[LewdKeys.EdgingBeats] = 0;
+                participant.State[LewdKeys.ClimaxSuccesses] = 0;
+                participant.State[LewdKeys.ClimaxFailures] = 0;
+            }
         }
 
         if (character is null)
             return;
+
+        // Handbook: the tally resets when arousal drops below maximum, i.e. when edging ends.
+        if (!edging)
+        {
+            character.SystemStats.Attributes.Remove(SheetSuccessesKey);
+            character.SystemStats.Attributes.Remove(SheetFailuresKey);
+        }
 
         var effects = character.SystemStats.StatusEffects;
         var existing = effects.FirstOrDefault(e =>
@@ -104,10 +115,42 @@ internal static class LewdPoolHelper
         }
     }
 
-    public static void WriteClimaxCounters(ModeParticipantState participant, int successes, int failures)
+    private const string SheetSuccessesKey = "lewd.climax_successes";
+    private const string SheetFailuresKey = "lewd.climax_failures";
+
+    /// <summary>
+    /// The climax-save tally. Handbook: successes and failures are kept until arousal drops below maximum, however long
+    /// that takes, so the sheet (not the scene) is the record. The participant copy is the fallback for sheetless callers.
+    /// </summary>
+    public static (int Successes, int Failures) ClimaxCounters(ModeParticipantState participant, Character? character)
+    {
+        if (character is not null)
+        {
+            var attrs = character.SystemStats.Attributes;
+            if (attrs.TryGetValue(SheetSuccessesKey, out var s) | attrs.TryGetValue(SheetFailuresKey, out var f))
+                return ((int)s, (int)f);
+        }
+
+        return (ConsentGate.GetInt(participant, LewdKeys.ClimaxSuccesses), ConsentGate.GetInt(participant, LewdKeys.ClimaxFailures));
+    }
+
+    public static void WriteClimaxCounters(ModeParticipantState participant, int successes, int failures, Character? character = null)
     {
         participant.State[LewdKeys.ClimaxSuccesses] = successes;
         participant.State[LewdKeys.ClimaxFailures] = failures;
+        if (character is null)
+            return;
+
+        var attrs = character.SystemStats.Attributes;
+        if (successes == 0 && failures == 0)
+        {
+            attrs.Remove(SheetSuccessesKey);
+            attrs.Remove(SheetFailuresKey);
+            return;
+        }
+
+        attrs[SheetSuccessesKey] = successes;
+        attrs[SheetFailuresKey] = failures;
     }
 
     public static void SetOverstimulation(
@@ -127,7 +170,8 @@ internal static class LewdPoolHelper
         if (level >= OverstimMath.MaxLevel)
             BadEndState.Apply(participant, character, BadEndMath.Overstim, sourceId, context: context);
 
-        if (character is null)
+        // A rescue reset the level to 0; do not write the stale one back.
+        if (character is null || BadEndRescue.IsPending(character))
             return;
 
         SyncOverstimCascade(character, level, sourceId);
@@ -160,7 +204,29 @@ internal static class LewdPoolHelper
             existing.AppliedBy = sourceId;
     }
 
-    public static void EnsureNamedCondition(Character character, string name, string? conditionName, string recoveryHint)
+    /// <summary>Longest a climax incapacitation lasts once the clock moves on: the campaign clock has hour resolution.</summary>
+    internal const float ClimaxIncapDays = 1f / 24f;
+
+    /// <summary>The host's "cannot act" StatModifiers key (SDK 0.9.0 <c>ActionBlock.Tag</c>).</summary>
+    private const string BlocksAllActionsTag = ActionBlock.Tag;
+
+    /// <summary>
+    /// Stamps the "cannot act" status for a climax (incapacitated; stunned/paralyzed on a repeat climax replace it in
+    /// the rules but all three block). It carries the host's block tag and an expiry, so it has an exit even when no
+    /// scene turn ever ticks it: out of a scene the clock moving on an hour lifts it. Scene turns and scene end clear it
+    /// sooner (<see cref="EndClimaxIncapacitation"/>).
+    /// </summary>
+    public static void StampClimaxIncapacitation(Character character, string name, double? nowDays)
+    {
+        EnsureNamedCondition(character, name, name,
+            name == LewdKeys.ConditionIncapacitated
+                ? "Climax: incapacitated for one round per recovery die spent, or until the end of their next turn. Con save (lewd_recover save=true) may end it."
+                : "Repeated climax while still incapacitated. Ends with the climax incapacitation.",
+            nowDays is { } now ? (float)(now + ClimaxIncapDays) : null);
+    }
+
+    public static void EnsureNamedCondition(
+        Character character, string name, string? conditionName, string recoveryHint, float? expiresAtDay = null)
     {
         var effects = character.SystemStats.StatusEffects;
         if (effects.Any(e => string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase)))
@@ -173,6 +239,8 @@ internal static class LewdPoolHelper
             ConditionName = conditionName,
             RecoveryHint = recoveryHint,
             AppliedBy = OverstimAppliedBy,
+            ExpiresAtDay = expiresAtDay,
+            StatModifiers = expiresAtDay is null ? [] : new Dictionary<string, float> { [BlocksAllActionsTag] = 1 },
         });
     }
 
@@ -237,8 +305,17 @@ internal static class LewdPoolHelper
         character?.SystemStats.StatusEffects.RemoveAll(e =>
             string.Equals(e.AppliedBy, OverstimAppliedBy, StringComparison.Ordinal) &&
             (string.Equals(e.Name, LewdKeys.ConditionStunned, StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(e.Name, LewdKeys.ConditionParalyzed, StringComparison.OrdinalIgnoreCase)));
+             string.Equals(e.Name, LewdKeys.ConditionParalyzed, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(e.Name, LewdKeys.ConditionIncapacitated, StringComparison.OrdinalIgnoreCase)));
     }
+
+    /// <summary>Whether a climax-stamped incapacitated / stunned / paralyzed is on the sheet.</summary>
+    public static bool HasClimaxIncapacitation(Character character) =>
+        character.SystemStats.StatusEffects.Any(e =>
+            string.Equals(e.AppliedBy, OverstimAppliedBy, StringComparison.Ordinal) &&
+            (string.Equals(e.Name, LewdKeys.ConditionIncapacitated, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(e.Name, LewdKeys.ConditionStunned, StringComparison.OrdinalIgnoreCase) ||
+             string.Equals(e.Name, LewdKeys.ConditionParalyzed, StringComparison.OrdinalIgnoreCase)));
 
     private static bool IsOverstimEffect(StatusEffect e) =>
         string.Equals(e.ConditionName, LewdKeys.ConditionOverstimulation, StringComparison.OrdinalIgnoreCase) ||

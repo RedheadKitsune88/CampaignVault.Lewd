@@ -147,7 +147,8 @@ internal static class ViceTrack
 
         var mod = AbilityScores.Resolve(character, ability, abilityMod);
         var disadvantage = aid != Advantage;
-        var roll = await SaveDice.RollAsync(context, "lewd_vice_resist", d20, mod, disadvantage, ct).ConfigureAwait(false);
+        var roll = await SaveDice.RollAsync(
+            context, "lewd_vice_resist", d20, mod, disadvantage, ct, who: character, subject: ability, tags: ["mental"]).ConfigureAwait(false);
         if (roll.Error is not null)
             return (null, roll.Error);
 
@@ -197,7 +198,8 @@ internal static class ViceTrack
         {
             var mod = AbilityScores.Resolve(character, ability, abilityMod) + resolve;
             var roll = await SaveDice.RollAsync(
-                context, "lewd_vice_rest", d20, mod, disadvantage: false, ct, advantage: aid == Advantage).ConfigureAwait(false);
+                context, "lewd_vice_rest", d20, mod, disadvantage: false, ct, advantage: aid == Advantage,
+                who: character, subject: ability, tags: ["mental"]).ConfigureAwait(false);
             if (roll.Error is not null)
                 return $"{character.Id} vice {def.Id}: {roll.Error}";
             face = roll.Face;

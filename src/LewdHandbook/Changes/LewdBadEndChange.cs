@@ -22,4 +22,10 @@ public sealed class LewdBadEndChange : WorldChange
     public bool ImprintWilling { get; set; }
 
     public string? ViceId { get; set; }
+
+    /// <summary>Only when non-consent does not allow a permanent bad end for this target (a fade-to-black rescue): what happens to them, in the DM's words.</summary>
+    public string? Outcome { get; set; }
+
+    /// <summary>Rescue only: they are still bound afterwards (a captive, not a rescued victim). Default false.</summary>
+    public bool KeepBindings { get; set; }
 }

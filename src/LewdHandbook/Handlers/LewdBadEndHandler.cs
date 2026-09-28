@@ -50,8 +50,18 @@ public sealed class LewdBadEndHandler : IWorldChangeHandler
 
         // A bad end is a defeat by definition, so it needs the player's non-consent setting to allow it for this target.
         var settings = await LewdSettings.ResolveAsync(context, ct).ConfigureAwait(false);
-        if (!settings.AllowsUnwanted(character, req.TargetId, out var policyError))
-            return ChangeHandlerResult.Failure($"lewd_bad_end: {policyError}");
+        if (BadEndRescue.Applies(settings, character))
+        {
+            // Not allowed to be permanent here: a fade to black. The DM keeps the freedom to make it custom (outcome, keepBindings).
+            if (!string.IsNullOrWhiteSpace(req.Consequence) && !string.Equals(req.Consequence.Trim(), "narrated", StringComparison.OrdinalIgnoreCase))
+                return ChangeHandlerResult.Failure(
+                    "lewd_bad_end: this campaign does not allow a permanent bad end for this character, so it resolves as a rescue. " +
+                    "Drop the consequence (or use narrated) and describe what happens in outcome.");
+            settings.Narrate(context);
+            BadEndRescue.Begin(participant, character, req.Reason.Trim().ToLowerInvariant(), req.KeepBindings, req.Outcome);
+            await BadEndRescue.FinishAsync(context, character, participant, ct).ConfigureAwait(false);
+            return ChangeHandlerResult.Ok;
+        }
 
         var consequence = string.IsNullOrWhiteSpace(req.Consequence) ? null : req.Consequence.Trim().ToLowerInvariant();
         if (consequence is not null && !Consequences.Contains(consequence))

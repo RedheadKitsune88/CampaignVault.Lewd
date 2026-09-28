@@ -73,6 +73,24 @@ public sealed class AnatomyTests
     }
 
     [Fact]
+    public void An_unknown_implement_id_is_an_error_that_lists_what_is_valid()
+    {
+        var c = Adult(traits: (Slot("tail"), "die=1d6;tags=prehensile"));
+        var paddle = new Item { Id = "items/paddle_1", Name = "paddle", HolderId = c.Id };
+        paddle.Properties["damageDice"] = "1d6";
+        paddle.Properties["lewdCategory"] = "implement";
+        var items = new Dictionary<string, Item> { [paddle.Id] = paddle };
+
+        Assert.Null(ImplementResolver.CheckId(c, items, null));
+        Assert.Null(ImplementResolver.CheckId(c, items, "paddle"));
+        var error = ImplementResolver.CheckId(c, items, "riding_crop");
+        Assert.Contains("riding_crop", error);
+        Assert.Contains("items/paddle_1", error);
+        Assert.Contains("tail", error);
+        Assert.Null(ImplementResolver.Resolve(c, items, "riding_crop", null, null, null, allowGuess: false));
+    }
+
+    [Fact]
     public void Guess_prefers_a_declared_implement_over_defaults_and_skips_receptive_slots()
     {
         var c = Adult(traits: [(Slot("pussy"), "role=receptive"), (Slot("tail"), "die=1d6;tags=prehensile")]);

@@ -35,18 +35,22 @@ public sealed class LewdImprintHandler : IWorldChangeHandler
         if (ImprintState.HardBlocked(participant, character, settings, category, req.Tags))
             return ChangeHandlerResult.Failure($"Hard limit blocks imprint '{category}'.");
 
+        // Willing / accept only count when the character's stance agrees; the flag alone never lifts the policy.
+        var wanted = LewdProfile.Wants(participant, character, req.AnchorId);
+        var willing = (req.Willing || req.Accept) && wanted;
+        if (!willing && !settings.AllowsUnwanted(character, req.TargetId, out var policyError))
+            return ChangeHandlerResult.Failure(
+                $"Unwilling lewd_imprint: {policyError} If they now accept it, record that with lewd_stance first.");
+
         if (req.SetLevel is { } setLevel)
         {
             if (setLevel is < 1 or > 3)
                 return ChangeHandlerResult.Failure("setLevel must be 1–3.");
             var seedDay = await ImprintState.DayAsync(context, ct).ConfigureAwait(false);
-            ImprintState.Seed(participant, character, category, setLevel, req.Willing, seedDay, context, req.AnchorId);
+            ImprintState.Seed(participant, character, category, setLevel, willing, seedDay, context, req.AnchorId);
             PublishChanged(context, req.TargetId, character, category, "set");
             return ChangeHandlerResult.Ok;
         }
-
-        if (!req.Willing && !req.Accept && !settings.AllowsUnwanted(character, req.TargetId, out var policyError))
-            return ChangeHandlerResult.Failure($"Unwilling lewd_imprint: {policyError} Or set willing=true.");
 
         if (req.Accept && LewdProfile.Stance(participant, character) == LewdKeys.ConsentUnwilling)
             return ChangeHandlerResult.Failure("accept requires stance willing or selective.");
@@ -69,11 +73,12 @@ public sealed class LewdImprintHandler : IWorldChangeHandler
 
         var day = await ImprintState.DayAsync(context, ct).ConfigureAwait(false);
 
-        if (!req.Willing && !req.Accept && delta > 0)
+        if (!willing && delta > 0)
         {
             var mod = AbilityScores.Resolve(character, ability, req.AbilityMod);
             var die = await SaveDice.RollAsync(
-                context, "lewd_imprint_resist", req.D20, mod, disadvantage: false, ct).ConfigureAwait(false);
+                context, "lewd_imprint_resist", req.D20, mod, disadvantage: false, ct,
+                who: character, subject: ability, tags: ["mental"]).ConfigureAwait(false);
             if (die.Error is not null)
                 return ChangeHandlerResult.Failure(die.Error);
             var dc = ImprintMath.ResistDc(ImprintState.Level(character, category), req.DcMod);
@@ -91,7 +96,8 @@ public sealed class LewdImprintHandler : IWorldChangeHandler
         if (req.Accept && !ImprintState.Accept(participant, character, category, day, context) && delta == 0)
             return ChangeHandlerResult.Failure($"No imprint track '{category}' to accept.");
         if (delta > 0)
-            ImprintState.Tick(participant, character, category, req.Willing || req.Accept, delta, day, req.Accept, context, req.AnchorId);
+            ImprintState.Tick(participant, character, category, willing, delta, day, req.Accept, context, req.AnchorId,
+                await LewdClock.NowDaysAsync(context).ConfigureAwait(false));
         PublishChanged(context, req.TargetId, character, category, req.Accept ? "accept" : "tick");
         return ChangeHandlerResult.Ok;
     }

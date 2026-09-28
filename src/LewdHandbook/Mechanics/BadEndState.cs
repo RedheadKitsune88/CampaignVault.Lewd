@@ -21,8 +21,18 @@ internal static class BadEndState
         string? sourceId = null,
         string? consequence = null,
         IChangeContext? context = null,
-        bool publish = true)
+        bool publish = true,
+        LewdSettings? settings = null)
     {
+        // Not allowed to be permanent for this character: fade to black instead (see BadEndRescue). No mark, no bad_end.v1.
+        settings ??= LewdSettings.Peek(context);
+        if (character is not null && settings is not null && !IsMarked(participant, character) &&
+            BadEndRescue.Applies(settings, character))
+        {
+            BadEndRescue.Begin(participant, character, reason);
+            return;
+        }
+
         var already = IsMarked(participant, character);
         if (participant is not null)
         {

@@ -91,6 +91,31 @@ public sealed class LewdRestHandler : IWorldChangeHandler
 
 public sealed class LewdRecoverHandler : IWorldChangeHandler
 {
+    /// <summary>Handbook: while incapacitated by a climax, a free action each turn: Con save, DC 12 + climaxes in the last hour.</summary>
+    private static async Task<ChangeHandlerResult> SaveAgainstIncapacitationAsync(
+        LewdRecoverChange req, IChangeContext context, Character character, float now, CancellationToken ct)
+    {
+        var participant = LewdModeAccess.TryGetParticipant(context, character.Id);
+        var incapacitated = (participant is not null && ConsentGate.GetBool(participant, LewdKeys.ClimaxIncapacitated)) ||
+                            LewdPoolHelper.HasClimaxIncapacitation(character);
+        if (!incapacitated)
+            return ChangeHandlerResult.Failure($"{character.Id} is not incapacitated by a climax.");
+
+        var dc = 12 + ClimaxLog.Count(character, now, ClimaxLog.Hour);
+        var save = await SaveDice.RollAsync(
+            context, "lewd_incap_recover", req.D20, AbilityScores.Mod(character, "con"), disadvantage: false, ct,
+            who: character, subject: "con").ConfigureAwait(false);
+        if (save.Error is not null)
+            return ChangeHandlerResult.Failure(save.Error);
+
+        var recovered = save.Total >= dc;
+        if (recovered)
+            LewdPoolHelper.EndClimaxIncapacitation(participant, character);
+        context.RecordMessage(
+            $"{character.Id} tries to shake off the climax: Con save {save.Summary} vs DC {dc} → {(recovered ? "no longer incapacitated" : "still incapacitated")}.");
+        return ChangeHandlerResult.Ok;
+    }
+
     public bool ShouldHandle(WorldChange change) => change is LewdRecoverChange;
 
     public async Task<ChangeHandlerResult> ApplyAsync(WorldChange change, IChangeContext context, CancellationToken ct = default)
@@ -102,6 +127,9 @@ public sealed class LewdRecoverHandler : IWorldChangeHandler
             return ChangeHandlerResult.Failure(ageError!);
 
         var now = await ViceState.HoursNowAsync(context, ct).ConfigureAwait(false);
+        if (req.Save)
+            return await SaveAgainstIncapacitationAsync(req, context, character, now, ct).ConfigureAwait(false);
+
         var window = RecoveryWindow.OpenKind(character, now);
         if (window is null)
             return ChangeHandlerResult.Failure(

@@ -29,7 +29,7 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
 
         var now = await ViceState.HoursNowAsync(context, ct).ConfigureAwait(false);
         if (action is "advance" or "terminate" or "termination_save" or "birth")
-            return ApplyOngoing(req, context, targetChar, participant, action, now);
+            return await ApplyOngoingAsync(req, context, targetChar, participant, action, now, ct).ConfigureAwait(false);
         if (action == "rest")
             return await ApplyRestAsync(req, context, targetChar, now, ct).ConfigureAwait(false);
         if (action != "impregnate")
@@ -48,22 +48,32 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
     {
         if (!PregnancyState.Flag(targetChar, LewdKeys.Pregnant))
             return ChangeHandlerResult.Failure($"{req.TargetId} is not pregnant.");
-        if (req.D20 is < 1 or > 20)
-            return ChangeHandlerResult.Failure("d20 must be between 1 and 20 for a pregnancy rest save.");
-
         PregnancyState.Sync(targetChar, now, context);
         var note = await PregnancyRest.SaveAsync(context, targetChar, now, req.D20, req.TargetConModifier, ct).ConfigureAwait(false);
         context.RecordMessage(note ?? $"Lewd pregnancy rest {req.TargetId}: not showing yet (progress < {PregnancyMath.VisibleProgress}); no save.");
         return ChangeHandlerResult.Ok;
     }
 
-    private static ChangeHandlerResult ApplyOngoing(
+    /// <summary>The given d20 (1–20), or one the host rolls when it is 0; an error when neither is possible.</summary>
+    private static async Task<(int Face, string? Error)> D20Async(IChangeContext context, string tag, int given, CancellationToken ct) =>
+        await D20Async(context, tag, given, null, ct).ConfigureAwait(false) is var (face, _, error) ? (face, error) : (0, null);
+
+    /// <summary>As above, through the roll pipeline for <paramref name="who"/>; <c>Bonus</c> is what the pipeline adds to their Con modifier.</summary>
+    private static async Task<(int Face, int Bonus, string? Error)> D20Async(
+        IChangeContext context, string tag, int given, Character? who, CancellationToken ct)
+    {
+        var die = await SaveDice.RollAsync(context, tag, given, 0, false, ct, who: who, subject: "con").ConfigureAwait(false);
+        return die.Error is null ? (die.Face, die.Total - die.Face, null) : (0, 0, die.Error);
+    }
+
+    private static async Task<ChangeHandlerResult> ApplyOngoingAsync(
         LewdPregnancyChange req,
         IChangeContext context,
         Character targetChar,
         ModeParticipantState? participant,
         string action,
-        float now)
+        float now,
+        CancellationToken ct)
     {
         if (!PregnancyState.Flag(targetChar, LewdKeys.Pregnant))
             return ChangeHandlerResult.Failure($"{req.TargetId} is not pregnant.");
@@ -111,11 +121,12 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
 
         if (req.Dc is null)
             return ChangeHandlerResult.Failure("dc is required for termination_save (use the damage taken).");
-        if (req.D20 is < 1 or > 20)
-            return ChangeHandlerResult.Failure("d20 must be between 1 and 20 for a termination save.");
-        var termCon = AbilityScores.Resolve(targetChar, "con", req.TargetConModifier);
-        var termTotal = req.D20 + termCon;
-        var held = PregnancyMath.CheckSucceeds(req.D20, termCon, req.Dc.Value);
+        var (termDie, termBonus, termError) = await D20Async(context, "lewd_pregnancy_termination", req.D20, targetChar, ct).ConfigureAwait(false);
+        if (termError is not null)
+            return ChangeHandlerResult.Failure(termError);
+        var termCon = AbilityScores.Resolve(targetChar, "con", req.TargetConModifier) + termBonus;
+        var termTotal = termDie + termCon;
+        var held = PregnancyMath.CheckSucceeds(termDie, termCon, req.Dc.Value);
         if (!held)
         {
             var lostAt = PregnancyState.Int(targetChar, LewdKeys.PregnancyProgress);
@@ -126,7 +137,7 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
         }
 
         context.RecordMessage(
-            $"Lewd pregnancy termination save {req.TargetId}: {req.D20}+{termCon}={termTotal} vs DC {req.Dc} → {(held ? "held" : "terminated")}.");
+            $"Lewd pregnancy termination save {req.TargetId}: {termDie}+{termCon}={termTotal} vs DC {req.Dc} → {(held ? "held" : "terminated")}.");
         return ChangeHandlerResult.Ok;
     }
 
@@ -172,21 +183,26 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
         {
             if (req.Dc is null)
                 return ChangeHandlerResult.Failure("dc is required for nontraditional pregnancy.");
-            if (req.D20 is < 1 or > 20)
-                return ChangeHandlerResult.Failure("d20 must be between 1 and 20.");
+            var (first, firstBonus, firstError) = await D20Async(context, "lewd_pregnancy_save", req.D20, targetChar, ct).ConfigureAwait(false);
+            if (firstError is not null)
+                return ChangeHandlerResult.Failure(firstError);
             var disadv = req.Hyperfertile || req.Hypervirile ||
                          PregnancyState.Flag(targetChar, LewdKeys.TraitHyperfertile) ||
                          PregnancyState.HasCondition(targetChar, LewdKeys.ConditionHyperfertile) ||
                          ActorHypervirile(req, context);
-            var die = PregnancyMath.PickDie(req.D20, req.SecondD20, advantage: false);
-            if (!disadv)
-                die = req.D20;
-            else if (req.SecondD20 is null)
-                context.RecordMessage("Lewd pregnancy: disadvantage declared but secondD20 omitted; using the single die.");
+            var die = first;
+            if (disadv)
+            {
+                var (second, secondError) = await D20Async(context, "lewd_pregnancy_save_2", req.SecondD20 ?? 0, ct).ConfigureAwait(false);
+                if (secondError is not null)
+                    context.RecordMessage($"Lewd pregnancy: disadvantage declared but no second die ({secondError}); using the single die.");
+                else
+                    die = PregnancyMath.PickDie(first, second, advantage: false);
+            }
             var inhib = !Unwanted(req, participant, targetChar)
                 ? 0
                 : req.InhibitionBonus != 0 ? req.InhibitionBonus : LewdProfile.Inhibition(participant, targetChar);
-            var targetCon = AbilityScores.Resolve(targetChar, "con", req.TargetConModifier);
+            var targetCon = AbilityScores.Resolve(targetChar, "con", req.TargetConModifier) + firstBonus;
             var total = die + targetCon + inhib;
             var saved = PregnancyMath.CheckSucceeds(die, targetCon + inhib, req.Dc.Value);
             if (saved)
@@ -197,23 +213,28 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
         }
         else
         {
-            if (req.D20 is < 1 or > 20)
-                return ChangeHandlerResult.Failure("d20 must be between 1 and 20.");
+            Character? actorChar = null;
+            if (!string.IsNullOrWhiteSpace(req.ActorId))
+                context.Characters.TryGetValue(req.ActorId, out actorChar);
+            var (first, actorBonus, firstError) = await D20Async(context, "lewd_pregnancy_impregnation", req.D20, actorChar, ct).ConfigureAwait(false);
+            if (firstError is not null)
+                return ChangeHandlerResult.Failure(firstError);
             var advantage = req.Hyperfertile ||
                             PregnancyState.Flag(targetChar, LewdKeys.TraitHyperfertile) ||
                             PregnancyState.HasCondition(targetChar, LewdKeys.ConditionHyperfertile) ||
                             ActorHyperfertile(req, context);
-            var die = advantage
-                ? PregnancyMath.PickDie(req.D20, req.SecondD20, advantage: true)
-                : req.D20;
-            if (advantage && req.SecondD20 is null)
-                context.RecordMessage("Lewd pregnancy: advantage declared but secondD20 omitted; using the single die.");
+            var die = first;
+            if (advantage)
+            {
+                var (second, secondError) = await D20Async(context, "lewd_pregnancy_impregnation_2", req.SecondD20 ?? 0, ct).ConfigureAwait(false);
+                if (secondError is not null)
+                    context.RecordMessage($"Lewd pregnancy: advantage declared but no second die ({secondError}); using the single die.");
+                else
+                    die = PregnancyMath.PickDie(first, second, advantage: true);
+            }
             var condom = IsContraceptive(req, "condom");
             var targetCon = AbilityScores.Resolve(targetChar, "con", req.TargetConModifier);
-            Character? actorChar = null;
-            if (!string.IsNullOrWhiteSpace(req.ActorId))
-                context.Characters.TryGetValue(req.ActorId, out actorChar);
-            var actorCon = AbilityScores.Resolve(actorChar, "con", req.ActorConModifier);
+            var actorCon = AbilityScores.Resolve(actorChar, "con", req.ActorConModifier) + actorBonus;
             var dc = PregnancyMath.TraditionalDc(targetCon, req.TargetProficiency, condom);
             var total = die + actorCon;
             if (!PregnancyMath.CheckSucceeds(die, actorCon, dc))
@@ -332,9 +353,8 @@ public sealed class LewdPregnancyHandler : IWorldChangeHandler
 
     private static bool Unwanted(LewdPregnancyChange req, ModeParticipantState? participant, Character targetChar)
     {
-        if (req.Unwilling)
-            return true;
-        return !string.IsNullOrWhiteSpace(req.ActorId) && !LewdProfile.Wants(participant, targetChar, req.ActorId);
+        // Only the stance can make it wanted: a blank actorId no longer skips the check.
+        return req.Unwilling || !LewdProfile.Wants(participant, targetChar, req.ActorId);
     }
 
     private static bool IsNontraditional(string? kind) =>

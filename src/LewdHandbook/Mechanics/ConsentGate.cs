@@ -45,6 +45,57 @@ internal static class ConsentGate
     }
 
     /// <summary>
+    /// Authorizes an effect that is not an advance (brand, imprint, impregnation, forced climax, a vice pushed on
+    /// someone). Same order as <see cref="AuthorizeAdvance"/>: revoked stance, the player's hard limits and the
+    /// character's own hard limits always refuse; otherwise an effect the character does not want resolves only when
+    /// <see cref="LewdSettings.NonConsent"/> allows it. Wanting is read from the stance (with <paramref name="actorId"/>
+    /// checked against allowed partners; null asks only the stance). A <paramref name="claimedWilling"/> flag on the
+    /// change can only withhold consent, never grant it: if the character changed their mind, that is a
+    /// <c>lewd_stance</c> first.
+    /// </summary>
+    public static bool AuthorizeEffect(
+        ModeParticipantState? target,
+        Character? targetChar,
+        string targetId,
+        string? actorId,
+        IEnumerable<string> tags,
+        LewdSettings settings,
+        out bool wanted,
+        out string? error,
+        bool claimedWilling = true)
+    {
+        wanted = false;
+        if (LewdProfile.IsRevoked(target, targetChar))
+        {
+            error = $"Target '{targetId}' has revoked consent.";
+            return false;
+        }
+
+        var probe = new HashSet<string>(tags.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()), StringComparer.OrdinalIgnoreCase);
+        if (settings.HitsHardLimit(probe, out var campaignHit))
+        {
+            error = $"Campaign hard limit '{campaignHit}' blocks this.";
+            return false;
+        }
+
+        if (LewdProfile.HardLimits(target, targetChar).FirstOrDefault(probe.Contains) is { } personal)
+        {
+            error = $"Target '{targetId}' hard limit '{personal}' blocks this.";
+            return false;
+        }
+
+        // The stance must agree, and so must the change when it says whether the character accepts (willing=true).
+        wanted = claimedWilling && LewdProfile.Wants(target, targetChar, actorId);
+        if (wanted)
+        {
+            error = null;
+            return true;
+        }
+
+        return settings.AllowsUnwanted(targetChar, targetId, out error);
+    }
+
+    /// <summary>
     /// Inhibition bonus against an advance: a willing partner treats it as 0 unless already negative (handbook),
     /// then Lustbrand tiers and unwilling imprint levels lower it further.
     /// </summary>

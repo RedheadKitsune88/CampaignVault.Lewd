@@ -27,6 +27,20 @@ public sealed class LewdBindHandler : IWorldChangeHandler
         if (!string.IsNullOrWhiteSpace(bind.AnchorId) &&
             string.Equals(bind.AnchorId.Trim(), bind.TargetId, StringComparison.OrdinalIgnoreCase))
             return ChangeHandlerResult.Failure("anchorId cannot be the bound character itself.");
+        if (!string.IsNullOrWhiteSpace(bind.Slack) && !BindingGraph.IsSlack(bind.Slack))
+            return ChangeHandlerResult.Failure("slack must be tight or loose.");
+        if (!string.IsNullOrWhiteSpace(bind.Quality) && !BondageSlots.IsQuality(bind.Quality))
+            return ChangeHandlerResult.Failure($"quality must be one of: {BondageSlots.QualityList}.");
+        // An anchor or holder that is a character is a participant like any other: adults only.
+        var linked = new[] { bind.AnchorId, bind.HolderId }
+            .Where(id => !string.IsNullOrWhiteSpace(id) && context.Characters.ContainsKey(id!.Trim()))
+            .Select(id => id!.Trim()).ToArray();
+        if (linked.Length > 0 && !AgeGate.TryPassAll(context, out var linkError, linked))
+            return ChangeHandlerResult.Failure(linkError!);
+        if (!string.IsNullOrWhiteSpace(bind.AnchorId) &&
+            (targetChar.SystemStats.Tethers?.Count(t => t.AttachedBy?.StartsWith(Restraint.AppliedBy + ":", StringComparison.Ordinal) != true) ?? 0)
+            + (BindingGraph.GetBindings(null, targetChar).Count(b => b.TetherOn)) >= 4)
+            return ChangeHandlerResult.Failure("Target already has four tethers; free one first.");
 
         var target = LewdModeAccess.TryGetParticipant(context, bind.TargetId);
         var actorState = string.IsNullOrWhiteSpace(bind.ActorId) ? null : LewdModeAccess.TryGetParticipant(context, bind.ActorId);
@@ -80,7 +94,8 @@ public sealed class LewdBindHandler : IWorldChangeHandler
         context.RecordMessage(
             $"Bind {bind.ActorId} → {bind.TargetId}: {entry.Kind} id={entry.Id} sites=[{sites}] orientation={orient} implies=[{implies}]" +
             $"{(entry.Locked ? $" locked DC {entry.LockDc}" : "")}{anchor}{(erotic ? "" : " (restraint)")}{pose}.");
-        context.RecordPhysicalStateNudge($"{bind.TargetId} is bound: {Restraint.Describe(bindings)}");
+        context.RecordPhysicalStateNudge(
+            $"{bind.TargetId} is bound: {BondageSlots.Summary(bindings, PregnancyState.Text(targetChar, LewdKeys.TraitPosture), bindings.Any(b => b.AnchorId is not null))} {Restraint.Describe(bindings)}");
         PublishChanged(context, bind.TargetId, "bound", entry, bind.ActorId, null);
 
         var bitchsuit = erotic && (Contains(bind.ItemId, "bitchsuit") || Contains(entry.Kind, "bitchsuit") ||
@@ -137,11 +152,20 @@ public sealed class LewdBindHandler : IWorldChangeHandler
         if (bind.Effects is { Count: > 0 })
             entry.Effects = bind.Effects;
 
-        // Orientation-derived tags go on after explicit effects so they are never dropped.
-        if (entry.Orientation == "behind" && BindingGraph.TouchesArmSites(entry.Sites))
+        if (BindingGraph.NormalizeSlack(bind.Slack) is { } slack)
+            entry.Slack = slack;
+        if (!string.IsNullOrWhiteSpace(bind.Fit))
+            entry.Fit = bind.Fit.Trim();
+
+        // Orientation-derived tags go on after explicit effects so they are never dropped. A loose tie leaves play, so it does
+        // not pin the hands (the slot rules then call them awkward instead).
+        var pins = entry.Slack != "loose" && BindingGraph.TouchesArmSites(entry.Sites);
+        if (entry.Orientation == "behind" && pins)
             AddEffects(entry, "arms_rear_bound", "no_hand_use", "no_somatic_spellcasting");
-        if (entry.Orientation == "above" && BindingGraph.TouchesArmSites(entry.Sites))
+        if (entry.Orientation == "above" && pins)
             AddEffects(entry, "arms_raised", "no_hand_use");
+        if (entry.Orientation is "belt" or "collar" && pins)
+            AddEffects(entry, $"hands_at_{entry.Orientation}", "no_hand_use", "no_somatic_spellcasting");
         if (BindingGraph.TouchesLegSites(entry.Sites) && entry.Orientation is "together" or "apart" or null &&
             entry.Implies.Count == 0)
             AddImplies(entry, "hobbled");
@@ -156,6 +180,9 @@ public sealed class LewdBindHandler : IWorldChangeHandler
             entry.BreakDc = bind.BreakDc.Value;
         if (bind.Hp is not null)
             entry.Hp = bind.Hp.Value;
+        ApplyMaterialAndQuality(entry, bind, seedProps);
+        if (entry.Slack == "loose")
+            entry.EscapeDc = Math.Max(1, entry.EscapeDc - 4);
         if (bind.Locked is not null)
             entry.Locked = bind.Locked.Value;
         if (bind.LockDc is not null)
@@ -167,12 +194,49 @@ public sealed class LewdBindHandler : IWorldChangeHandler
         }
 
         if (!string.IsNullOrWhiteSpace(bind.AnchorId))
+        {
             entry.AnchorId = bind.AnchorId.Trim();
+            // A character anchor holds their own end; anything else is held by the named holder, if any.
+            entry.HolderId = !string.IsNullOrWhiteSpace(bind.HolderId)
+                ? bind.HolderId.Trim()
+                : context.Characters.ContainsKey(entry.AnchorId) ? entry.AnchorId : null;
+            entry.SlackFeet = bind.SlackFeet;
+        }
+
         entry.AppliedById = string.IsNullOrWhiteSpace(bind.ActorId) ? null : bind.ActorId;
         if (entry.Hardened)
             Harden(entry);
         return (entry, seedProps);
     }
+
+    /// <summary>
+    /// Material sets the base DCs only when nobody stated any (no explicit DC, none on the item); quality then shifts
+    /// escape, break and lock together.
+    /// </summary>
+    private static void ApplyMaterialAndQuality(BindingEntry entry, LewdBindChange bind, Dictionary<string, object>? seedProps)
+    {
+        var statedEscape = bind.EscapeDc is not null || HasProp(seedProps, "escapeDc");
+        var statedBreak = bind.BreakDc is not null || HasProp(seedProps, "breakDc");
+        if (BondageSlots.MaterialBase(entry.Materials) is { } material)
+        {
+            if (!statedEscape)
+                entry.EscapeDc = material.Escape;
+            if (!statedBreak)
+                entry.BreakDc = material.Break;
+        }
+
+        if (!string.IsNullOrWhiteSpace(bind.Quality))
+        {
+            var delta = BondageSlots.QualityDelta(bind.Quality);
+            entry.Quality = bind.Quality.Trim().ToLowerInvariant();
+            entry.EscapeDc += delta;
+            entry.BreakDc += delta;
+            entry.LockDc += delta;
+        }
+    }
+
+    private static bool HasProp(Dictionary<string, object>? props, string key) =>
+        props is not null && props.Keys.Any(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase));
 
     private static bool IsEroticGear(BindingEntry entry, string? itemId) =>
         EroticGear.Any(g => Contains(itemId, g) || Contains(entry.Kind, g) ||
@@ -290,7 +354,7 @@ public sealed class LewdUnbindHandler : IWorldChangeHandler
             $"Unbind {unbind.ActorId} → {unbind.TargetId}: removed {selected.Count} binding(s); {bindings.Count} remain.");
         context.RecordPhysicalStateNudge(bindings.Count == 0
             ? $"{unbind.TargetId} is free of bindings."
-            : $"{unbind.TargetId} still bound: {Restraint.Describe(bindings)} Implied: {(implied.Count == 0 ? "none" : string.Join(',', implied))}.");
+            : $"{unbind.TargetId} still bound: {BondageSlots.Summary(bindings, targetChar is null ? null : PregnancyState.Text(targetChar, LewdKeys.TraitPosture), bindings.Any(b => b.AnchorId is not null))} {Restraint.Describe(bindings)} Implied: {(implied.Count == 0 ? "none" : string.Join(',', implied))}.");
 
         return Task.FromResult(ChangeHandlerResult.Ok);
     }
@@ -398,7 +462,8 @@ public sealed class LewdEscapeHandler : IWorldChangeHandler
         IChangeContext context, string tag, LewdEscapeChange req, Character worker, string ability, int dc, bool disadvantage, CancellationToken ct)
     {
         var mod = AbilityScores.Mod(worker, ability) + req.Bonus;
-        var roll = await SaveDice.RollAsync(context, tag, req.D20, mod, disadvantage, ct).ConfigureAwait(false);
+        var roll = await SaveDice.RollAsync(
+            context, tag, req.D20, mod, disadvantage, ct, who: worker, subject: ability, kind: RollKinds.Check, tags: ["escape"]).ConfigureAwait(false);
         if (roll.Error is not null)
             return (null, roll.Error);
         var ok = roll.Total >= dc;

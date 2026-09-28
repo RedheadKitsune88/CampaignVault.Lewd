@@ -126,7 +126,8 @@ internal static class ImprintState
         int day,
         bool convert,
         IChangeContext? context,
-        string? anchorId = null)
+        string? anchorId = null,
+        double? nowDays = null)
     {
         ConsumeJump(participant, character, day, context);
         id = ImprintMath.Normalize(id);
@@ -141,6 +142,10 @@ internal static class ImprintState
         SetExposed(character, id);
         context?.RecordMessage(
             $"{character.Id} imprint {id} +{Math.Clamp(delta, 1, 3)} → {points} (level {ImprintMath.LevelFor(points)}, {origin}).");
+        // Being forced deeper leaves a mark. The clock falls back to the start of the day when the caller has no fractional time.
+        var shock = ImprintAftermath.OnClimb(character, id, origin, existing?.Level ?? 0, ImprintMath.LevelFor(points), nowDays ?? day);
+        if (shock is not null)
+            context?.RecordMessage(shock);
     }
 
     /// <summary>Sets a track to exactly <paramref name="level"/> (backstory), keeping any higher existing points.</summary>
@@ -303,9 +308,10 @@ internal static class ImprintState
         CancellationToken ct,
         string? anchorId = null)
     {
+        var nowDays = await LewdClock.NowDaysAsync(context).ConfigureAwait(false);
         if (wanted)
         {
-            Tick(participant, character, id, willing: true, delta: 1, day, convert: false, context, anchorId);
+            Tick(participant, character, id, willing: true, delta: 1, day, convert: false, context, anchorId, nowDays);
             return;
         }
 
@@ -324,7 +330,8 @@ internal static class ImprintState
 
         var abilityMod = AbilityScores.Mod(character, "wis");
         var roll = await SaveDice.RollAsync(
-            context, "lewd_imprint_resist", faceOrZero: 0, abilityMod, disadvantage: false, ct).ConfigureAwait(false);
+            context, "lewd_imprint_resist", faceOrZero: 0, abilityMod, disadvantage: false, ct,
+            who: character, subject: "wis", tags: ["mental"]).ConfigureAwait(false);
         if (roll.Error is not null)
         {
             context.RecordMessage($"{character.Id} imprint '{id}': {roll.Error}");
@@ -340,7 +347,7 @@ internal static class ImprintState
             return;
         }
 
-        Tick(participant, character, id, willing: false, delta: 1, day, convert: false, context, anchorId);
+        Tick(participant, character, id, willing: false, delta: 1, day, convert: false, context, anchorId, nowDays);
     }
 
     private static Dictionary<string, (bool Wanted, string? Anchor)> ReadLedger(Character character)
@@ -404,7 +411,8 @@ internal static class ImprintState
 
             var wisMod = AbilityScores.Mod(character, "wis");
             var roll = await SaveDice.RollAsync(
-                context, "lewd_imprint_rest", faceOrZero: 0, wisMod, disadvantage: false, ct).ConfigureAwait(false);
+                context, "lewd_imprint_rest", faceOrZero: 0, wisMod, disadvantage: false, ct,
+                who: character, subject: "wis", tags: ["mental"]).ConfigureAwait(false);
             if (roll.Error is not null)
             {
                 context.RecordMessage($"{character.Id} imprint {track.Id}: {roll.Error}");

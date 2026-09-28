@@ -259,6 +259,24 @@ public class SceneFlowTests
     }
 
     [Fact]
+    public async Task Climax_tally_lives_on_the_sheet_until_the_edge_is_released()
+    {
+        // No scene at all: every call gets a fresh scratch participant, so only the sheet can carry the tally.
+        var bob = TestContext.Adult("bob");
+        bob.SystemStats.ResourcePools[LewdKeys.PoolArousal] = new ResourcePool { Current = 10, Max = 10 };
+        var ctx = new TestContext(null, bob);
+        var handler = new LewdClimaxCheckHandler();
+
+        await handler.ApplyAsync(new LewdClimaxCheckChange { TargetId = "bob", D20 = 5, InhibitionBonus = 0 }, ctx);
+        await handler.ApplyAsync(new LewdClimaxCheckChange { TargetId = "bob", D20 = 5, InhibitionBonus = 0 }, ctx);
+        Assert.Equal((0, 2), LewdPoolHelper.ClimaxCounters(new ModeParticipantState { CharacterId = "bob" }, bob));
+
+        await handler.ApplyAsync(new LewdClimaxCheckChange { TargetId = "bob", D20 = 20 }, ctx);
+        Assert.Equal((0, 0), LewdPoolHelper.ClimaxCounters(new ModeParticipantState { CharacterId = "bob" }, bob));
+        Assert.DoesNotContain(bob.SystemStats.Attributes.Keys, k => k.StartsWith("lewd.climax_"));
+    }
+
+    [Fact]
     public async Task Denial_intercept_publishes_denied_not_climax()
     {
         var (_, _, bobChar, ctx) = Scene();

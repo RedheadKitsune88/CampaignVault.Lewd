@@ -13,6 +13,9 @@ public sealed class LewdViceContributor : IPluginContextContributor
 {
     public async Task<IEnumerable<PluginContextItem>> ContributeAsync(IContextTurn turn, CancellationToken ct = default)
     {
+        // Loading the party every turn is only worth it where the player switched the plugin on.
+        if (turn.Config?.EnabledModeIds?.Contains(LewdEncounterMode.ModeIdValue, StringComparer.OrdinalIgnoreCase) != true)
+            return [];
         if (TurnTime(turn) is not { } time)
             return [];
         var now = ViceState.HoursNow(time);
@@ -45,5 +48,7 @@ public sealed class LewdViceContributor : IPluginContextContributor
     /// carries a <c>Time</c> property, so it is read by name. Switch to <c>turn.Time</c> once the Sdk ships it.
     /// </summary>
     internal static CampaignTime? TurnTime(IContextTurn turn) =>
-        turn.GetType().GetProperty("Time")?.GetValue(turn) as CampaignTime;
+        TimeProperties.GetOrAdd(turn.GetType(), t => t.GetProperty("Time"))?.GetValue(turn) as CampaignTime;
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, System.Reflection.PropertyInfo?> TimeProperties = new();
 }

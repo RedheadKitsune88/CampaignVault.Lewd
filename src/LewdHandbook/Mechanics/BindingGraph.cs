@@ -26,6 +26,24 @@ internal sealed class BindingEntry
     /// <summary>What this binding ties the character to: another character, an item or fixture, or a named anchor.</summary>
     public string? AnchorId { get; set; }
 
+    /// <summary>Who holds the anchor end when it is not itself a character (a rider with the rope tied to a saddle). Their incapacitation frees the tether.</summary>
+    public string? HolderId { get; set; }
+
+    /// <summary>How far they can move from the anchor, in feet. Null = held tight.</summary>
+    public int? SlackFeet { get; set; }
+
+    /// <summary>A core tether was attached for this binding; if it later disappears (strained free, holder down) the anchor is dropped too.</summary>
+    public bool TetherOn { get; set; }
+
+    /// <summary>tight (default) or loose: how much play the tie leaves. Loose ankles walk at 15 ft instead of 5, loose wrists leave the hands awkwardly usable instead of pinned, and a loose tie is easier to slip.</summary>
+    public string? Slack { get; set; }
+
+    /// <summary>Free text on how it is fitted ("wrists to belt, 25 cm chain"). Not mechanics: the DM reads it in the summary and rules on what it allows.</summary>
+    public string? Fit { get; set; }
+
+    /// <summary>crude|poor|standard|fine|masterwork|enchanted: shifts the escape, break and lock DCs.</summary>
+    public string? Quality { get; set; }
+
     /// <summary>Locked bindings can't be slipped off by unbinding without the key; pick the lock (DC <see cref="LockDc"/>) or break it.</summary>
     public bool Locked { get; set; }
 
@@ -33,6 +51,9 @@ internal sealed class BindingEntry
 
     /// <summary>The key item that opens it, when there is one.</summary>
     public string? KeyItemId { get; set; }
+
+    /// <summary>Hours this binding has been on, counted by the time observer (only while the character lives through the clock).</summary>
+    public double HoursBound { get; set; }
 
     /// <summary>Who applied it.</summary>
     public string? AppliedById { get; set; }
@@ -135,6 +156,16 @@ internal static class BindingGraph
         "ankles", "ankle", "legs", "leg", "feet", "foot", "knees", "knee", "thighs", "thigh", "calves", "calf",
     };
 
+    public static bool IsSlack(string? raw) => raw is not null && NormalizeSlack(raw) is not null;
+
+    /// <summary>"tight" or "loose"; null when nothing (or nothing recognisable) was said, which means tight.</summary>
+    public static string? NormalizeSlack(string? raw) => raw?.Trim().ToLowerInvariant() switch
+    {
+        "tight" or "snug" or "short" => "tight",
+        "loose" or "slack" or "long" => "loose",
+        _ => null,
+    };
+
     public static bool TouchesArmSites(IEnumerable<string>? sites) =>
         sites is not null && sites.Any(s => !string.IsNullOrWhiteSpace(s) && ArmSites.Contains(s.Trim()));
 
@@ -158,6 +189,8 @@ internal static class BindingGraph
             "apart" or "spread" or "forced_spread" => "apart",
             "crossed" or "cross" => "crossed",
             "folded" or "bent" => "folded",
+            "belt" or "waist" or "hip" or "hips" or "to_belt" or "at_belt" => "belt",
+            "collar" or "neck" or "to_collar" => "collar",
             "hogtie" or "hog_tied" or "hog-tied" => "hogtie",
             "free" or "none" or "unbound" => "free",
             _ => o,
@@ -242,9 +275,10 @@ internal static class BindingGraph
                            implied.Contains("full_tied") ||
                            implied.Contains("full-tied");
 
+        var occupied = BondageSlots.Occupied(bindings);
         foreach (var site in required)
         {
-            if (bound.Contains(site))
+            if (bound.Contains(site) || BondageSlots.SlotsOf(site).Any(occupied.ContainsKey))
             {
                 reason = $"Actor '{actor.CharacterId}' site '{site}' is bound; advance requires free site.";
                 return true;
@@ -272,6 +306,8 @@ internal static class BindingGraph
             Hardened = GetBool(props, "hardened"),
             HardenAtRound = GetIntNullable(props, "hardenAtRound"),
             Orientation = GetString(props, "orientation"),
+            Slack = NormalizeSlack(GetString(props, "slack")),
+            Fit = GetString(props, "fit"),
         };
 
         entry.Sites = GetList(props, "sites");

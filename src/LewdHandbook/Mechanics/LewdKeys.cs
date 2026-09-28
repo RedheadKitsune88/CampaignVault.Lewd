@@ -69,6 +69,7 @@ internal static class LewdKeys
     public const string ConditionIntoxicated = "intoxicated";
     public const string ConditionHyperaroused = "hyperaroused";
     public const string ConditionInfatuated = "infatuated";
+    public const string ConditionIncapacitated = "incapacitated";
     public const string ConditionStunned = "stunned";
     public const string ConditionParalyzed = "paralyzed";
     public const string ConditionPregnant = "pregnant";
@@ -89,6 +90,7 @@ internal static class LewdKeys
     public const string NonConsentNotAgainstPc = "not_against_pc";
     public const string NonConsentOn = "on";
     public const string HardLimitsOption = "lewdHardLimits";
+    public const string MoodBuffsOption = "lewdMoodBuffs";
 
     /// <summary>Mode-gated catalog/track Traits use <see cref="ModeTraitPrefix"/> so NpcCard.SystemTraits only shows them in an active lewd_encounter.</summary>
     public const string ModeTraitPrefix = "lewd_encounter.";

@@ -27,7 +27,8 @@ internal static class PregnancyRest
         if (d20 == 0 && context.Rolls is null)
             return $"{character.Id} pregnancy rest save pending: emit lewd_pregnancy action=rest with d20 (Rolls unavailable).";
 
-        var roll = await SaveDice.RollAsync(context, "lewd_pregnancy_rest", d20, mod, disadvantage: false, ct).ConfigureAwait(false);
+        var roll = await SaveDice.RollAsync(context, "lewd_pregnancy_rest", d20, mod, disadvantage: false, ct,
+            who: character, subject: "con").ConfigureAwait(false);
         if (roll.Error is not null)
             return $"{character.Id} pregnancy rest: {roll.Error}";
 

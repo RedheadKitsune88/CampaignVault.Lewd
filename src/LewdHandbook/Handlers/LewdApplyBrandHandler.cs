@@ -70,7 +70,8 @@ public sealed class LewdApplyBrandHandler : IWorldChangeHandler
                 if (id != BrandCatalog.Transformation)
                     return ChangeHandlerResult.Failure("trigger requires brandId=transformation.");
                 var conMod = req.ConModifier ?? AbilityScores.Mod(character, "con");
-                var save = await SaveDice.RollAsync(context, "lewd_transformation_save", req.D20, conMod, disadvantage: false, ct)
+                var save = await SaveDice.RollAsync(
+                        context, "lewd_transformation_save", req.D20, conMod, disadvantage: false, ct, who: character, subject: "con")
                     .ConfigureAwait(false);
                 if (save.Error is not null)
                     return ChangeHandlerResult.Failure(save.Error);
@@ -116,13 +117,10 @@ public sealed class LewdApplyBrandHandler : IWorldChangeHandler
         }
 
         var settings = await LewdSettings.ResolveAsync(context, ct).ConfigureAwait(false);
-        var probe = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { id!, "lustbrand", "brand" };
-        if (settings.HitsHardLimit(probe, out var campaignHit))
-            return ChangeHandlerResult.Failure($"Campaign hard limit '{campaignHit}' blocks lustbrand '{id}'.");
-        if (LewdProfile.HardLimits(participant, character).FirstOrDefault(probe.Contains) is { } personal)
-            return ChangeHandlerResult.Failure($"Target '{req.TargetId}' hard limit '{personal}' blocks lustbrand '{id}'.");
-        if (!req.Willing && !settings.AllowsUnwanted(character, req.TargetId, out var policyError))
-            return ChangeHandlerResult.Failure($"Unwilling lewd_apply_brand: {policyError} Or set willing=true if they accept it.");
+        if (!ConsentGate.AuthorizeEffect(
+                participant, character, req.TargetId, req.SourceId, [id!, "lustbrand", "brand"], settings, out _, out var gateError,
+                claimedWilling: req.Willing))
+            return ChangeHandlerResult.Failure($"lewd_apply_brand '{id}': {gateError} If they now accept it, record that with lewd_stance first.");
         settings.Narrate(context);
 
         var tier = req.Tier ?? def.Tier;

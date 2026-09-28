@@ -13,12 +13,33 @@ internal static class SaveDice
         int abilityMod,
         bool disadvantage,
         CancellationToken ct,
-        bool advantage = false)
+        bool advantage = false,
+        Character? who = null,
+        string? subject = null,
+        string kind = RollKinds.Save,
+        IReadOnlyCollection<string>? tags = null)
     {
+        // Run the roll through the host's pipeline (status effects, willpower, this plugin's provider) when we know whose it is:
+        // "Dead arms" and a broken will then touch the plugin's own rolls too. Without `who` the caller's numbers stand.
+        var reasons = "";
+        if (who is not null)
+        {
+            var options = context.GetSystemOptionsAsync is { } load ? await load().ConfigureAwait(false) : new Dictionary<string, string>();
+            var query = new RollQuery(kind, subject, tags ?? [], who, null, context.Config?.ActiveSystem ?? "dnd5e", options);
+            var explicitEffect = disadvantage == advantage ? AdvantageEffect.None
+                : disadvantage ? AdvantageEffect.Disadvantage : AdvantageEffect.Advantage;
+            var resolved = context.ResolveRollModifiers(query, abilityMod, explicitEffect);
+            abilityMod = resolved.Bonus;
+            disadvantage = resolved.Advantage == AdvantageEffect.Disadvantage;
+            advantage = resolved.Advantage == AdvantageEffect.Advantage;
+            if (resolved.Notes.Count > 0)
+                reasons = $" [{string.Join("; ", resolved.Notes)}]";
+        }
+
         if (faceOrZero is >= 1 and <= 20)
         {
             var total = faceOrZero + abilityMod;
-            return (faceOrZero, total, $"{faceOrZero}+{abilityMod}={total}", null);
+            return (faceOrZero, total, $"{faceOrZero}+{abilityMod}={total}{reasons}", null);
         }
 
         if (context.Rolls is null || faceOrZero != 0)
@@ -42,6 +63,7 @@ internal static class SaveDice
         var summary = roll.Summary;
         if (string.IsNullOrWhiteSpace(summary))
             summary = $"{face}+{abilityMod}={totalRolled}";
+        summary += reasons;
         context.RecordMessage($"Lewd save d20 ({tag}): {summary}.");
         return (face, totalRolled, summary, null);
     }

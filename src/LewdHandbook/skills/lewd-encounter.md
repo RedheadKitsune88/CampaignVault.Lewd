@@ -28,7 +28,7 @@ A character recorded as `child` or `adolescent` can never be changed to adult. N
 | Option | Values | Effect |
 |--------|--------|--------|
 | `lewdNarration` | `explicit` \| `suggestive` (default) \| `fade` | How you narrate. Mechanics always resolve in full; `fade` = before and after, never the act |
-| `lewdNonConsent` | `off` (default) \| `not_against_pc` \| `on` | Whether acts a character doesn't want can resolve. `not_against_pc`: among NPCs only, never against the player's character |
+| `lewdNonConsent` | `off` (default) \| `not_against_pc` \| `on` | Whether acts a character doesn't want can resolve. `not_against_pc`: among NPCs only, never against the player's character. `on` is the grimdark setting: no consent refusals for anything a character merely doesn't want (brands, imprints, impregnation, forced climax as well as advances) |
 | `lewdHardLimits` | comma list | Content the player never wants. Refused in every verb |
 
 Change them only when the player asks, in its own commit, quoting them:
@@ -58,17 +58,31 @@ The characters' own disposition, separate from the player's settings. Set NPCs' 
 | Field | Notes |
 |-------|-------|
 | `stance` | `willing` (default) \| `selective` \| `unwilling` \| `revoked` — `revoked` is a hard stop for every lewd verb |
+| `playerRequest` | The player's own words. Needed to make the player's character *more* willing (stance, more allowed partners, fewer hard limits); tightening never needs it |
 | `scope` | `scene` (default in an encounter) \| `default` (lasting character Traits `lewd_encounter.*`) |
 | `hardLimits` / `softLimits` / `kinks` | Personal. Soft ×0.5, kink ×1.5 stimulation |
 | `inhibition` | Int/Wis/Cha modifier chosen at creation |
 
+**What each stance does**
+
+| Stance | Counts as wanted? | Effect on lewd verbs |
+|--------|-------------------|----------------------|
+| `willing` | Always | Advances, brands, imprints, impregnation and forced climax resolve without a policy check. The `willing`/`accept` flags on brand and imprint are honoured. |
+| `selective` | Only from `allowedPartners` (an empty list means anyone) | Wanted from a listed partner, exactly like `willing`. From anyone else it is *unwanted*: it resolves only if `lewdNonConsent` allows it for that target. |
+| `unwilling` | Never | Every act is *unwanted*: it resolves only if `lewdNonConsent` allows it (`off` refuses, `not_against_pc` allows NPC targets, `on` allows all). Imprint ticks then get their resist saves, and `accept` is refused. |
+| `revoked` | Never | Hard stop for every lewd verb in every setting, including `lewdNonConsent=on`. Removing a brand is the only thing still allowed. |
+
+**Default stance is `willing`, for NPCs and for the player's character alike.** A character with no stance set is treated as willing, so `lewdNonConsent=off` or `not_against_pc` only protects someone once a stance other than `willing` has been recorded (the DM for an NPC, the player through `playerRequest` for their PC). Hard limits (personal and the player's `lewdHardLimits`) refuse regardless of stance. A scene-scope stance overrides the character's default for that scene only; `allowedPartners`, hard/soft limits and kinks from both scopes are merged. Soft limits halve stimulation, kinks multiply it by 1.5, and `inhibition` is added to climax saves.
+
 ## Verb visibility
 
-| Mode-scoped (`ModeId=lewd_encounter`) | Global |
-|---|---|
-| `lewd_advance`, `lewd_bad_end` | `lewd_stance`, `lewd_bind`, `lewd_unbind`, `lewd_escape`, `lewd_climax_check`, `lewd_recover`, `lewd_vice`, `lewd_apply_brand`, `lewd_imprint`, `lewd_decondition`, `lewd_pregnancy` |
+`lewd_advance` and `lewd_bad_end` need the mode and are hidden from the default schema (`ModeId=lewd_encounter`); look them up with `type=`. Every other verb is in the default schema and works in or out of a scene (`lewd_bind`, `lewd_stance`, `lewd_pregnancy`, `lewd_vice`, `lewd_climax_check`, ...).
 
-`lewd_turn_start`, `lewd_scene_end`, `lewd_rest` and `lewd_echo_check` are emitted by the plugin itself; don't send them.
+`lewd_turn_start`, `lewd_scene_end`, `lewd_rest` and `lewd_echo_check` are emitted by the plugin itself; the host refuses them if you send one.
+
+## Who is in the scene
+
+`mode_transition` `join` adds `participantIds` to the running scene (they must be recorded adults and act from the next round); `leave` removes them and the scene goes on; the last one out uses `exit`. The scene also ends by itself when a participant travels elsewhere, is interrupted by an encounter, is knocked to 0 HP, finishes a rest, or combat starts around them. The exit runs the usual wrap-up; bindings stay.
 
 ## `lewd_advance`
 
@@ -95,6 +109,14 @@ Right after a climax (before that character's next turn) they may spend Recovery
 ```json
 { "$type": "lewd_recover", "characterId": "chars/b", "dice": 2 }
 ```
+
+Climax save tally: successes and failures stay on the sheet until arousal drops below maximum (edging ends), across scenes.
+
+While incapacitated by a climax, a free action each turn: `{ "$type": "lewd_recover", "characterId": "chars/b", "save": true }` is a Con save, DC 12 + climaxes in the last hour; success ends it. Every climax also asks for a Concentration check, DC 15 + climaxes in the past minute (the campaign clock has hour resolution, so "the past minute" means the same clock reading), unless the effect is a sexual advance.
+
+The climax incapacitation is a real "cannot act" status: the host refuses that character's own actions (attacks, spells, item use, `lewd_advance`, `lewd_bind`, `lewd_escape`) until it ends. Saves, recovery, and anything done to them still work. It ends at the scene end, a completed rest, the Con save, or an hour of campaign time.
+
+Saves the plugin rolls itself honour the handbook's conditions: intoxicated or nymphomanic gives disadvantage on Int/Wis/Cha saves, flustered on Wis/Cha. A nymphomanic or infatuated character's positive Inhibition Bonus counts as 0; that never makes them willing (stance and `lewdNonConsent` still decide).
 
 ## Pools
 

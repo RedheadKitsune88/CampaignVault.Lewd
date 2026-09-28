@@ -43,39 +43,85 @@ file sealed class LewdEncounterStateMachine : IModeStateMachine
             ModeId = LewdEncounterMode.ModeIdValue,
             IsActive = true,
             Round = 1,
-            Participants = participantIds.Select((id, i) => new ModeParticipantState
-            {
-                CharacterId = id,
-                // Only whoever's turn it is can act; mode_transition action=turn hands the action on.
-                ActionBudget = new Dictionary<string, int> { [Mechanics.LewdActionBudget.Action] = i == 0 ? 1 : 0 },
-                State = new Dictionary<string, object>
-                {
-                    [Mechanics.LewdKeys.ClimaxSuccesses] = 0,
-                    [Mechanics.LewdKeys.ClimaxFailures] = 0,
-                    [Mechanics.LewdKeys.Edging] = false,
-                    [Mechanics.LewdKeys.Overstimulation] = 0,
-                    [Mechanics.LewdKeys.ClimaxStreak] = 0,
-                    [Mechanics.LewdKeys.ClimaxIncapacitated] = false,
-                    [Mechanics.LewdKeys.EdgingBeats] = 0,
-                    [Mechanics.LewdKeys.HadPhysical] = false,
-                    [Mechanics.LewdKeys.FlirtBeats] = 0,
-                    [Mechanics.LewdKeys.BadEnded] = false,
-                    [Mechanics.LewdKeys.Lustbrands] = "",
-                    [Mechanics.LewdKeys.LustbrandGlow] = "",
-                    [Mechanics.LewdKeys.LustbrandInhib] = 0,
-                    [Mechanics.LewdKeys.Imprints] = "",
-                    [Mechanics.LewdKeys.IntrusiveThoughts] = "",
-                    [Mechanics.LewdKeys.ImprintInhib] = 0,
-                    [Mechanics.LewdKeys.ArousalCurrentMirror] = 0,
-                    [Mechanics.LewdKeys.ArousalMaxMirror] = 10,
-                    [Mechanics.LewdKeys.ClimaxIncapTurns] = 0,
-                    [Mechanics.LewdKeys.Bindings] = "[]",
-                    [Mechanics.LewdKeys.Posture] = "standing",
-                    [Mechanics.LewdKeys.ArmPosition] = "free",
-                    [Mechanics.LewdKeys.LegPosition] = "free",
-                }
-            }).ToList(),
+            // Only whoever's turn it is can act; mode_transition action=turn hands the action on.
+            Participants = participantIds.Select((id, i) => NewParticipant(id, i == 0)).ToList(),
             ActiveTurnId = participantIds.FirstOrDefault()
+        };
+
+    /// <summary>A joiner acts from the next time the turn reaches them, so they start with no action.</summary>
+    public bool TryAddParticipant(ModeEncounter encounter, string participantId, out string? errorReason)
+    {
+        errorReason = null;
+        if (encounter.Participants.Any(p => string.Equals(p.CharacterId, participantId, StringComparison.OrdinalIgnoreCase)))
+        {
+            errorReason = $"'{participantId}' is already in this encounter.";
+            return false;
+        }
+
+        encounter.Participants.Add(NewParticipant(participantId, hasTurn: false));
+        encounter.ActiveTurnId ??= participantId;
+        return true;
+    }
+
+    /// <summary>Whoever inherits the leaver's turn gets the action that was the leaver's.</summary>
+    public bool TryRemoveParticipant(ModeEncounter encounter, string participantId, out string? errorReason)
+    {
+        errorReason = null;
+        var index = encounter.Participants.FindIndex(p =>
+            string.Equals(p.CharacterId, participantId, StringComparison.OrdinalIgnoreCase));
+        if (index < 0)
+        {
+            errorReason = $"'{participantId}' is not in this encounter.";
+            return false;
+        }
+
+        var wasActive = string.Equals(encounter.ActiveTurnId, encounter.Participants[index].CharacterId, StringComparison.OrdinalIgnoreCase);
+        encounter.Participants.RemoveAt(index);
+        if (encounter.Participants.Count == 0)
+        {
+            encounter.ActiveTurnId = null;
+        }
+        else if (wasActive)
+        {
+            var next = encounter.Participants[index % encounter.Participants.Count];
+            encounter.ActiveTurnId = next.CharacterId;
+            next.ActionBudget[Mechanics.LewdActionBudget.Action] = 1;
+        }
+
+        return true;
+    }
+
+    private static ModeParticipantState NewParticipant(string id, bool hasTurn) =>
+        new()
+        {
+            CharacterId = id,
+            ActionBudget = new Dictionary<string, int> { [Mechanics.LewdActionBudget.Action] = hasTurn ? 1 : 0 },
+            State = new Dictionary<string, object>
+            {
+                [Mechanics.LewdKeys.ClimaxSuccesses] = 0,
+                [Mechanics.LewdKeys.ClimaxFailures] = 0,
+                [Mechanics.LewdKeys.Edging] = false,
+                [Mechanics.LewdKeys.Overstimulation] = 0,
+                [Mechanics.LewdKeys.ClimaxStreak] = 0,
+                [Mechanics.LewdKeys.ClimaxIncapacitated] = false,
+                [Mechanics.LewdKeys.EdgingBeats] = 0,
+                [Mechanics.LewdKeys.HadPhysical] = false,
+                [Mechanics.LewdKeys.FlirtBeats] = 0,
+                [Mechanics.LewdKeys.BadEnded] = false,
+                [Mechanics.LewdKeys.Lustbrands] = "",
+                [Mechanics.LewdKeys.LustbrandGlow] = "",
+                [Mechanics.LewdKeys.LustbrandInhib] = 0,
+                [Mechanics.LewdKeys.Imprints] = "",
+                [Mechanics.LewdKeys.IntrusiveThoughts] = "",
+                [Mechanics.LewdKeys.ImprintInhib] = 0,
+                [Mechanics.LewdKeys.ArousalCurrentMirror] = 0,
+                [Mechanics.LewdKeys.ArousalMaxMirror] = 10,
+                [Mechanics.LewdKeys.ClimaxIncapTurns] = 0,
+                [Mechanics.LewdKeys.Bindings] = "[]",
+                [Mechanics.LewdKeys.Posture] = "standing",
+                [Mechanics.LewdKeys.ArmPosition] = "free",
+                [Mechanics.LewdKeys.LegPosition] = "free",
+            }
         };
 
     public IReadOnlyDictionary<string, int> GetTurnActionBudget(Character participant) =>

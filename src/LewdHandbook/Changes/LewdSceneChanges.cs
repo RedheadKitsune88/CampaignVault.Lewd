@@ -8,6 +8,7 @@ namespace LewdHandbook.Changes;
 /// timed hardening). Emitted by the plugin when <c>mode_transition action=turn</c> starts that participant's turn;
 /// the model does not need to send it.
 /// </summary>
+[EngineOnly]
 [PluginWorldChange("lewd_turn_start", ModeId = LewdEncounterMode.ModeIdValue)]
 public sealed class LewdTurnStartChange : WorldChange
 {
@@ -18,7 +19,8 @@ public sealed class LewdTurnStartChange : WorldChange
 /// Scene wrap-up after <c>lewd_encounter</c> exits: resolves the imprint ledger, ends climax incapacitation and
 /// edging, resyncs overstimulation conditions. Bindings stay. Emitted by the plugin on core.mode_exited.v1.
 /// </summary>
-[PluginWorldChange("lewd_scene_end")]
+[EngineOnly]
+[PluginWorldChange("lewd_scene_end", ModeId = LewdEncounterMode.ModeIdValue)]
 public sealed class LewdSceneEndChange : WorldChange
 {
     public List<string> ParticipantIds { get; set; } = [];
@@ -54,6 +56,12 @@ public sealed class LewdStanceChange : WorldChange
 
     /// <summary>scene | default. Omitted: scene inside a lewd_encounter, default outside.</summary>
     public string? Scope { get; set; }
+
+    /// <summary>
+    /// The player's own words. Required to loosen the player's character (a more willing stance, more allowed
+    /// partners, fewer hard limits); tightening never needs it.
+    /// </summary>
+    public string? PlayerRequest { get; set; }
 }
 
 /// <summary>
@@ -62,7 +70,8 @@ public sealed class LewdStanceChange : WorldChange
 /// recovery-dice window after a short rest. Emitted by the plugin on core.rested.v1 (interrupted rests publish
 /// nothing); the model does not send it.
 /// </summary>
-[PluginWorldChange("lewd_rest")]
+[EngineOnly]
+[PluginWorldChange("lewd_rest", ModeId = LewdEncounterMode.ModeIdValue)]
 public sealed class LewdRestChange : WorldChange
 {
     public string CharacterId { get; set; } = null!;
@@ -85,13 +94,22 @@ public sealed class LewdRecoverChange : WorldChange
 
     /// <summary>Optional faces already rolled; otherwise the host rolls.</summary>
     public List<int>? Faces { get; set; }
+
+    /// <summary>
+    /// Instead of spending dice: a free action while incapacitated by a climax, a Constitution save (DC 12 + climaxes
+    /// in the last hour) to end it. <see cref="D20"/> is the rolled face, or 0 to let the host roll.
+    /// </summary>
+    public bool Save { get; set; }
+
+    public int D20 { get; set; }
 }
 
 /// <summary>
 /// Brand of Echoes check after a climax: which of <see cref="CandidateIds"/> bear Echoes and are within 5 ft. Emitted by
 /// the plugin on its own climax.v1 (so the host loads the candidates first); the model does not send it.
 /// </summary>
-[PluginWorldChange("lewd_echo_check")]
+[EngineOnly]
+[PluginWorldChange("lewd_echo_check", ModeId = LewdEncounterMode.ModeIdValue)]
 public sealed class LewdEchoCheckChange : WorldChange
 {
     public string ClimaxedId { get; set; } = null!;

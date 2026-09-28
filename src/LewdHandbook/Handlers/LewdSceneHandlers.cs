@@ -127,6 +127,10 @@ public sealed class LewdSceneEndHandler : IWorldChangeHandler
     public async Task<ChangeHandlerResult> ApplyAsync(WorldChange change, IChangeContext context, CancellationToken ct = default)
     {
         var req = (LewdSceneEndChange)change;
+        var settings = await LewdSettings.ResolveAsync(context, ct).ConfigureAwait(false);
+        var day = await ImprintState.DayAsync(context, ct).ConfigureAwait(false);
+        var now = await LewdClock.NowDaysAsync(context).ConfigureAwait(false) ?? day;
+        var sceneKey = string.Join("+", req.ParticipantIds.Where(i => !string.IsNullOrWhiteSpace(i)).OrderBy(i => i, StringComparer.OrdinalIgnoreCase));
         foreach (var id in req.ParticipantIds.Where(i => !string.IsNullOrWhiteSpace(i)))
         {
             if (!context.Characters.TryGetValue(id, out var character))
@@ -137,6 +141,14 @@ public sealed class LewdSceneEndHandler : IWorldChangeHandler
             RecoveryWindow.Close(character, RecoveryWindow.Climax);
             LewdPoolHelper.SyncOverstimCascade(character, LewdPoolHelper.SheetOverstimLevel(character));
             await ImprintState.ResolveSceneAsync(context, character, ct).ConfigureAwait(false);
+
+            // Afterglow only for a scene that went somewhere and that this character wanted; never after a bad end.
+            var participant = LewdModeAccess.TryGetParticipant(context, id);
+            if (participant is not null && ConsentGate.GetBool(participant, LewdKeys.HadPhysical) &&
+                !BadEndState.IsMarked(participant, character) && LewdProfile.Stance(participant, character) != LewdKeys.ConsentUnwilling &&
+                AgeGate.TryPass(character, id, out _) &&
+                LewdMood.TryGrant(character, LewdMood.Afterglow, sceneKey, day, now, settings) is { } mood)
+                context.RecordMessage(mood);
 
             var bound = BindingGraph.GetBindings(null, character).Count;
             if (bound > 0)
@@ -201,7 +213,7 @@ public sealed class LewdEchoCheckHandler : IWorldChangeHandler
             {
                 case true:
                     var forced = await new LewdClimaxCheckHandler().ApplyAsync(
-                        new LewdClimaxCheckChange { TargetId = bearer.Id, ForceClimax = true }, context, ct).ConfigureAwait(false);
+                        new LewdClimaxCheckChange { TargetId = bearer.Id, ForceClimax = true }, context, enforceConsent: false, ct).ConfigureAwait(false);
                     if (!forced.Success)
                         context.RecordMessage($"{bearer.Id} Brand of Echoes: forced climax did not resolve ({forced.Message}).");
                     break;
