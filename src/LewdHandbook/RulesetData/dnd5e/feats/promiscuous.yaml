@@ -4,3 +4,10 @@ mechanicalSummary: >
   Recovery Dice d8; proficient with natural implements + up to 6 artificial; up to 3 fetishes;
   Dominant's, Harlot's, or Self-Pleasure Pack; advantage on Insight to determine sexual preferences.
 extraPools: [recovery_dice]
+effects:
+  - kind: advantage
+    on: check
+    subject: insight
+    assert: [sexualPreferences]
+    when: judging a creature's sexual alignment or preferences
+requires: { plugin: com.campaignvault.lewd-handbook }

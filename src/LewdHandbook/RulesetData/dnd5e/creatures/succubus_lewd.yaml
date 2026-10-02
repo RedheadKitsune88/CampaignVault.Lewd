@@ -14,3 +14,4 @@ abilities:
   - "Shapechanger: action to polymorph into Small/Medium humanoid (loses fly without wings)."
   - "Resistances: cold, fire, poison; bludgeoning/piercing/slashing from nonmagical. Stim resist cold/psychic; stim vuln poison."
   - "Lewd: Charm / Draining Kiss / natural implement advances per handbook — treat as high-Cha seduction + piercing stim."
+requires: { plugin: com.campaignvault.lewd-handbook }

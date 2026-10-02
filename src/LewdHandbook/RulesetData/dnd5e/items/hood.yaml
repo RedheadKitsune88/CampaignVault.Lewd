@@ -22,3 +22,4 @@ properties:
   weight: 2
 equipZones: [Head]
 equipLayer: Outer
+requires: { plugin: com.campaignvault.lewd-handbook }

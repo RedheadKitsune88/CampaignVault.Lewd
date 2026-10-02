@@ -13,3 +13,4 @@ description: >
   5th-level evocation, concentration up to 8 hours. Con save or magically tethered: each time you gain stimulation,
   the target Con-saves or takes force damage equal to that stim. If you climax while tethered, the spell ends with a
   surge (DM: force damage / forced climax check). (Lewd Handbook)
+requires: { plugin: com.campaignvault.lewd-handbook }

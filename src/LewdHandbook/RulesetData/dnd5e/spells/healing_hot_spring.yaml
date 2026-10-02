@@ -15,3 +15,4 @@ description: >
   6th-level ritual. Enchant a body of water ≤20 ft across for 7 days: warm steam (lightly obscured within 5 ft);
   bathing naked restores 1 HP at the start of each turn; ≥1 hour bath = lesser restoration. Material: flask of holy water.
   Good aftercare / lewd_cleanup fiction hook. (Lewd Handbook)
+requires: { plugin: com.campaignvault.lewd-handbook }

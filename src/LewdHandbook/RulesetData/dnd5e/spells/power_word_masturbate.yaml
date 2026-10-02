@@ -13,3 +13,4 @@ description: >
   7th-level enchantment. If the target's Inhibition Bonus is less than your spell attack modifier, it must spend each
   turn making a sexual advance against itself until it succeeds on a Strength save at the start of its turn.
   Otherwise no effect. (Lewd Handbook)
+requires: { plugin: com.campaignvault.lewd-handbook }

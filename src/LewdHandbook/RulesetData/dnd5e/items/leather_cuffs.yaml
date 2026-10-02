@@ -25,3 +25,4 @@ properties:
   weight: 1
 equipZones: [Wrists]
 equipLayer: Base
+requires: { plugin: com.campaignvault.lewd-handbook }

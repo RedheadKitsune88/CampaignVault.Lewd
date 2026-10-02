@@ -1,6 +1,7 @@
 name: sinful_caress
 system: dnd5e
 level: 0
+school: enchantment
 classes: [bard, sorcerer, warlock, wizard]
 concentration: false
 castingTime: 1 action
@@ -10,3 +11,4 @@ material: false
 materialConsumed: false
 description: >
   Enchantment cantrip, touch, instantaneous. Wis save or become infatuated by you until end of its next turn. (Lewd Handbook)
+requires: { plugin: com.campaignvault.lewd-handbook }

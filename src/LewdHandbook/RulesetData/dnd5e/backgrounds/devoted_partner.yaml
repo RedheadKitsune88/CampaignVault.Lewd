@@ -14,3 +14,6 @@ toolProficiencies: []
 languages: []
 feature: >
   Devoted Bond — Recovery Dice d8; natural + up to 4 artificial implement proficiencies; up to 2 fetishes (not Anonymist/Wanton Whore/Swinger); start with Aftercare Pack; seduction vs you at disadvantage while bonded partner present or bond-token worn.
+equipment:
+  - { item: aftercare_pack }
+requires: { plugin: com.campaignvault.lewd-handbook }

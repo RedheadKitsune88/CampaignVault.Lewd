@@ -14,3 +14,4 @@ toolProficiencies: []
 languages: []
 feature: >
   Kink Repertoire — Recovery Dice d10; natural + up to 8 artificial; 4–6 fetishes (3 active benefits); swap active benefits on long rest; 10 min observation detects shared fetishes/vulnerabilities; Dominant's, Rigger's, or Sadist's Pack.
+requires: { plugin: com.campaignvault.lewd-handbook }

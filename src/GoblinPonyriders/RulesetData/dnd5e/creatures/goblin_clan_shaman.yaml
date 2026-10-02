@@ -12,3 +12,4 @@ abilities:
   - "Enhanced mind: advantage on saves vs charm/fear from non-dragon sources; can share short doctrine whispers to nearby riders."
   - "Clan Mark rite: during a naming ceremony may raise a captive's Clan Mark (goblin_state action=mark) after public use."
   - "Hard-limit tags at table: clan_mark, capture, goblin, breeding."
+requires: { plugin: com.campaignvault.goblins }

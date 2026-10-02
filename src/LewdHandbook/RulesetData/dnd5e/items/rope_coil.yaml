@@ -22,3 +22,4 @@ properties:
   weight: 10
 equipZones: [MainHand]
 equipLayer: Held
+requires: { plugin: com.campaignvault.lewd-handbook }

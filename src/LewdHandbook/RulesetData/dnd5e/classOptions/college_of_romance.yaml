@@ -1,0 +1,11 @@
+# Bard College of Romance (Lewd Handbook). A subclass option of the core bard progression.
+name: college_of_romance
+class: bard
+choice: subclass
+label: College of Romance
+description: Love songs, heartthrobs and lasting bonds; charm, infatuation and protective aftercare rather than Burlesque's exhibitionism. Pair with Heartthrob and Lovenest.
+features:
+  3:
+    - name: Romantic Repertoire
+      description: Charm, infatuation and protective aftercare are your craft. See the handbook for the college's level features.
+requires: { plugin: com.campaignvault.lewd-handbook }

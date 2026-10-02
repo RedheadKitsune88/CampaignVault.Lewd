@@ -12,3 +12,4 @@ abilities:
   - "Mounted net: while riding a Riding-Girl mount, throw weighted net with retrieval rope; yank assists grapple."
   - "Doctrine: non-lethal priority on fertile captives until pin+collar secured. Terror-release males as warnings."
   - "Hard-limit tags at table: capture, pony, breeding, goblin."
+requires: { plugin: com.campaignvault.goblins }

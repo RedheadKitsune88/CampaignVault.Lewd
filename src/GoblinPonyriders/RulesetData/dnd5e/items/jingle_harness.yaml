@@ -12,3 +12,4 @@ properties:
   faction: unified_clans
   role: entertainer
   exploitable_flaw: flaking lacquer strap
+requires: { plugin: com.campaignvault.goblins }

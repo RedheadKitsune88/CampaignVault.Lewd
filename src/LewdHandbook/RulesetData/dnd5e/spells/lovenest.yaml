@@ -1,6 +1,7 @@
 name: lovenest
 system: dnd5e
 level: 4
+school: enchantment
 classes: [bard, sorcerer, warlock, wizard]
 concentration: false
 castingTime: 1 action
@@ -12,3 +13,4 @@ materialConsumed: false
 description: >
   4th-level enchantment, touch, 8 hours. Enchant a resting place (bed/chaise/hot-spring). Occupants must Wis save
   at start of turn or become hyperaroused and infatuated by all other affected creatures in the place. (Lewd Handbook; zone-of-arousal analogue)
+requires: { plugin: com.campaignvault.lewd-handbook }

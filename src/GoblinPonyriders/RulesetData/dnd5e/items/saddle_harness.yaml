@@ -11,3 +11,4 @@ properties:
   faction: unified_clans
   role: riding_girl
   exploitable_flaw: loose girth strap
+requires: { plugin: com.campaignvault.goblins }

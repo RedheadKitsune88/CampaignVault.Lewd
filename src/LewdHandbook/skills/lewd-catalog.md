@@ -93,9 +93,9 @@ Requires `lewdInsertedToys=on`. Not bondage.
 Kinds: `phallic`, `plug`, `beads`, `wand`, `partner`. Seals: `open`, `plugged`, `beaded`. Inside finishes fill `Filled`; plugged holds until remove/travel leak (`lewdLeaks`).
 
 
-## Classes (subclass stubs)
+## Subclasses (class options)
 
-Curated ClassDefinition overlays (aliases match "bard (burlesque)" etc.):
+Subclass options that join the core progressions' subclass choice (`classOptions/`, shown with a homebrew tag):
 
 - `college_of_burlesque`, `college_of_romance` (bard)
 - `path_of_the_breeder` (barbarian)

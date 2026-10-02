@@ -11,3 +11,4 @@ abilities:
   - "Inhibition +7 (Cha). Maximum Arousal 405. Archfiend of Lust (Cha max arousal; true form AC 22)."
   - "Immunities: charmed, flustered, frightened, infatuated, poisoned; cold/fire/poison damage."
   - "Legendary actions and lair features — see Monsterfucker's Bestiary; use high-CR fiend patterns + lewd advances."
+requires: { plugin: com.campaignvault.lewd-handbook }

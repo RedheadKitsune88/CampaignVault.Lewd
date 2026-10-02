@@ -14,3 +14,4 @@ properties:
   hardLimitProbe: [piercing, genital_jewelry]
   weight: 0.3
   costGp: 5
+requires: { plugin: com.campaignvault.lewd-handbook }

@@ -14,3 +14,4 @@ toolProficiencies: []
 languages: []
 feature: >
   Chosen Chastity — Recovery Dice d6; no natural/artificial implement proficiency; fetish Chaste Onlooker or Edge Puppet; Aftercare or Self-Pleasure Pack; adv vs hyperaroused; seduction vs you at disadvantage.
+requires: { plugin: com.campaignvault.lewd-handbook }

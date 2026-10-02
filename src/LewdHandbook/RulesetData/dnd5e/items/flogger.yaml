@@ -16,3 +16,4 @@ properties:
   damage: 1d4
 equipZones: [MainHand]
 equipLayer: Held
+requires: { plugin: com.campaignvault.lewd-handbook }

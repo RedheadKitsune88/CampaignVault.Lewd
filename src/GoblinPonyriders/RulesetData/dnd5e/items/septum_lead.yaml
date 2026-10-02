@@ -14,3 +14,4 @@ properties:
   roleHint: riding_girl
   weight: 0.25
   costGp: 3
+requires: { plugin: com.campaignvault.goblins }

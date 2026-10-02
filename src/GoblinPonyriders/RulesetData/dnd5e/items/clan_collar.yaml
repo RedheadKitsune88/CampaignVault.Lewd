@@ -9,3 +9,4 @@ properties:
   lewd_bind_site: neck
   faction: unified_clans
   exploitable_flaw: bent locking pin
+requires: { plugin: com.campaignvault.goblins }

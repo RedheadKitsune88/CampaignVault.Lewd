@@ -15,3 +15,4 @@ toolProficiencies: []
 languages: []
 feature: >
   Vanilla Limits — Recovery Dice d6; reproductive natural only + up to 2 artificial; no fetishes; optional Self-Pleasure Pack; disadv Insight for sexual prefs; may subtract Inhibition from unfamiliar stim.
+requires: { plugin: com.campaignvault.lewd-handbook }

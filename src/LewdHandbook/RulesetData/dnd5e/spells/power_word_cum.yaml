@@ -1,6 +1,7 @@
 name: power_word_cum
 system: dnd5e
 level: 9
+school: enchantment
 classes: [bard, sorcerer, warlock, wizard]
 concentration: false
 castingTime: 1 action
@@ -11,3 +12,4 @@ materialConsumed: false
 description: >
   9th-level enchantment, 60 ft. If target's (max − current) arousal < 150, instant climax; while climax-incapacitated,
   vulnerability instead of resistance to all stimulation. (Lewd Handbook)
+requires: { plugin: com.campaignvault.lewd-handbook }

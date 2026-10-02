@@ -1,0 +1,21 @@
+# Bard College of Burlesque (Lewd Handbook). A subclass option of the core bard progression.
+name: college_of_burlesque
+class: bard
+choice: subclass
+label: College of Burlesque
+description: "Showmanship that seduces a room: exotic arts, salacious performance and a stunning finale."
+features:
+  3:
+    - name: Exotic Arts
+      description: Sexual implements count as a bard spellcasting focus; you may use Performance for seduction checks.
+    - name: Salacious Performance
+      description: Performance at least your spell save DC makes an Enthrall-like aura; a bonus action keeps it going.
+  6:
+    - name: Erotic Flourish
+      description: Spend Bardic Inspiration on stimulation gain to deal psychic stimulation to witnesses.
+    - name: Enchanting Display
+      description: Salacious targets have disadvantage against your bard spells; allies have advantage against charm, fear, hyperaroused and infatuated. Replaces Countercharm.
+  14:
+    - name: Stunning Finale
+      description: Your climax stuns Salacious targets until the end of their next turn; allies are immune.
+requires: { plugin: com.campaignvault.lewd-handbook }

@@ -14,3 +14,4 @@ description: >
   9th-level abjuration, until dispelled. Bind a willing (or Wis-failed unwilling) creature as a warding seal or spell seal
   for a curse / permanent magic (true polymorph, imprisonment, etc.). Material: magical ink + 1000 gp diamond (consumed).
   (Lewd Handbook)
+requires: { plugin: com.campaignvault.lewd-handbook }

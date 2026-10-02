@@ -1,8 +1,9 @@
 {
   "id": "com.campaignvault.goblins",
   "displayName": "Goblin Ponyriders",
-  "version": "0.1.0",
-  "minEngineVersion": "0.12.0",
+  "version": "0.2.0",
+  "description": "Optional Unified Clans goblin ponyrider faction overlay for the Lewd Handbook: capture, training phases, clan marks and piercings.",
+  "minEngineVersion": "0.15.0",
   "systems": [
     "dnd5e"
   ],

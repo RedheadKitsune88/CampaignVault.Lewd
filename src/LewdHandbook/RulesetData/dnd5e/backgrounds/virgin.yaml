@@ -15,3 +15,4 @@ toolProficiencies: []
 languages: []
 feature: >
   Inexperienced — Recovery Dice d6; not proficient natural (pleasuring others) + 1 artificial; fetish: Chaste Onlooker, Edge Puppet, or Voyeur; optional Self-Pleasure Pack; may subtract Inhibition from unfamiliar stim; Insight vs subtle seduction (fail = unrecognized/immune).
+requires: { plugin: com.campaignvault.lewd-handbook }

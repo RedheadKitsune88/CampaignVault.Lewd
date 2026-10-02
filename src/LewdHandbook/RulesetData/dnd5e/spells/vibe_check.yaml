@@ -1,6 +1,7 @@
 name: vibe_check
 system: dnd5e
 level: 0
+school: enchantment
 classes: [bard, cleric, sorcerer, warlock, wizard]
 concentration: false
 castingTime: 1 action
@@ -11,3 +12,4 @@ materialConsumed: false
 description: >
   Enchantment cantrip, touch, instantaneous. Spell attack; on hit 1d4 force damage and target makes a saving throw against one
   condition currently affecting it, adding the damage dealt to the result. (Lewd Handbook)
+requires: { plugin: com.campaignvault.lewd-handbook }

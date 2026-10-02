@@ -10,3 +10,4 @@ description: >
   sexual-history starting packs.)
 properties:
   lewdCategory: pack
+requires: { plugin: com.campaignvault.lewd-handbook }

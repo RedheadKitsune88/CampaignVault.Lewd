@@ -16,3 +16,4 @@ properties:
   costGp: 10
 equipZones: [groin]
 equipLayer: Base
+requires: { plugin: com.campaignvault.lewd-handbook }

@@ -1,28 +1,9 @@
 # Lewd Handbook — Recovery Dice (sexual history hit-dice analogue).
 # Spent with lewd_recover after a climax or short rest (up to proficiency bonus; die + Con each). Core refills on long rest.
+# The die differs per sexual history and lives on the character's recovery_die trait, so the pool carries no die.
 name: recovery_dice
 description: Recovery Dice remaining for post-climax / short-rest arousal reduction.
 applicableSystems: [dnd5e]
 recovery: LongRest
 defaultMax: 1
-levelToMaxMap:
-  "1": 1
-  "2": 2
-  "3": 3
-  "4": 4
-  "5": 5
-  "6": 6
-  "7": 7
-  "8": 8
-  "9": 9
-  "10": 10
-  "11": 11
-  "12": 12
-  "13": 13
-  "14": 14
-  "15": 15
-  "16": 16
-  "17": 17
-  "18": 18
-  "19": 19
-  "20": 20
+maxFrom: { levelMultiplier: 1, min: 1 }   # one per level, as the former 1..20 table

@@ -12,3 +12,4 @@ abilities:
   - "Typical kit: collar with reins, bit/ring gag, short wrist-to-collar chains, hoof-boots, seated insert (LewdHandbook)."
   - "Loyalty tests and Defiance Clock via goblin_state. Escape while mounted is nearly impossible without sabotaging girth/flaw."
   - "Hard-limit tags at table: pony, capture, bondage, goblin."
+requires: { plugin: com.campaignvault.goblins }

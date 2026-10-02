@@ -4,3 +4,10 @@ mechanicalSummary: >
   Recovery Dice d6; proficient with reproductive natural implements only + up to 2 artificial; no fetishes;
   optional Self-Pleasure Pack; disadvantage on Insight for sexual prefs; may subtract Inhibition from unfamiliar stim.
 extraPools: [recovery_dice]
+effects:
+  - kind: disadvantage
+    on: check
+    subject: insight
+    assert: [sexualPreferences]
+    when: judging a creature's sexual preferences
+requires: { plugin: com.campaignvault.lewd-handbook }

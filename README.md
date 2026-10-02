@@ -1,6 +1,6 @@
 # CampaignVault.Lewd
 
-Opt-in **Lewd Handbook** plugin for CampaignVault: adult `lewd_encounter` interaction mode for `ActiveSystem=dnd5e`, plus YAML data overlays and LLM-client skill sidecars. What is this **Lewd Handbook**? It is a homebrew extension for fifth edition D&D system; you can [read more](https://www.patreon.com/Miss_Mycelia/posts/sex-dungeons-5e-79225409) at it's creator's patreon.
+Opt-in **Lewd Handbook** plugin for CampaignVault: adult `lewd_encounter` interaction mode for `ActiveSystem=dnd5e`, plus YAML data overlays and LLM-client skill sidecars. What is this **Lewd Handbook**? It is a homebrew extension for fifth edition D&D system; you can by Miss Mycelia: [Lewd Handbook 3](https://www.patreon.com/Miss_Mycelia/posts/lewd-handbook-3-124739374) (earlier: [Sex Dungeons 5e](https://www.patreon.com/Miss_Mycelia/posts/sex-dungeons-5e-79225409)) on their patreon.
 
 > **Adult content.** See [NOTICE](NOTICE). Operator and table consent required. Full-trust DLL (same trust model as any CampaignVault code plugin).
 
@@ -9,8 +9,8 @@ This repository is intentionally **separate** from the main CampaignVault tree s
 ## Requirements
 
 - .NET SDK that targets `net10.0`
-- A CampaignVault host with engine version ≥ `0.12.0` (`minEngineVersion` in `plugin.json`)
-- `CampaignVault.PluginSdk` **0.12.0** (local `../CampaignVault/nupkgs` via `nuget.config`, or nuget.org once published). Adds body piercings (`piercing` / `PiercingMark` / `core.pierced.v1`). 0.11.x covers dirt, roll modifiers, willpower, and climax-related host surfaces.
+- A CampaignVault host with engine version ≥ `0.15.0` (`minEngineVersion` in `plugin.json`)
+- `CampaignVault.PluginSdk` **0.15.0** (nuget.org, or local `../CampaignVault/nupkgs` via `nuget.config`). Adds body piercings (`piercing` / `PiercingMark` / `core.pierced.v1`). 0.11.x covers dirt, roll modifiers, willpower, and climax-related host surfaces.
 
 ## Build
 

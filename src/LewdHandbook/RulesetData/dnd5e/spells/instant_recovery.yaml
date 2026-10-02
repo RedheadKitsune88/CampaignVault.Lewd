@@ -1,6 +1,7 @@
 name: instant_recovery
 system: dnd5e
 level: 2
+school: necromancy
 classes: [bard, cleric, druid]
 concentration: false
 castingTime: 1 reaction
@@ -11,3 +12,4 @@ materialConsumed: false
 description: >
   2nd-level necromancy reaction when a creature within 30 ft climaxes. Target gains numbing = spell attack modifier
   and instantly recovers from climax incapacitation. (Lewd Handbook)
+requires: { plugin: com.campaignvault.lewd-handbook }

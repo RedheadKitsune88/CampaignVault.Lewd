@@ -1,0 +1,23 @@
+# Barbarian Path of the Breeder (Lewd Handbook). A subclass option of the core barbarian progression.
+# Hard-limit tags: pregnancy, breeding.
+name: path_of_the_breeder
+class: barbarian
+choice: subclass
+label: Path of the Breeder
+description: "Rage as heat: feral instinct, fertility and endurance. Hard-limit tags pregnancy and breeding apply."
+features:
+  3:
+    - name: Feral Heat
+      description: While raging your Inhibition is 0 and you are hyperaroused and hyperfertile/hypervirile; double proficiency bonus on grapple and restrain; treat overstimulation and exhaustion as one lower. Rage needs stimulation or an advance.
+  6:
+    - name: Breeder's Scent
+      description: Primal Musk while raging; you scent fertility and pregnancy.
+    - name: Endless Endurance
+      description: While raging you suffer no climax stun or incapacitation and are immune to overstimulation and exhaustion.
+  10:
+    - name: Unrestrained Instinct
+      description: Cast Incite Lust and related spells while raging, limited per rest.
+  14:
+    - name: Instant Pregnancy
+      description: A pregnancy shows immediately and progresses in hours; you ignore most infertility.
+requires: { plugin: com.campaignvault.lewd-handbook }

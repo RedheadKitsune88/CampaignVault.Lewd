@@ -22,3 +22,4 @@ properties:
   weight: 0.5
 equipZones: [Face]
 equipLayer: Base
+requires: { plugin: com.campaignvault.lewd-handbook }

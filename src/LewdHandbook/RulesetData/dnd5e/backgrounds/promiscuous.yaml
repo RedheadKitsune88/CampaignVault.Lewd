@@ -14,3 +14,4 @@ toolProficiencies: []
 languages: []
 feature: >
   Varied Partners — Recovery Dice d8; natural + up to 6 artificial; up to 3 fetishes; Dominant's, Harlot's, or Self-Pleasure Pack; advantage on Insight for sexual preferences.
+requires: { plugin: com.campaignvault.lewd-handbook }

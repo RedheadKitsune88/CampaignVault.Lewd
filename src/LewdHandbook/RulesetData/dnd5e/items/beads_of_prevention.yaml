@@ -10,3 +10,4 @@ properties:
   lewdCategory: contraceptive
   contraceptive: beads
   charges: 10
+requires: { plugin: com.campaignvault.lewd-handbook }

@@ -7,3 +7,4 @@ description: >
 mechanicalSummary: >
   Feature Cursemarked: bear a lasting Lustbrand/curse (coordinate with DM). Feature Curse-sense: automatically sense
   presence (not nature) of curses on creatures/objects you touch. Suggested ideals/bonds/flaws in handbook.
+requires: { plugin: com.campaignvault.lewd-handbook }

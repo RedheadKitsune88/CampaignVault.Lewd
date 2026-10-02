@@ -14,3 +14,4 @@ toolProficiencies: []
 languages: []
 feature: >
   Steady Experience — Recovery Dice d8; natural + up to 4 artificial; 1 fetish; optional Self-Pleasure Pack; 1/long rest reroll advance or save vs sexual advance (choose die).
+requires: { plugin: com.campaignvault.lewd-handbook }

@@ -18,3 +18,4 @@ properties:
   costGp: 8
 equipZones: [nipples]
 equipLayer: Base
+requires: { plugin: com.campaignvault.lewd-handbook }

@@ -23,7 +23,7 @@ Scoping a verb with `[PluginWorldChange("x", ModeId = LewdEncounterMode.ModeIdVa
   and the age gate apply in every setting.
 
 ## Blocking statuses need an exit
-The host (SDK 0.9.0+; plugin builds on 0.12.0) refuses `[ActorAction]` verbs, and core attack/spell/item-use actions, from an actor with a hard-block
+The host (SDK 0.9.0+; plugin builds on 0.15.0) refuses `[ActorAction]` verbs, and core attack/spell/item-use actions, from an actor with a hard-block
 status (`incapacitated`, `stunned`, `paralyzed`, ... or `StatModifiers["BlocksAllActions"]`). Any status the plugin stamps that
 way must end in AND out of a scene: give it `ExpiresAtDay` (the host stops honouring an expired block even if nothing removed it),
 clear it in `EndClimaxIncapacitation` / scene end, and test "no scene, time passes, they can act again".

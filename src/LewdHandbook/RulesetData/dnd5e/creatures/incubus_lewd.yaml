@@ -11,3 +11,4 @@ abilities:
   - "Inhibition +5 (Cha). Maximum Arousal 138. Fiend of Lust (Cha max arousal; true form AC 17)."
   - "Shapechanger as succubus. Same resistances/stim profile as Succubus (Lewd)."
   - "Lewd: intimidation-forward advances; natural cock implement + charm."
+requires: { plugin: com.campaignvault.lewd-handbook }

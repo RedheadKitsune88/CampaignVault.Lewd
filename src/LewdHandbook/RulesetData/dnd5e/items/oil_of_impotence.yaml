@@ -10,3 +10,4 @@ properties:
   contraceptive: oil
   durationMinutes: 10
   doses: 1
+requires: { plugin: com.campaignvault.lewd-handbook }

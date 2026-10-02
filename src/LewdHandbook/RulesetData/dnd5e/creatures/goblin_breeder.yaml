@@ -11,3 +11,4 @@ abilities:
   - "Inhibition +2 (Cha). Maximum Arousal 39. Universal Breeder: can impregnate regardless of creature type."
   - "Combat Whip +4 / 1d4+2 piercing. Lewd Multiadvance (two Cock advances); Whip implement 1d6+2 slash stim; Cock 1d8+2 pierce stim."
   - "Hard-limit tags at table: pregnancy, breeding, goblin."
+requires: { plugin: com.campaignvault.lewd-handbook }

@@ -13,3 +13,4 @@ properties:
   suggestedTags: [locked, fresh]
   weight: 0.05
   costGp: 1
+requires: { plugin: com.campaignvault.goblins }

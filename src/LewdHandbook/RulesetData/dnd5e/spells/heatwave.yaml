@@ -1,6 +1,7 @@
 name: heatwave
 system: dnd5e
 level: 2
+school: evocation
 classes: [sorcerer, warlock, wizard]
 concentration: true
 castingTime: 1 action
@@ -11,3 +12,4 @@ materialConsumed: false
 description: >
   2nd-level evocation, 15-ft cone, concentration 1 minute. Dex save; on fail 1d6 fire stimulation and hyperaroused
   for the duration. (Lewd Handbook)
+requires: { plugin: com.campaignvault.lewd-handbook }
