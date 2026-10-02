@@ -10,7 +10,7 @@ This repository is intentionally **separate** from the main CampaignVault tree s
 
 - .NET SDK that targets `net10.0`
 - A CampaignVault host with engine version ≥ `0.15.0` (`minEngineVersion` in `plugin.json`)
-- `CampaignVault.PluginSdk` **0.15.0** (nuget.org, or local `../CampaignVault/nupkgs` via `nuget.config`). Adds body piercings (`piercing` / `PiercingMark` / `core.pierced.v1`). 0.11.x covers dirt, roll modifiers, willpower, and climax-related host surfaces.
+- `CampaignVault.PluginSdk` **0.15.0** (resolved from nuget.org). Adds body piercings (`piercing` / `PiercingMark` / `core.pierced.v1`). 0.11.x covers dirt, roll modifiers, willpower, and climax-related host surfaces.
 
 ## Build
 

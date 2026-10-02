@@ -90,7 +90,7 @@ The characters' own disposition, separate from the player's settings. Set NPCs' 
 
 ## Who is in the scene
 
-`mode_transition` `join` adds `participantIds` to the running scene (they must be recorded adults and act from the next round); `leave` removes them and the scene goes on; the last one out uses `exit`. The scene also ends by itself when a participant travels elsewhere, is interrupted by an encounter, is knocked to 0 HP, finishes a rest, or combat starts around them. The exit runs the usual wrap-up; bindings stay.
+`mode_transition` `join` adds `participantIds` to the running scene (they must be recorded adults and act from the next round); `leave` removes them and the scene goes on; the last one out uses `exit`. The scene also ends by itself when a participant travels elsewhere, is interrupted by an encounter, is knocked to 0 HP or dies, finishes a rest, or combat starts around them. The exit runs the usual wrap-up; bindings stay.
 
 ## `lewd_advance`
 
